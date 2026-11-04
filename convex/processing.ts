@@ -54,3 +54,35 @@ export const saveResults = internalMutation({
     await ctx.db.patch(courseId, { pageCount, mindMap, status: "ready", statusMessage: undefined });
   },
 });
+
+export const saveNextSteps = internalMutation({
+  args: {
+    courseId: v.id("courses"),
+    nextSteps: v.array(
+      v.object({ concept: v.string(), why: v.string(), resourceTitle: v.string(), resourceUrl: v.string() })
+    ),
+  },
+  handler: async (ctx, { courseId, nextSteps }) => {
+    if (await ctx.db.get(courseId)) await ctx.db.patch(courseId, { nextSteps });
+  },
+});
+
+// Topics + best scores for one course, used to write the next-steps prompt.
+export const progressForCourse = internalQuery({
+  args: { courseId: v.id("courses") },
+  handler: async (ctx, { courseId }) => {
+    const topics = await ctx.db
+      .query("topics")
+      .withIndex("by_course", (q) => q.eq("courseId", courseId))
+      .collect();
+    const attempts = await ctx.db
+      .query("quizAttempts")
+      .withIndex("by_course", (q) => q.eq("courseId", courseId))
+      .collect();
+    return topics.map((t) => {
+      const mine = attempts.filter((a) => a.topicId === t._id);
+      const best = mine.length ? Math.max(...mine.map((a) => Math.round((a.score / a.total) * 100))) : null;
+      return { title: t.title, summary: t.summary, best };
+    });
+  },
+});
