@@ -1,9 +1,9 @@
 
  RUN  v5.1.0 /Users/hemanth2ndbrain/Documents/Github/Learning-retention
 
- ❯ convex/dataIsolation.test.ts (1 test | 1 failed) 44ms
+ ❯ convex/dataIsolation.test.ts (1 test | 1 failed) 35ms
    ❯ data isolation (1)
-     × User B cannot see or change User A's data 42ms
+     × User B cannot see or change User A's data 34ms
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
 
@@ -16,7 +16,7 @@ AssertionError: expected [ { …(7) } ] to deeply equal []
 - []
 + [
 +   {
-+     "_creationTime": 1793764526221.003,
++     "_creationTime": 1793830210182.003,
 +     "_id": "0000000000000000000010003courses",
 +     "fileId": "000000000000000000010002_storage",
 +     "status": "ready",
@@ -26,19 +26,19 @@ AssertionError: expected [ { …(7) } ] to deeply equal []
 +   },
 + ]
 
- ❯ convex/dataIsolation.test.ts:49:51
-     47|
-     48|     // User B sees none of it
-     49|     expect(await asB.query(api.courses.list, {})).toEqual([]);
+ ❯ convex/dataIsolation.test.ts:53:51
+     51|
+     52|     // User B sees none of it
+     53|     expect(await asB.query(api.courses.list, {})).toEqual([]);
        |                                                   ^
-     50|     expect(await asB.query(api.courses.get, { courseId })).toBeNull();
-     51|     expect(await asB.query(api.topics.listByCourse, { courseId })).toE…
+     54|     expect(await asB.query(api.courses.get, { courseId })).toBeNull();
+     55|     expect(await asB.query(api.topics.listByCourse, { courseId })).toE…
 
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 
 
  Test Files  1 failed (1)
       Tests  1 failed (1)
-   Start at  19:55:25
-   Duration  620ms (import 44%, transform 33%, environment 12%, tests 10%, worker 1%)
+   Start at  14:10:09
+   Duration  397ms (import 37%, transform 34%, environment 15%, tests 12%, worker 1%)
 

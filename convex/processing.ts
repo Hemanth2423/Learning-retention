@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { subIdea } from "./lessonTypes";
+import { pillarProgress } from "./progress";
 
 export const getCourse = internalQuery({
   args: { courseId: v.id("courses") },
@@ -83,7 +84,7 @@ export const saveNextSteps = internalMutation({
   },
 });
 
-// Topics + best scores for one course, used to write the next-steps prompt.
+// Pillars + the learner's progress on each, used to write the next-steps prompt.
 export const progressForCourse = internalQuery({
   args: { courseId: v.id("courses") },
   handler: async (ctx, { courseId }) => {
@@ -91,14 +92,14 @@ export const progressForCourse = internalQuery({
       .query("topics")
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
-    const attempts = await ctx.db
-      .query("quizAttempts")
+    const answers = await ctx.db
+      .query("answers")
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
-    return topics.map((t) => {
-      const mine = attempts.filter((a) => a.topicId === t._id);
-      const best = mine.length ? Math.max(...mine.map((a) => Math.round((a.score / a.total) * 100))) : null;
-      return { title: t.title, summary: t.summary, best };
-    });
+    return topics.map((t) => ({
+      title: t.title,
+      summary: t.summary,
+      ...pillarProgress(answers.filter((a) => a.topicId === t._id)),
+    }));
   },
 });

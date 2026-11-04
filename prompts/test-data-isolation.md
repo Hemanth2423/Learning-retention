@@ -17,3 +17,10 @@ Writing any new query that reads a table without filtering by the logged-in user
 
 ## Bug caught while writing the test
 - convex-test couldn't find the `_generated` folder: the glob pattern from its docs (`!(*.*.*)`) doesn't work with Vite 8. Fixed with an explicit include/exclude list in `convex/test.setup.ts`.
+
+## Update: concept model + adaptive checks
+
+The fixture now uses the new pillar fields and an `answers` row instead of a quiz attempt. Added: User B calling
+`lessons.ensure` on User A's pillar must do nothing (B can't make the app spend tokens on A's lessons).
+Evidence re-run with the same break (`courses.list` without the `by_user` filter): red → `data-isolation-RED.txt`,
+revert → green → `data-isolation-GREEN.txt`.

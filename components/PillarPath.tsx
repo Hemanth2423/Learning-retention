@@ -10,12 +10,12 @@ export function PillarPath({ steps, currentId }: { steps: PathStep[]; currentId:
         {steps.map((s) => {
           const current = s._id === currentId;
           return (
-            <li key={s._id} className="min-w-0 flex-1">
+            <li key={s._id} className="min-w-24 flex-1">
               <Link
                 href={`/topics/${s._id}`}
                 aria-current={current ? "step" : undefined}
                 title={s.title}
-                className="group block min-w-24"
+                className="group block"
               >
                 <span
                   className={`block h-1.5 rounded-full ${

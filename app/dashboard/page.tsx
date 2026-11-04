@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { ScoreChart } from "@/components/ScoreChart";
@@ -17,22 +18,23 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 function Dashboard() {
-  const s = useQuery(api.dashboard.stats);
+  const [tzOffsetMinutes] = useState(() => new Date().getTimezoneOffset());
+  const s = useQuery(api.dashboard.stats, { tzOffsetMinutes });
   if (s === undefined) return <p className="text-muted">Loading…</p>;
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Courses" value={String(s.courseCount)} hint={`${s.topicCount} topics total`} />
-        <Stat label="Topics mastered" value={`${s.mastered} / ${s.topicCount}`} hint="Best quiz score ≥ 80%" />
-        <Stat label="Average quiz score" value={s.averageScore === null ? "—" : `${s.averageScore}%`} hint={`Across ${s.quizzesTaken} quiz${s.quizzesTaken === 1 ? "" : "zes"}`} />
-        <Stat label="Quizzes this week" value={String(s.quizzesThisWeek)} hint="Last 7 days" />
+        <Stat label="Courses" value={String(s.courseCount)} hint={`${s.topicCount} pillars total`} />
+        <Stat label="Pillars mastered" value={`${s.mastered} / ${s.topicCount}`} hint="A scenario question answered right" />
+        <Stat label="Accuracy" value={s.accuracy === null ? "—" : `${s.accuracy}%`} hint={`Across ${s.checksAnswered} answer${s.checksAnswered === 1 ? "" : "s"}`} />
+        <Stat label="Checks this week" value={String(s.checksThisWeek)} hint="Questions answered, last 7 days" />
       </div>
       <section className="card">
-        <h2 className="font-serif text-xl">Quiz scores over time</h2>
-        <p className="mb-4 text-sm text-muted">Each dot is one quiz attempt. Above the dashed line = mastered.</p>
+        <h2 className="font-serif text-xl">Accuracy over time</h2>
+        <p className="mb-4 text-sm text-muted">Each dot is one day: the share of check questions you got right.</p>
         {s.timeline.length === 0 ? (
           <p className="py-12 text-center text-muted">
-            Take your first quiz to see your progress here. <Link href="/courses" className="underline">Go to courses</Link>
+            Answer your first check question to see your progress here. <Link href="/courses" className="underline">Go to courses</Link>
           </p>
         ) : (
           <ScoreChart data={s.timeline} />

@@ -4,7 +4,7 @@ import { api } from "./_generated/api";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
-// Given User A has a course with a topic, a quiz attempt, and a star,
+// Given User A has a course with a pillar, an answered check, and a star,
 // when User B logs in and lists, opens, searches, or edits,
 // then User B sees nothing of User A's and can't change it.
 describe("data isolation", () => {
@@ -37,7 +37,7 @@ describe("data isolation", () => {
         examples: [],
         checks: [],
       });
-      await ctx.db.insert("quizAttempts", { userId: userA, topicId, courseId, score: 4, total: 5 });
+      await ctx.db.insert("answers", { userId: userA, courseId, topicId, checkId: "apply", level: "apply", correct: true });
       await ctx.db.insert("stars", { userId: userA, topicId });
       return { userA, userB, courseId, topicId };
     });
@@ -56,7 +56,7 @@ describe("data isolation", () => {
     expect(await asB.query(api.topics.get, { topicId })).toBeNull();
     expect((await asB.query(api.topics.find, { text: "photo", mastery: "all", sort: "newest" })).rows).toEqual([]);
     expect(await asB.query(api.stars.listMine, {})).toEqual([]);
-    expect((await asB.query(api.dashboard.stats, {})).quizzesTaken).toBe(0);
+    expect((await asB.query(api.dashboard.stats, {})).checksAnswered).toBe(0);
 
     // ...can't make the app spend tokens building A's lessons...
     await asB.mutation(api.lessons.ensure, { topicId });

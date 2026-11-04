@@ -1,34 +1,34 @@
 
  RUN  v5.1.0 /Users/hemanth2ndbrain/Documents/Github/Learning-retention
 
- ❯ convex/dashboard.test.ts (2 tests | 1 failed) 11ms
+ ❯ convex/dashboard.test.ts (3 tests | 1 failed) 11ms
    ❯ dashboard stats (2)
-     × average quiz score is calculated correctly 8ms
+     × accuracy and mastery are calculated correctly 8ms
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
 
- FAIL  convex/dashboard.test.ts > dashboard stats > average quiz score is calculated correctly
-AssertionError: expected 4 to be 80 // Object.is equality
+ FAIL  convex/dashboard.test.ts > dashboard stats > accuracy and mastery are calculated correctly
+AssertionError: expected 3 to be 2 // Object.is equality
 
 - Expected
 + Received
 
-- 80
-+ 4
+- 2
++ 3
 
- ❯ convex/dashboard.test.ts:19:32
-     17|     const stats = computeStats(1, ["t1", "t2", "t3"], attempts, now);
-     18|
-     19|     expect(stats.averageScore).toBe(80); // (80 + 60 + 100) / 3
-       |                                ^
-     20|     expect(stats.quizzesTaken).toBe(3);
-     21|     expect(stats.quizzesThisWeek).toBe(2);
+ ❯ convex/dashboard.test.ts:25:28
+     23|     expect(stats.checksAnswered).toBe(5);
+     24|     expect(stats.checksThisWeek).toBe(3);
+     25|     expect(stats.mastered).toBe(2); // t1, t2 — not t3 (easier only), …
+       |                            ^
+     26|   });
+     27|
 
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 
 
  Test Files  1 failed (1)
-      Tests  1 failed | 1 passed (2)
-   Start at  19:55:52
-   Duration  262ms (environment 46%, transform 33%, tests 9%, import 9%, worker 3%)
+      Tests  1 failed | 2 passed (3)
+   Start at  14:10:08
+   Duration  263ms (environment 54%, transform 23%, import 10%, tests 9%, worker 4%)
 
