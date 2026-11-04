@@ -1,15 +1,16 @@
 # schema.md — Ingrain database
 
-Ingrain uses **Convex**. Each table holds documents; every row automatically gets `_id` (primary key) and `_creationTime` (date). A column typed `→ table` stores that table's `_id`: it's the foreign key. The source of truth is [`convex/schema.ts`](convex/schema.ts).
+Ingrain uses **Convex**. Each table holds documents; every row automatically gets `_id` (primary key) and `_creationTime` (date). A column typed `→ table` stores that table's `_id`: it's the foreign key. The source of truth is [`convex/schema.ts`](convex/schema.ts) (lesson shapes in [`convex/lessonTypes.ts`](convex/lessonTypes.ts)).
 
 ## Diagram
 
 ```mermaid
 erDiagram
   users ||--o{ courses : "owns"
-  courses ||--o{ topics : "is broken into"
-  topics ||--o{ quizAttempts : "is tested by"
-  users ||--o{ quizAttempts : "takes"
+  courses ||--o{ topics : "is broken into (pillars)"
+  topics ||--o{ answers : "is checked by"
+  courses ||--o{ answers : "has"
+  users ||--o{ answers : "gives"
   users ||--o{ stars : "stars"
   topics ||--o{ stars : "is starred in"
 
@@ -25,7 +26,9 @@ erDiagram
     number pageCount
     text status
     text statusMessage
-    text mindMap
+    text thesis
+    list conceptLinks
+    object capstone
     list nextSteps
     date _creationTime }
   topics { id _id PK
@@ -34,15 +37,20 @@ erDiagram
     number order
     text title
     text summary
-    list keyPoints
+    list subIdeas
+    list insights
+    list misconceptions
+    text lessonStatus
+    object lesson
     list examples
-    list quiz }
-  quizAttempts { id _id PK
+    list checks }
+  answers { id _id PK
     id userId FK
-    id topicId FK
     id courseId FK
-    number score
-    number total
+    id topicId FK
+    text checkId
+    text level
+    bool correct
     date _creationTime }
   stars { id _id PK
     id userId FK
@@ -60,40 +68,50 @@ Created by Convex Auth when someone signs up. Columns: `_id`, `email` (text), `_
 |---|---|---|
 | `userId` | → users | owner |
 | `title` | text | required, ≤ 120 chars |
-| `subject` | text | required, ≤ 60 chars |
+| `subject` | text | optional (empty string = none), ≤ 60 chars |
 | `notes` | text (optional) | ≤ 1,000 chars |
 | `fileId` | → file storage | the PDF |
 | `pageCount` | number (optional) | set after processing |
 | `status` | text | `processing` / `ready` / `failed` |
 | `statusMessage` | text (optional) | progress or error shown to the user |
-| `mindMap` | text (optional) | markdown outline for the mind map |
+| `thesis` | text (optional) | the one big idea from the concept model |
+| `conceptLinks` | list of {from, to, relation} (optional) | how pillars connect, e.g. "feeds into" |
+| `capstone` | {status, error?, checks[]} (optional) | end-of-course "connect" questions, built on demand |
 | `nextSteps` | list of {concept, why, resourceTitle, resourceUrl} (optional) | AI suggestions + real links |
+| `mindMap` | text (optional) | legacy; the concept map is now drawn from `topics` |
 
-### topics — key topics extracted from a course
+### topics — one pillar (core idea) of a course
 | Column | Type | Notes |
 |---|---|---|
 | `courseId` | → courses | parent course |
 | `userId` | → users | copied from the course so every query can filter by owner |
-| `order` | number | position in the course |
+| `order` | number | learning order (prerequisites first) |
 | `title`, `summary` | text | |
-| `keyPoints` | list of text | 3–5 points |
+| `subIdeas` | list of {title, detail, children[]} | the levels of the concept map |
+| `insights` | list of {text, quote} | what the lesson must teach, with a supporting phrase |
+| `misconceptions` | list of text | become the "common trap" and the wrong answer options |
+| `searchQuery` | text | for finding real-world examples |
+| `lessonStatus` | text | `pending` / `generating` / `ready` / `failed`: lessons are built on demand |
+| `lesson` | {hook, visual, takeaways[], trap?} (optional) | `visual` is one of 5 templates: flow, cycle, compare, matrix, hierarchy |
 | `examples` | list of {title, description, sourceUrl} | real cases from web search |
-| `quiz` | list of {question, options[4], answerIndex, explanation} | answers never sent to the browser before submit |
+| `checks` | list of {id, level, question, options[4], answerIndex, explanation} | levels `apply` / `easier` / `stretch`. Answers are never sent to the browser before answering |
 
-### quizAttempts — every quiz taken
-`userId` → users, `topicId` → topics, `courseId` → courses, `score` (number correct), `total` (number of questions), `_creationTime` (when).
+### answers — every check question answered
+`userId` → users, `courseId` → courses, `topicId` → topics (empty for end-of-course questions), `checkId`, `level` (`apply` / `easier` / `stretch` / `connect`), `correct` (true/false), `_creationTime` (when). A pillar is **mastered** once an `apply` or `stretch` answer is correct.
 
 ### stars — junction table
-`userId` → users, `topicId` → topics. One row = "this user starred this topic". One table for everyone; at most one row per (user, topic), enforced by the `by_user_topic` index check in `stars.toggle`.
+`userId` → users, `topicId` → topics. One row = "this user starred this pillar". One table for everyone; at most one row per (user, topic), enforced by the `by_user_topic` index check in `stars.toggle`.
 
 ## Relationships in plain English
 - A **user** has many **courses** (one-to-many).
-- A **course** has many **topics** (one-to-many).
-- A **topic** has many **quiz attempts** (one-to-many); each attempt also belongs to one user.
+- A **course** has many **topics** (pillars) (one-to-many).
+- A **topic** has many **answers** (one-to-many); each answer also belongs to one user and one course.
 - **Users ↔ topics** is many-to-many through **stars**.
 
 ## Plan vs. built (compared with PLAN.md section 3)
-- ✅ All 4 planned app tables were built with the planned columns.
-- ➕ Added `courses.statusMessage` so failures (e.g. "Insufficient Balance", "scanned PDF") are visible instead of a stuck spinner.
-- ➖ Removed a full-text search index on `topics.title` that the agent first added; search filters the user's own topics instead (see `prompts/search.md`).
-- ↔ `nextSteps` lives as a list on `courses` (as planned), not in its own table: it's always replaced as a whole and never queried on its own.
+- ✅ The planned tables were built: users, courses, topics, stars (junction).
+- 🔁 **`quizAttempts` was replaced by `answers`** when the 5-question quizzes became adaptive checks: we now store each answer, not one score per quiz, because mastery depends on *which* question was answered right.
+- 🔁 **`topics` became pillars of a concept model**: `keyPoints` and `quiz` were replaced by sub-ideas, insights, misconceptions, an on-demand `lesson`, and a 3-question `checks` pool.
+- ➕ Added `courses.statusMessage` so failures are visible instead of a stuck spinner; `thesis`, `conceptLinks`, and `capstone` support the concept model.
+- ➖ Removed a full-text search index on `topics.title`; search filters the user's own topics instead (see `prompts/search.md`).
+- ↔ `nextSteps` lives as a list on `courses` (as planned): it's always replaced as a whole and never queried on its own.
