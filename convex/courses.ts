@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { getOwnCourse, requireUser } from "./helpers";
 import { CourseFields, validateCourse } from "./validation";
@@ -27,14 +28,17 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     assertValid(args);
-    return await ctx.db.insert("courses", {
+    const courseId = await ctx.db.insert("courses", {
       userId,
       title: args.title.trim(),
       subject: args.subject.trim(),
       notes: args.notes?.trim() || undefined,
       fileId: args.fileId,
       status: "processing",
+      statusMessage: "Queued…",
     });
+    await ctx.scheduler.runAfter(0, internal.ai.processCourse, { courseId });
+    return courseId;
   },
 });
 
@@ -106,5 +110,17 @@ export const remove = mutation({
     for (const a of attempts) await ctx.db.delete(a._id);
     await ctx.storage.delete(course.fileId);
     await ctx.db.delete(courseId);
+  },
+});
+
+// Re-runs the AI breakdown (e.g. after a failure).
+export const reprocess = mutation({
+  args: { courseId: v.id("courses") },
+  handler: async (ctx, { courseId }) => {
+    const userId = await requireUser(ctx);
+    const course = await getOwnCourse(ctx, userId, courseId);
+    if (!course) throw new Error("Course not found.");
+    await ctx.db.patch(courseId, { status: "processing", statusMessage: "Queued…" });
+    await ctx.scheduler.runAfter(0, internal.ai.processCourse, { courseId });
   },
 });
