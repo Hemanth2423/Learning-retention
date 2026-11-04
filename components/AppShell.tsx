@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 
 const NAV = [
   { href: "/courses", label: "Courses" },
+  { href: "/find", label: "Find" },
   { href: "/starred", label: "Starred" },
 ];
 
