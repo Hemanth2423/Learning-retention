@@ -28,7 +28,7 @@ function CourseList() {
               <StatusBadge status={c.status} />
             </div>
             <p className="mt-1 text-sm text-muted">
-              {c.subject} · added {new Date(c._creationTime).toLocaleDateString()}
+              {c.subject && `${c.subject} · `}added {new Date(c._creationTime).toLocaleDateString()}
             </p>
           </Link>
         </li>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { FieldError, errorMessage } from "@/components/FieldError";
+import { PdfDropzone } from "@/components/PdfDropzone";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { FieldErrors, MAX_PDF_MB, validateCourse, validatePdf } from "@/convex/validation";
@@ -53,13 +54,18 @@ function NewCourseForm() {
   return (
     <form onSubmit={onSubmit} noValidate className="card max-w-xl space-y-4">
       <div>
+        <PdfDropzone invalid={!!errors.file} describedBy="file-error" />
+        <p className="mt-2 text-xs text-muted">Up to {MAX_PDF_MB} MB. Works best with one chapter or deck (under ~100 pages).</p>
+        <FieldError id="file-error" message={errors.file} />
+      </div>
+      <div>
         <label className="label" htmlFor="title">Title <span className="text-bad">*</span></label>
         <input id="title" name="title" className="input" aria-invalid={!!errors.title}
           aria-describedby="title-error" placeholder="e.g. Thinking, Fast and Slow — Ch. 1" />
         <FieldError id="title-error" message={errors.title} />
       </div>
       <div>
-        <label className="label" htmlFor="subject">Subject <span className="text-bad">*</span></label>
+        <label className="label" htmlFor="subject">Subject (optional)</label>
         <input id="subject" name="subject" className="input" aria-invalid={!!errors.subject}
           aria-describedby="subject-error" placeholder="e.g. Psychology" />
         <FieldError id="subject-error" message={errors.subject} />
@@ -68,13 +74,6 @@ function NewCourseForm() {
         <label className="label" htmlFor="notes">Notes (optional)</label>
         <textarea id="notes" name="notes" rows={3} className="input" placeholder="Why are you learning this?" />
         <FieldError id="notes-error" message={errors.notes} />
-      </div>
-      <div>
-        <label className="label" htmlFor="file">PDF (chapter or slides) <span className="text-bad">*</span></label>
-        <input id="file" name="file" type="file" accept="application/pdf,.pdf" className="input"
-          aria-invalid={!!errors.file} aria-describedby="file-error" />
-        <p className="mt-1 text-xs text-muted">Up to {MAX_PDF_MB} MB. Works best with one chapter or deck (under ~100 pages).</p>
-        <FieldError id="file-error" message={errors.file} />
       </div>
       {formError && <p role="alert" className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{formError}</p>}
       <button type="submit" disabled={busy} className="btn-primary">

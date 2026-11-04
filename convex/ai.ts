@@ -41,7 +41,7 @@ export const processCourse = internalAction({
       if (source.length < 200) {
         throw new Error("We couldn't find text in this PDF. Scanned pages (images) aren't supported yet.");
       }
-      const sourceBlock = `SOURCE — "${course.title}" (${course.subject}):\n"""\n${source}\n"""`;
+      const sourceBlock = `SOURCE — "${course.title}"${course.subject ? ` (${course.subject})` : ""}:\n"""\n${source}\n"""`;
 
       // 2. Outline: mind map + topics
       await setStatus("Finding the key topics…");

@@ -30,7 +30,7 @@ export const suggest = action({
         },
         {
           role: "user",
-          content: `Course: "${course.title}" (${course.subject}).
+          content: `Course: "${course.title}"${course.subject ? ` (${course.subject})` : ""}.
 Topics and the learner's quiz results:
 ${lines.join("\n")}
 

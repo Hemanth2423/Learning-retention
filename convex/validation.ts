@@ -2,6 +2,7 @@
 
 export const MAX_PDF_MB = 20;
 
+// subject is optional: an empty string means "no subject".
 export type CourseFields = { title: string; subject: string; notes?: string };
 export type FieldErrors = Partial<Record<"title" | "subject" | "notes" | "file", string>>;
 
@@ -11,8 +12,7 @@ export function validateCourse(fields: CourseFields): FieldErrors {
   const subject = fields.subject.trim();
   if (!title) errors.title = "Give your course a title so you can find it later.";
   else if (title.length > 120) errors.title = "Keep the title under 120 characters.";
-  if (!subject) errors.subject = "Add a subject, e.g. “Biology” or “Economics”.";
-  else if (subject.length > 60) errors.subject = "Keep the subject under 60 characters.";
+  if (subject.length > 60) errors.subject = "Keep the subject under 60 characters.";
   if ((fields.notes ?? "").length > 1000) errors.notes = "Notes can be up to 1,000 characters.";
   return errors;
 }
