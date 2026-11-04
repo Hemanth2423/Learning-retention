@@ -125,7 +125,7 @@ function CourseDetail({ courseId }: { courseId: string }) {
           <button className="btn-ghost mt-3" onClick={() => reprocess({ courseId: course._id })}>Try again</button>
         </div>
       )}
-      {course.status === "ready" && course.mindMap && <MindMap markdown={course.mindMap} />}
+      {course.status === "ready" && <MindMap courseId={course._id} title={course.title} />}
       {course.status === "ready" && <TopicList courseId={course._id} thesis={course.thesis} />}
       {course.status === "ready" && <ProgressReport course={course} />}
 

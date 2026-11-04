@@ -17,7 +17,7 @@ export default defineSchema({
     pageCount: v.optional(v.number()),
     status: v.union(v.literal("processing"), v.literal("ready"), v.literal("failed")),
     statusMessage: v.optional(v.string()),
-    mindMap: v.optional(v.string()), // markdown outline rendered by markmap
+    mindMap: v.optional(v.string()), // legacy: old markdown outline; the concept map is now built from topics
     thesis: v.optional(v.string()), // the one big idea of the whole document
     conceptLinks: v.optional(v.array(v.object({ from: v.string(), to: v.string(), relation: v.string() }))),
     nextSteps: v.optional(

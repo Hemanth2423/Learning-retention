@@ -28,7 +28,7 @@ Ingrain (formerly "Recall") turns a chapter or slide deck (PDF) into material bu
 | Auth | Convex Auth (email + password) |
 | AI | DeepSeek API (`deepseek-flash`) |
 | Web search | Firecrawl Search API |
-| Libraries | unpdf (PDF text), markmap (mind map), Recharts (chart) |
+| Libraries | unpdf (PDF text), Recharts (chart); the concept map is a custom React + SVG component |
 | Tests | Vitest + convex-test |
 | Hosting | Vercel (frontend) + Convex cloud (backend) |
 
