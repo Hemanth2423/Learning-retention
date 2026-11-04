@@ -36,11 +36,10 @@ export const saveConceptModel = internalMutation({
     courseId: v.id("courses"),
     pageCount: v.number(),
     thesis: v.string(),
-    mindMap: v.string(),
     conceptLinks: v.array(v.object({ from: v.string(), to: v.string(), relation: v.string() })),
     pillars: v.array(pillarInput),
   },
-  handler: async (ctx, { courseId, pageCount, thesis, mindMap, conceptLinks, pillars }) => {
+  handler: async (ctx, { courseId, pageCount, thesis, conceptLinks, pillars }) => {
     const course = await ctx.db.get(courseId);
     if (!course) return; // deleted while processing
     const old = await ctx.db
@@ -64,7 +63,6 @@ export const saveConceptModel = internalMutation({
     await ctx.db.patch(courseId, {
       pageCount,
       thesis,
-      mindMap,
       conceptLinks,
       status: "ready",
       statusMessage: undefined,

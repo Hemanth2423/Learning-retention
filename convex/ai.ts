@@ -100,7 +100,6 @@ export const processCourse = internalAction({
         courseId,
         pageCount: totalPages,
         thesis: model.thesis ?? "",
-        mindMap: toMindMap(course.title, pillars),
         conceptLinks: links,
         pillars,
       });
@@ -113,16 +112,3 @@ export const processCourse = internalAction({
     }
   },
 });
-
-// Course → pillars → sub-ideas → finer points, as the markdown outline the mind map reads.
-function toMindMap(title: string, pillars: { title: string; subIdeas: SubIdea[] }[]) {
-  const lines = [`# ${title}`];
-  for (const p of pillars) {
-    lines.push(`## ${p.title}`);
-    for (const s of p.subIdeas) {
-      lines.push(`- ${s.title}`);
-      for (const c of s.children) lines.push(`  - ${c}`);
-    }
-  }
-  return lines.join("\n");
-}
