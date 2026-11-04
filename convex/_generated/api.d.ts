@@ -11,6 +11,7 @@
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
 import type * as courses from "../courses.js";
+import type * as dashboard from "../dashboard.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as llm from "../llm.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
   courses: typeof courses;
+  dashboard: typeof dashboard;
   helpers: typeof helpers;
   http: typeof http;
   llm: typeof llm;

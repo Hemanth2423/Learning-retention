@@ -8,6 +8,7 @@ import { ReactNode, useEffect } from "react";
 import { api } from "@/convex/_generated/api";
 
 const NAV = [
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/courses", label: "Courses" },
   { href: "/find", label: "Find" },
   { href: "/starred", label: "Starred" },

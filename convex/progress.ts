@@ -15,3 +15,33 @@ export function bestPct(attempts: { score: number; total: number }[]): number | 
 export function isMastered(best: number | null): boolean {
   return best !== null && best >= MASTERY_PCT;
 }
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+type Attempt = { topicId: string; score: number; total: number; _creationTime: number };
+
+// Everything the dashboard shows, computed from one user's raw rows.
+export function computeStats(
+  courseCount: number,
+  topicIds: string[],
+  attempts: Attempt[],
+  now: number
+) {
+  const percents = attempts.map((a) => pct(a.score, a.total));
+  const averageScore =
+    percents.length > 0 ? Math.round(percents.reduce((sum, p) => sum + p, 0) / percents.length) : null;
+  const mastered = topicIds.filter((id) => isMastered(bestPct(attempts.filter((a) => a.topicId === id)))).length;
+  const quizzesThisWeek = attempts.filter((a) => now - a._creationTime < WEEK_MS).length;
+  const timeline = [...attempts]
+    .sort((a, b) => a._creationTime - b._creationTime)
+    .map((a) => ({ at: a._creationTime, percent: pct(a.score, a.total) }));
+  return {
+    courseCount,
+    topicCount: topicIds.length,
+    mastered,
+    averageScore,
+    quizzesTaken: attempts.length,
+    quizzesThisWeek,
+    timeline,
+  };
+}
