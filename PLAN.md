@@ -84,8 +84,23 @@ Calm and focused, like a good notebook: warm off-white background (`#FAF8F3`), d
 
 ## Plan vs. Reality
 
-_To be filled in when the build is done._
+_Filled in on Nov 4, after the build and my partner's first real use. The plan above is unchanged._
 
 | Planned feature | Shipped / Changed / Cut | Status (Done/Backlogged) | Learning | What changed and why (one line) |
 |---|---|---|---|---|
-| | | | | |
+| 1. Sign up / login | Shipped | Done | Convex Auth kept auth and data in one backend, so isolation was one helper (`requireUser`) used everywhere | Built as planned ([#4](https://github.com/Hemanth2423/Learning-retention/pull/4)). |
+| 2. Data model + upload | Changed | Done | The schema followed the teaching design, so when the pedagogy changed the tables had to change too | `quizAttempts` became `answers` and topics became concept "pillars" ([#6](https://github.com/Hemanth2423/Learning-retention/pull/6), [#44](https://github.com/Hemanth2423/Learning-retention/pull/44)). |
+| 3. CRUD | Shipped | Done | Deleting a course has to clean up everything hanging off it (pillars, answers, stars, the PDF) | As planned, with a cascade delete ([#8](https://github.com/Hemanth2423/Learning-retention/pull/8)). |
+| 4. Validation | Changed | Done | Required fields I picked on paper (subject) were friction for a real user | Subject became optional after Devi's test ([#10](https://github.com/Hemanth2423/Learning-retention/pull/10), [#38](https://github.com/Hemanth2423/Learning-retention/pull/38)). |
+| 5. [C] AI topic breakdown | Changed | Done | The AI took "split into key topics" literally and gave me the document's table of contents | Became a reasoned concept model (pillars by idea, prerequisites first) with on-demand visual lessons ([#12](https://github.com/Hemanth2423/Learning-retention/pull/12), [#40](https://github.com/Hemanth2423/Learning-retention/pull/40)). |
+| 6. [C] Mind map | Changed | Done | Showing everything at once overwhelms; one level at a time reads better | markmap with all nodes open became a custom map: one level open, (+) to go deeper ([#14](https://github.com/Hemanth2423/Learning-retention/pull/14), [#42](https://github.com/Hemanth2423/Learning-retention/pull/42)). |
+| 7. [C] Topic quizzes | Changed | Done | A 5-question quiz grounded in "the source" tested reading, not understanding | Replaced by adaptive checks (apply, then easier, then stretch); mastered = a new scenario answered right ([#16](https://github.com/Hemanth2423/Learning-retention/pull/16), [#32](https://github.com/Hemanth2423/Learning-retention/pull/32), [#44](https://github.com/Hemanth2423/Learning-retention/pull/44)). |
+| 8. Stars + starred view | Shipped | Done | A junction table is simple once ownership is checked on every write | As planned ([#18](https://github.com/Hemanth2423/Learning-retention/pull/18)). |
+| 9. Search / filter / sort | Shipped | Done | The agent added a search index I didn't need; filtering my own rows was enough | Search index removed; also searches sub-ideas and insights ([#20](https://github.com/Hemanth2423/Learning-retention/pull/20)). |
+| 10. Dashboard | Changed | Done | Keeping the math in one pure function made it testable, and the test caught a timezone bug | "Average quiz score" became accuracy, and the chart groups by local day ([#22](https://github.com/Hemanth2423/Learning-retention/pull/22), [#44](https://github.com/Hemanth2423/Learning-retention/pull/44)). |
+| 11. [C] Progress report + next steps | Shipped | Done | Real links only come from search results, never from the model | As planned; now based on pillar mastery ([#24](https://github.com/Hemanth2423/Learning-retention/pull/24)). |
+| V2. Teach-back (Socratic) | Cut | Backlogged | Out of scope for V1, as planned | Not started. |
+| Tests (isolation + dashboard stat) | Changed | Done | Red/green only means something if the break is the rule you care about | Dashboard test moved from an 80% quiz average to 60% accuracy and the mastery rule ([#26](https://github.com/Hemanth2423/Learning-retention/pull/26), [#28](https://github.com/Hemanth2423/Learning-retention/pull/28), [#44](https://github.com/Hemanth2423/Learning-retention/pull/44)). |
+| Technologies: `deepseek-chat` | Changed | Done | Model names change; the plan should say the job, not the model | `deepseek-chat` no longer exists: V4 Pro reads the PDF once, Flash writes lessons ([#12](https://github.com/Hemanth2423/Learning-retention/pull/12), [#40](https://github.com/Hemanth2423/Learning-retention/pull/40)). |
+| Not planned: name, homepage, upload | Added | Done | A stranger needs the "why" and an obvious first step | Renamed to Ingrain with a clear homepage and a (+) drop zone ([#36](https://github.com/Hemanth2423/Learning-retention/pull/36), [#38](https://github.com/Hemanth2423/Learning-retention/pull/38)). |
+| Not planned: cost control | Added | Done | Re-sending the whole PDF on every AI call was the real cost driver | Read the PDF once, build lessons only when opened, log tokens per call ([#40](https://github.com/Hemanth2423/Learning-retention/pull/40)). |
