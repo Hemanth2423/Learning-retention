@@ -50,8 +50,7 @@ export default defineSchema({
     ),
   })
     .index("by_course", ["courseId", "order"])
-    .index("by_user", ["userId"])
-    .searchIndex("search_title", { searchField: "title", filterFields: ["userId"] }),
+    .index("by_user", ["userId"]),
 
   // Every quiz a user takes on a topic. One topic → many attempts.
   quizAttempts: defineTable({
