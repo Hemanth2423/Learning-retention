@@ -15,6 +15,8 @@ import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as llm from "../llm.js";
 import type * as processing from "../processing.js";
+import type * as progress from "../progress.js";
+import type * as quizzes from "../quizzes.js";
 import type * as topics from "../topics.js";
 import type * as users from "../users.js";
 import type * as validation from "../validation.js";
@@ -33,6 +35,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   llm: typeof llm;
   processing: typeof processing;
+  progress: typeof progress;
+  quizzes: typeof quizzes;
   topics: typeof topics;
   users: typeof users;
   validation: typeof validation;
