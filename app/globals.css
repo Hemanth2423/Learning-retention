@@ -45,21 +45,24 @@ body {
   color: var(--ink);
 }
 
-.btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-ink text-paper hover:opacity-90;
-}
-.btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed border border-line bg-card hover:bg-accent-soft;
-}
-.btn-danger {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-bad text-white hover:opacity-90;
-}
-.input {
-  @apply w-full rounded-lg border border-line bg-card px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30;
-}
-.card {
-  @apply rounded-2xl border border-line bg-card p-5;
-}
-.label {
-  @apply mb-1 block text-sm font-medium;
+/* In a layer so utility classes on an element (e.g. p-8, border-accent) can override these. */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-ink text-paper hover:opacity-90;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed border border-line bg-card hover:bg-accent-soft;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-bad text-white hover:opacity-90;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-card px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-card p-5;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium;
+  }
 }

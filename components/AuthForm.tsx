@@ -33,8 +33,19 @@ export function AuthForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="card w-full max-w-sm space-y-4">
-      <h2 className="font-serif text-2xl">{flow === "signUp" ? "Create your account" : "Welcome back"}</h2>
+    <form
+      onSubmit={onSubmit}
+      noValidate
+      className="card w-full max-w-md space-y-5 border-2 border-accent/60 p-8 shadow-xl shadow-accent/10"
+    >
+      <div>
+        <h2 className="font-serif text-3xl">
+          {flow === "signUp" ? "Ingrain your first chapter" : "Welcome back"}
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          {flow === "signUp" ? "Free. Upload a PDF and start learning in about a minute." : "Pick up where you left off."}
+        </p>
+      </div>
       <div>
         <label className="label" htmlFor="email">Email</label>
         <input id="email" name="email" type="email" autoComplete="email" className="input" />
@@ -51,11 +62,11 @@ export function AuthForm() {
         {flow === "signUp" && <p className="mt-1 text-xs text-muted">At least 8 characters.</p>}
       </div>
       {error && <p role="alert" className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
-      <button type="submit" disabled={busy} className="btn-primary w-full">
+      <button type="submit" disabled={busy} className="btn-primary w-full py-3 text-base">
         {busy ? "One moment…" : flow === "signUp" ? "Sign up" : "Log in"}
       </button>
       <p className="text-center text-sm text-muted">
-        {flow === "signUp" ? "Already have an account?" : "New to Recall?"}{" "}
+        {flow === "signUp" ? "Already have an account?" : "New to Ingrain?"}{" "}
         <button
           type="button"
           className="font-medium text-ink underline underline-offset-2"
