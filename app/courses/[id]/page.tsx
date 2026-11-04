@@ -52,7 +52,7 @@ function EditForm({ course, onDone }: { course: Doc<"courses">; onDone: () => vo
         <FieldError id="title-error" message={errors.title} />
       </div>
       <div>
-        <label className="label" htmlFor="subject">Subject</label>
+        <label className="label" htmlFor="subject">Subject (optional)</label>
         <input id="subject" name="subject" defaultValue={course.subject} className="input" aria-invalid={!!errors.subject} aria-describedby="subject-error" />
         <FieldError id="subject-error" message={errors.subject} />
       </div>
@@ -101,7 +101,7 @@ function CourseDetail({ courseId }: { courseId: string }) {
               <StatusBadge status={course.status} />
             </div>
             <p className="mt-1 text-muted">
-              {course.subject} · added {new Date(course._creationTime).toLocaleDateString()}
+              {course.subject && `${course.subject} · `}added {new Date(course._creationTime).toLocaleDateString()}
             </p>
             {course.notes && <p className="mt-3 max-w-2xl">{course.notes}</p>}
           </div>
