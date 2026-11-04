@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 
 const NAV = [
   { href: "/courses", label: "Courses" },
+  { href: "/starred", label: "Starred" },
 ];
 
 // Wraps every logged-in page: redirects visitors to the login page and shows the top nav.
