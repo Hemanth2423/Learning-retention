@@ -1,6 +1,13 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getOwnCourse, requireUser } from "./helpers";
+import { CourseFields, validateCourse } from "./validation";
+
+function assertValid(fields: CourseFields) {
+  const errors = validateCourse(fields);
+  const first = Object.values(errors)[0];
+  if (first) throw new ConvexError(first);
+}
 
 export const generateUploadUrl = mutation({
   args: {},
@@ -19,6 +26,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
+    assertValid(args);
     return await ctx.db.insert("courses", {
       userId,
       title: args.title.trim(),
@@ -63,6 +71,7 @@ export const update = mutation({
     const userId = await requireUser(ctx);
     const course = await getOwnCourse(ctx, userId, courseId);
     if (!course) throw new Error("Course not found.");
+    assertValid(fields);
     await ctx.db.patch(courseId, {
       title: fields.title.trim(),
       subject: fields.subject.trim(),

@@ -6,42 +6,59 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { FieldError, errorMessage } from "@/components/FieldError";
 import { StatusBadge } from "@/components/StatusBadge";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
+import { FieldErrors, validateCourse } from "@/convex/validation";
 
 function EditForm({ course, onDone }: { course: Doc<"courses">; onDone: () => void }) {
   const update = useMutation(api.courses.update);
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    setBusy(true);
-    await update({
-      courseId: course._id,
-      title: String(form.get("title")),
-      subject: String(form.get("subject")),
+    const fields = {
+      title: String(form.get("title") ?? ""),
+      subject: String(form.get("subject") ?? ""),
       notes: String(form.get("notes") ?? ""),
-    });
-    setBusy(false);
-    onDone();
+    };
+    const found = validateCourse(fields);
+    setErrors(found);
+    setFormError(null);
+    if (Object.keys(found).length > 0) return;
+    setBusy(true);
+    try {
+      await update({ courseId: course._id, ...fields });
+      onDone();
+    } catch (err) {
+      setFormError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <form onSubmit={onSubmit} className="card space-y-4">
+    <form onSubmit={onSubmit} noValidate className="card space-y-4">
       <div>
         <label className="label" htmlFor="title">Title</label>
-        <input id="title" name="title" defaultValue={course.title} className="input" />
+        <input id="title" name="title" defaultValue={course.title} className="input" aria-invalid={!!errors.title} aria-describedby="title-error" />
+        <FieldError id="title-error" message={errors.title} />
       </div>
       <div>
         <label className="label" htmlFor="subject">Subject</label>
-        <input id="subject" name="subject" defaultValue={course.subject} className="input" />
+        <input id="subject" name="subject" defaultValue={course.subject} className="input" aria-invalid={!!errors.subject} aria-describedby="subject-error" />
+        <FieldError id="subject-error" message={errors.subject} />
       </div>
       <div>
         <label className="label" htmlFor="notes">Notes (optional)</label>
         <textarea id="notes" name="notes" rows={3} defaultValue={course.notes ?? ""} className="input" />
+        <FieldError id="notes-error" message={errors.notes} />
       </div>
+      {formError && <p role="alert" className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{formError}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={busy} className="btn-primary">{busy ? "Saving…" : "Save changes"}</button>
         <button type="button" className="btn-ghost" onClick={onDone}>Cancel</button>
