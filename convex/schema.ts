@@ -20,6 +20,14 @@ export default defineSchema({
     mindMap: v.optional(v.string()), // legacy: old markdown outline; the concept map is now built from topics
     thesis: v.optional(v.string()), // the one big idea of the whole document
     conceptLinks: v.optional(v.array(v.object({ from: v.string(), to: v.string(), relation: v.string() }))),
+    // End-of-course questions that connect pillars, built on demand.
+    capstone: v.optional(
+      v.object({
+        status: v.union(v.literal("generating"), v.literal("ready"), v.literal("failed")),
+        error: v.optional(v.string()),
+        checks: v.array(check),
+      })
+    ),
     nextSteps: v.optional(
       v.array(
         v.object({
@@ -53,13 +61,15 @@ export default defineSchema({
     .index("by_course", ["courseId", "order"])
     .index("by_user", ["userId"]),
 
-  // Every quiz a user takes on a topic. One topic → many attempts.
-  quizAttempts: defineTable({
+  // Every check question a learner answers. One pillar → many answers.
+  // topicId is empty for the end-of-course "connect" questions.
+  answers: defineTable({
     userId: v.id("users"),
-    topicId: v.id("topics"),
     courseId: v.id("courses"),
-    score: v.number(),
-    total: v.number(),
+    topicId: v.optional(v.id("topics")),
+    checkId: v.string(),
+    level: v.union(v.literal("apply"), v.literal("easier"), v.literal("stretch"), v.literal("connect")),
+    correct: v.boolean(),
   })
     .index("by_user", ["userId"])
     .index("by_topic", ["topicId"])

@@ -46,6 +46,34 @@ export function cleanChecks(raw: RawCheck[] | undefined, random = Math.random): 
   return has("apply") && has("easier") ? out : null;
 }
 
+// End-of-course questions: same rules, all level "connect". Needs at least 2 usable questions.
+export function cleanConnectChecks(raw: RawCheck[] | undefined, random = Math.random): Check[] | null {
+  const out: Check[] = [];
+  for (const q of raw ?? []) {
+    if (
+      typeof q.question !== "string" ||
+      !Array.isArray(q.options) ||
+      q.options.length !== 4 ||
+      typeof q.answerIndex !== "number" ||
+      q.answerIndex < 0 ||
+      q.answerIndex > 3 ||
+      [q.question, ...q.options].some(mentionsSource)
+    )
+      continue;
+    const order = shuffle([0, 1, 2, 3], random);
+    out.push({
+      id: `connect-${out.length}`,
+      level: "connect",
+      question: q.question,
+      options: order.map((i) => q.options![i]),
+      answerIndex: order.indexOf(q.answerIndex),
+      explanation: q.explanation ?? "",
+    });
+    if (out.length === 3) break;
+  }
+  return out.length >= 2 ? out : null;
+}
+
 function shuffle<T>(arr: T[], random: () => number) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {

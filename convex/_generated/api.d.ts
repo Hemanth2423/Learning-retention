@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
+import type * as checks from "../checks.js";
 import type * as courses from "../courses.js";
 import type * as dashboard from "../dashboard.js";
 import type * as helpers from "../helpers.js";
@@ -35,6 +36,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
+  checks: typeof checks;
   courses: typeof courses;
   dashboard: typeof dashboard;
   helpers: typeof helpers;

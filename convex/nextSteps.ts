@@ -3,7 +3,6 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import { askJson, webSearch } from "./llm";
-import { MASTERY_PCT } from "./progress";
 
 type Suggestion = { concepts: { concept: string; why: string; searchQuery: string }[] };
 
@@ -18,7 +17,8 @@ export const suggest = action({
 
     const progress = await ctx.runQuery(internal.processing.progressForCourse, { courseId });
     const lines = progress.map(
-      (t) => `- ${t.title}: ${t.best === null ? "not tested" : `best quiz ${t.best}%`}${t.best !== null && t.best >= MASTERY_PCT ? " (mastered)" : ""}`
+      (t) =>
+        `- ${t.title}: ${t.state === "untested" ? "not tested" : `${t.state === "mastered" ? "mastered" : "needs work"} (${t.correct}/${t.answered} check questions right)`}`
     );
 
     let suggestion: Suggestion;
@@ -31,7 +31,7 @@ export const suggest = action({
         {
           role: "user",
           content: `Course: "${course.title}"${course.subject ? ` (${course.subject})` : ""}.
-Topics and the learner's quiz results:
+Pillars and the learner's results on scenario check questions:
 ${lines.join("\n")}
 
 Suggest 3–5 NEXT concepts to learn. Rules:

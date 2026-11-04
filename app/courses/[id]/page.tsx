@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { CapstoneChecks } from "@/components/Capstone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FieldError, errorMessage } from "@/components/FieldError";
 import { MindMap } from "@/components/MindMap";
@@ -15,7 +16,7 @@ import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
 import { FieldErrors, validateCourse } from "@/convex/validation";
 
-function EditForm({ course, onDone }: { course: Doc<"courses">; onDone: () => void }) {
+function EditForm({ course, onDone }: { course: Omit<Doc<"courses">, "capstone">; onDone: () => void }) {
   const update = useMutation(api.courses.update);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -127,12 +128,13 @@ function CourseDetail({ courseId }: { courseId: string }) {
       )}
       {course.status === "ready" && <MindMap courseId={course._id} title={course.title} />}
       {course.status === "ready" && <TopicList courseId={course._id} thesis={course.thesis} />}
+      {course.status === "ready" && <CapstoneChecks courseId={course._id} capstone={course.capstone} />}
       {course.status === "ready" && <ProgressReport course={course} />}
 
       <ConfirmDialog
         open={confirming}
         title="Delete this course?"
-        message={`"${course.title}" and all its topics, quiz scores, and stars will be permanently deleted. Are you sure?`}
+        message={`"${course.title}" and all its lessons, answers, and stars will be permanently deleted. Are you sure?`}
         confirmLabel="Yes, delete it"
         onCancel={() => setConfirming(false)}
         onConfirm={async () => {

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireUser } from "./helpers";
-import { bestPct, isMastered } from "./progress";
+import { pillarProgress } from "./progress";
 
 export const listByCourse = query({
   args: { courseId: v.string() },
@@ -13,15 +13,15 @@ export const listByCourse = query({
       .query("topics")
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
-    const attempts = await ctx.db
-      .query("quizAttempts")
+    const answers = await ctx.db
+      .query("answers")
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
     return topics
       .filter((t) => t.userId === userId)
       .map(({ checks: _checks, lesson: _lesson, insights: _insights, ...t }) => ({
         ...t,
-        best: bestPct(attempts.filter((a) => a.topicId === t._id && a.userId === userId)),
+        progress: pillarProgress(answers.filter((a) => a.topicId === t._id && a.userId === userId)),
       }));
   },
 });
@@ -41,12 +41,24 @@ export const get = query({
       .query("topics")
       .withIndex("by_course", (q) => q.eq("courseId", topic.courseId))
       .collect();
+    const answers = await ctx.db
+      .query("answers")
+      .withIndex("by_course", (q) => q.eq("courseId", topic.courseId))
+      .collect();
+    const progressOf = (id: string) => pillarProgress(answers.filter((a) => a.topicId === id && a.userId === userId));
     return {
       ...topic,
       checks,
       courseTitle: course?.title ?? "",
       // The whole course path, for the "where am I / what's next" progression.
-      path: path.map((p) => ({ _id: p._id, order: p.order, title: p.title, lessonStatus: p.lessonStatus })),
+      path: path.map((p) => ({
+        _id: p._id,
+        order: p.order,
+        title: p.title,
+        lessonStatus: p.lessonStatus,
+        mastered: progressOf(p._id).state === "mastered",
+      })),
+      progress: progressOf(topic._id),
     };
   },
 });
@@ -61,10 +73,10 @@ export const find = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    const [topics, courses, attempts, stars] = await Promise.all([
+    const [topics, courses, answers, stars] = await Promise.all([
       ctx.db.query("topics").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
       ctx.db.query("courses").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-      ctx.db.query("quizAttempts").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+      ctx.db.query("answers").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
       ctx.db.query("stars").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
     ]);
     const courseTitle = new Map(courses.map((c) => [c._id as string, c.title]));
@@ -74,7 +86,7 @@ export const find = query({
     let rows = topics.map(({ checks: _checks, examples: _examples, lesson: _lesson, ...t }) => ({
       ...t,
       courseTitle: courseTitle.get(t.courseId) ?? "",
-      best: bestPct(attempts.filter((a) => a.topicId === t._id)),
+      progress: pillarProgress(answers.filter((a) => a.topicId === t._id)),
       starred: starred.has(t._id),
     }));
 
@@ -86,11 +98,11 @@ export const find = query({
       );
     }
     if (args.courseId) rows = rows.filter((t) => t.courseId === args.courseId);
-    if (args.mastery === "mastered") rows = rows.filter((t) => isMastered(t.best));
-    if (args.mastery === "notMastered") rows = rows.filter((t) => t.best !== null && !isMastered(t.best));
-    if (args.mastery === "untested") rows = rows.filter((t) => t.best === null);
+    if (args.mastery === "mastered") rows = rows.filter((t) => t.progress.state === "mastered");
+    if (args.mastery === "notMastered") rows = rows.filter((t) => t.progress.state === "learning");
+    if (args.mastery === "untested") rows = rows.filter((t) => t.progress.state === "untested");
 
-    const score = (t: { best: number | null }) => t.best ?? -1;
+    const score = (t: { progress: { score: number | null } }) => t.progress.score ?? -1;
     const sorters = {
       newest: (a: (typeof rows)[number], b: (typeof rows)[number]) => b._creationTime - a._creationTime || a.order - b.order,
       oldest: (a: (typeof rows)[number], b: (typeof rows)[number]) => a._creationTime - b._creationTime || a.order - b.order,

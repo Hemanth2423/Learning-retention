@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { LessonVisual } from "@/components/LessonVisual";
+import { PillarChecks } from "@/components/PillarChecks";
 import { PillarPath } from "@/components/PillarPath";
 import { StarButton } from "@/components/StarButton";
 import { api } from "@/convex/_generated/api";
@@ -117,6 +118,13 @@ function LessonDetail({ topicId }: { topicId: string }) {
               </div>
             )}
           </section>
+
+          <PillarChecks
+            topicId={topic._id}
+            checks={topic.checks}
+            mastered={topic.progress.state === "mastered"}
+            answered={topic.progress.answered}
+          />
         </>
       )}
 

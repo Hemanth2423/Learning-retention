@@ -60,7 +60,14 @@ export const get = query({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     const courseId = ctx.db.normalizeId("courses", args.courseId); // bad URLs → null, not a crash
-    return courseId ? await getOwnCourse(ctx, userId, courseId) : null;
+    const course = courseId ? await getOwnCourse(ctx, userId, courseId) : null;
+    if (!course) return null;
+    // Hide the connect questions' answers until they're answered.
+    const capstone = course.capstone && {
+      ...course.capstone,
+      checks: course.capstone.checks.map(({ id, level, question, options }) => ({ id, level, question, options })),
+    };
+    return { ...course, capstone };
   },
 });
 
@@ -103,11 +110,11 @@ export const remove = mutation({
       for (const s of stars) await ctx.db.delete(s._id);
       await ctx.db.delete(topic._id);
     }
-    const attempts = await ctx.db
-      .query("quizAttempts")
+    const answers = await ctx.db
+      .query("answers")
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
-    for (const a of attempts) await ctx.db.delete(a._id);
+    for (const a of answers) await ctx.db.delete(a._id);
     await ctx.storage.delete(course.fileId);
     await ctx.db.delete(courseId);
   },

@@ -40,7 +40,7 @@ export const lesson = v.object({
 // One question in a pillar's pool. Levels decide when it's shown (see the checks feature).
 export const check = v.object({
   id: v.string(),
-  level: v.union(v.literal("apply"), v.literal("easier"), v.literal("stretch")),
+  level: v.union(v.literal("apply"), v.literal("easier"), v.literal("stretch"), v.literal("connect")),
   question: v.string(),
   options: v.array(v.string()),
   answerIndex: v.number(),

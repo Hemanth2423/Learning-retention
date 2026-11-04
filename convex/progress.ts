@@ -1,47 +1,61 @@
-// Pure helpers for scoring and mastery (easy to unit test).
+// Pure helpers for mastery and dashboard stats (easy to unit test).
 
-export const MASTERY_PCT = 80;
-
-export function pct(score: number, total: number): number {
-  return total > 0 ? Math.round((score / total) * 100) : 0;
+export function pct(correct: number, total: number): number {
+  return total > 0 ? Math.round((correct / total) * 100) : 0;
 }
 
-// Best score (as %) across a topic's attempts, or null if never attempted.
-export function bestPct(attempts: { score: number; total: number }[]): number | null {
-  if (attempts.length === 0) return null;
-  return Math.max(...attempts.map((a) => pct(a.score, a.total)));
+export type Level = "apply" | "easier" | "stretch" | "connect";
+export type Answer = { topicId?: string; level: Level; correct: boolean; _creationTime: number };
+export type PillarState = "mastered" | "learning" | "untested";
+
+// A pillar is mastered once the learner gets a scenario question (apply or stretch) right.
+// Getting only the easier, direct question right isn't enough: it shows recall, not understanding.
+export function pillarState(answers: Answer[]): PillarState {
+  if (answers.length === 0) return "untested";
+  return answers.some((a) => a.correct && (a.level === "apply" || a.level === "stretch")) ? "mastered" : "learning";
 }
 
-export function isMastered(best: number | null): boolean {
-  return best !== null && best >= MASTERY_PCT;
+// One pillar's progress from its own answers: state plus % correct (null if never answered).
+export function pillarProgress(answers: Answer[]) {
+  const correct = answers.filter((a) => a.correct).length;
+  return {
+    state: pillarState(answers),
+    correct,
+    answered: answers.length,
+    score: answers.length ? pct(correct, answers.length) : null,
+  };
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-type Attempt = { topicId: string; score: number; total: number; _creationTime: number };
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
 
 // Everything the dashboard shows, computed from one user's raw rows.
-export function computeStats(
-  courseCount: number,
-  topicIds: string[],
-  attempts: Attempt[],
-  now: number
-) {
-  const percents = attempts.map((a) => pct(a.score, a.total));
-  const averageScore =
-    percents.length > 0 ? Math.round(percents.reduce((sum, p) => sum + p, 0) / percents.length) : null;
-  const mastered = topicIds.filter((id) => isMastered(bestPct(attempts.filter((a) => a.topicId === id)))).length;
-  const quizzesThisWeek = attempts.filter((a) => now - a._creationTime < WEEK_MS).length;
-  const timeline = [...attempts]
-    .sort((a, b) => a._creationTime - b._creationTime)
-    .map((a) => ({ at: a._creationTime, percent: pct(a.score, a.total) }));
+// tzOffsetMinutes is the browser's Date.getTimezoneOffset(), so days split at the learner's local midnight.
+export function computeStats(courseCount: number, topicIds: string[], answers: Answer[], now: number, tzOffsetMinutes = 0) {
+  const shift = tzOffsetMinutes * 60 * 1000;
+  const correct = answers.filter((a) => a.correct).length;
+  const mastered = topicIds.filter((id) => pillarState(answers.filter((a) => a.topicId === id)) === "mastered").length;
+
+  // Accuracy per day, oldest first, for the chart.
+  const byDay = new Map<number, { correct: number; total: number }>();
+  for (const a of answers) {
+    const day = Math.floor((a._creationTime - shift) / DAY_MS) * DAY_MS + shift; // local midnight
+    const d = byDay.get(day) ?? { correct: 0, total: 0 };
+    d.total++;
+    if (a.correct) d.correct++;
+    byDay.set(day, d);
+  }
+  const timeline = [...byDay.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([day, d]) => ({ at: day, percent: pct(d.correct, d.total), count: d.total }));
+
   return {
     courseCount,
     topicCount: topicIds.length,
     mastered,
-    averageScore,
-    quizzesTaken: attempts.length,
-    quizzesThisWeek,
+    accuracy: answers.length ? pct(correct, answers.length) : null,
+    checksAnswered: answers.length,
+    checksThisWeek: answers.filter((a) => now - a._creationTime < WEEK_MS).length,
     timeline,
   };
 }

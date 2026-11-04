@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { api } from "@/convex/_generated/api";
-import { isMastered } from "@/convex/progress";
 
 type Mastery = "all" | "mastered" | "notMastered" | "untested";
 type Sort = "newest" | "oldest" | "scoreHigh" | "scoreLow" | "az";
@@ -35,7 +34,7 @@ function FindTopics() {
         <div>
           <label className="label" htmlFor="mastery">Progress</label>
           <select id="mastery" className="input" value={mastery} onChange={(e) => setMastery(e.target.value as Mastery)}>
-            <option value="all">All topics</option>
+            <option value="all">All pillars</option>
             <option value="mastered">Mastered</option>
             <option value="notMastered">Needs work</option>
             <option value="untested">Not tested yet</option>
@@ -59,7 +58,7 @@ function FindTopics() {
         <p className="card text-center text-muted">No topics match. Try a different word or clear the filters.</p>
       ) : (
         <>
-          <p className="text-sm text-muted">{data.rows.length} topic{data.rows.length === 1 ? "" : "s"}</p>
+          <p className="text-sm text-muted">{data.rows.length} pillar{data.rows.length === 1 ? "" : "s"}</p>
           <ul className="space-y-3">
             {data.rows.map((t) => (
               <li key={t._id}>
@@ -70,8 +69,8 @@ function FindTopics() {
                     <p className="mt-1 line-clamp-2 text-sm text-muted">{t.summary}</p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    t.best === null ? "text-muted" : isMastered(t.best) ? "bg-good/15 text-good" : "bg-accent-soft"}`}>
-                    {t.best === null ? "Not tested" : `${t.best}%`}
+                    t.progress.state === "untested" ? "text-muted" : t.progress.state === "mastered" ? "bg-good/15 text-good" : "bg-accent-soft"}`}>
+                    {t.progress.state === "untested" ? "Not tested" : t.progress.state === "mastered" ? "Mastered" : `${t.progress.score}% right`}
                   </span>
                 </Link>
               </li>
