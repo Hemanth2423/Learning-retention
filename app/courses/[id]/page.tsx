@@ -7,6 +7,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FieldError, errorMessage } from "@/components/FieldError";
+import { MindMap } from "@/components/MindMap";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TopicList } from "@/components/TopicList";
 import { api } from "@/convex/_generated/api";
@@ -123,6 +124,7 @@ function CourseDetail({ courseId }: { courseId: string }) {
           <button className="btn-ghost mt-3" onClick={() => reprocess({ courseId: course._id })}>Try again</button>
         </div>
       )}
+      {course.status === "ready" && course.mindMap && <MindMap markdown={course.mindMap} />}
       {course.status === "ready" && <TopicList courseId={course._id} />}
 
       <ConfirmDialog
