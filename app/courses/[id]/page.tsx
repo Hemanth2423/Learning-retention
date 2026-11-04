@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FieldError, errorMessage } from "@/components/FieldError";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TopicList } from "@/components/TopicList";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
 import { FieldErrors, validateCourse } from "@/convex/validation";
@@ -70,6 +71,7 @@ function EditForm({ course, onDone }: { course: Doc<"courses">; onDone: () => vo
 function CourseDetail({ courseId }: { courseId: string }) {
   const course = useQuery(api.courses.get, { courseId });
   const remove = useMutation(api.courses.remove);
+  const reprocess = useMutation(api.courses.reprocess);
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -107,6 +109,21 @@ function CourseDetail({ courseId }: { courseId: string }) {
           </div>
         </header>
       )}
+
+      {course.status === "processing" && (
+        <div className="card flex items-center gap-3">
+          <span className="h-3 w-3 animate-pulse rounded-full bg-accent" />
+          <p>{course.statusMessage ?? "Working on it…"} <span className="text-muted">This usually takes 1–2 minutes. You can leave this page.</span></p>
+        </div>
+      )}
+      {course.status === "failed" && (
+        <div className="card border-bad/40">
+          <p className="font-medium text-bad">We couldn&apos;t break this document down.</p>
+          <p className="mt-1 text-sm text-muted">{course.statusMessage}</p>
+          <button className="btn-ghost mt-3" onClick={() => reprocess({ courseId: course._id })}>Try again</button>
+        </div>
+      )}
+      {course.status === "ready" && <TopicList courseId={course._id} />}
 
       <ConfirmDialog
         open={confirming}
