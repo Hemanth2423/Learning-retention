@@ -13,6 +13,7 @@ import type * as courses from "../courses.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as users from "../users.js";
+import type * as validation from "../validation.js";
 
 import type {
   ApiFromModules,
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   helpers: typeof helpers;
   http: typeof http;
   users: typeof users;
+  validation: typeof validation;
 }>;
 
 /**
