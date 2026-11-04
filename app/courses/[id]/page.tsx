@@ -126,7 +126,7 @@ function CourseDetail({ courseId }: { courseId: string }) {
         </div>
       )}
       {course.status === "ready" && course.mindMap && <MindMap markdown={course.mindMap} />}
-      {course.status === "ready" && <TopicList courseId={course._id} />}
+      {course.status === "ready" && <TopicList courseId={course._id} thesis={course.thesis} />}
       {course.status === "ready" && <ProgressReport course={course} />}
 
       <ConfirmDialog

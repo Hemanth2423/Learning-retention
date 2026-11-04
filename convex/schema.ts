@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { check, lesson, subIdea } from "./lessonTypes";
 
 export default defineSchema({
   // users (+ sessions/accounts) come from Convex Auth.
@@ -17,6 +18,8 @@ export default defineSchema({
     status: v.union(v.literal("processing"), v.literal("ready"), v.literal("failed")),
     statusMessage: v.optional(v.string()),
     mindMap: v.optional(v.string()), // markdown outline rendered by markmap
+    thesis: v.optional(v.string()), // the one big idea of the whole document
+    conceptLinks: v.optional(v.array(v.object({ from: v.string(), to: v.string(), relation: v.string() }))),
     nextSteps: v.optional(
       v.array(
         v.object({
@@ -29,25 +32,23 @@ export default defineSchema({
     ),
   }).index("by_user", ["userId"]),
 
-  // Key topics extracted from a course. One course → many topics.
+  // A "pillar": one core idea of the course from the concept model. One course → many topics.
+  // The concept fields are filled at upload; the lesson is built on demand when it's opened.
   topics: defineTable({
     courseId: v.id("courses"),
     userId: v.id("users"),
-    order: v.number(),
+    order: v.number(), // the learning order (prerequisites first)
     title: v.string(),
     summary: v.string(),
-    keyPoints: v.array(v.string()),
-    examples: v.array(
-      v.object({ title: v.string(), description: v.string(), sourceUrl: v.string() })
-    ),
-    quiz: v.array(
-      v.object({
-        question: v.string(),
-        options: v.array(v.string()),
-        answerIndex: v.number(),
-        explanation: v.string(),
-      })
-    ),
+    subIdeas: v.array(subIdea),
+    insights: v.array(v.object({ text: v.string(), quote: v.string() })),
+    misconceptions: v.array(v.string()),
+    searchQuery: v.string(),
+    lessonStatus: v.union(v.literal("pending"), v.literal("generating"), v.literal("ready"), v.literal("failed")),
+    lessonError: v.optional(v.string()),
+    lesson: v.optional(lesson),
+    examples: v.array(v.object({ title: v.string(), description: v.string(), sourceUrl: v.string() })),
+    checks: v.array(check),
   })
     .index("by_course", ["courseId", "order"])
     .index("by_user", ["userId"]),

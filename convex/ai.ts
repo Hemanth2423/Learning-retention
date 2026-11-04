@@ -1,25 +1,54 @@
 "use node";
 
+// Step 1 of the pipeline: read the whole document ONCE and build a concept model.
+// Everything after this (lessons, questions, mind map) works from the model, never the full text,
+// which keeps per-document token use low.
 import { v } from "convex/values";
 import { extractText, getDocumentProxy } from "unpdf";
 import { internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
-import { askJson, SearchResult, webSearch } from "./llm";
+import { askJson } from "./llm";
+import { SubIdea } from "./lessonTypes";
 
 const MAX_CHARS = 250_000; // ~60k tokens: roughly a 100-page chapter
 
-const SYSTEM = `You are a learning designer. You turn source material into a structure built for long-term retention.
-Only teach ideas that are in the source. Write plainly, for a motivated beginner. Always answer with a single JSON object.`;
-
-type Outline = {
-  mindMap: string;
-  topics: { title: string; summary: string; keyPoints: string[]; searchQuery: string }[];
+type ConceptModel = {
+  thesis: string;
+  pillars: {
+    title: string;
+    summary: string;
+    subIdeas: SubIdea[];
+    insights: { text: string; quote: string }[];
+    misconceptions: string[];
+    searchQuery: string;
+  }[];
+  links: { from: string; to: string; relation: string }[];
 };
 
-type TopicExtras = {
-  examples: { title: string; description: string; sourceIndex: number }[];
-  quiz: { question: string; options: string[]; answerIndex: number; explanation: string }[];
-};
+const PROMPT = `You are an expert teacher building a CONCEPT MODEL of the SOURCE so someone can learn what it teaches without reading it.
+
+Think about the domain, not the document's layout:
+- Imagine explaining this to a smart friend who will never read it. What are the 4–7 load-bearing ideas ("pillars")?
+- Group by IDEA, not by chapter or slide order. One section may hold two pillars; one pillar may span many sections.
+- If the material implies a framework, use it (e.g. product growth → acquisition, activation, engagement, retention, monetization).
+- Pillars must not overlap, and together must cover everything important.
+- Order pillars the way a learner should learn them: prerequisites first.
+- Write every field as plain statements about the world. Never mention "the source", "the text", "the author", "the chapter", or "the document".
+
+Return JSON:
+{
+  "thesis": "one sentence: the single big idea that ties all pillars together",
+  "pillars": [{
+    "title": "≤ 5 words",
+    "summary": "1–2 sentences: what this idea is and why it matters",
+    "subIdeas": [{ "title": "≤ 6 words", "detail": "1 sentence", "children": ["0–3 finer points, ≤ 6 words each"] }],
+    "insights": [{ "text": "a key insight, as a standalone claim a reader should remember", "quote": "≤ 20-word phrase from the SOURCE that supports it" }],
+    "misconceptions": ["a plausible but WRONG belief a learner might hold about this idea"],
+    "searchQuery": "a web search query that finds a REAL, documented case of this idea (a company, product, study, or event), not an analogy"
+  }],
+  "links": [{ "from": "pillar title", "to": "pillar title", "relation": "≤ 5 words, e.g. 'feeds into', 'trades off against', 'is measured by'" }]
+}
+Sizes: 2–4 subIdeas, 3–5 insights, 2–3 misconceptions per pillar; 3–8 links.`;
 
 export const processCourse = internalAction({
   args: { courseId: v.id("courses") },
@@ -31,7 +60,6 @@ export const processCourse = internalAction({
       const course = await ctx.runQuery(internal.processing.getCourse, { courseId });
       if (!course) return;
 
-      // 1. PDF → text
       await setStatus("Reading your PDF…");
       const blob = await ctx.storage.get(course.fileId);
       if (!blob) throw new Error("The uploaded file is missing.");
@@ -41,59 +69,40 @@ export const processCourse = internalAction({
       if (source.length < 200) {
         throw new Error("We couldn't find text in this PDF. Scanned pages (images) aren't supported yet.");
       }
-      const sourceBlock = `SOURCE — "${course.title}"${course.subject ? ` (${course.subject})` : ""}:\n"""\n${source}\n"""`;
 
-      // 2. Outline: mind map + topics
-      await setStatus("Finding the key topics…");
-      const outline = await askJson<Outline>([
-        { role: "system", content: `${SYSTEM}\n\n${sourceBlock}` },
-        {
-          role: "user",
-          content: `Break the SOURCE into 4–8 key topics, in the order it teaches them. Return JSON:
-{
-  "mindMap": "Markdown outline. First line '# ${course.title.replace(/"/g, "'")}'. Then one '## <topic title>' per topic (titles identical to the topics array), each with 2–4 '- sub-concept' bullets (nested '  - detail' allowed).",
-  "topics": [{
-    "title": "≤ 6 words",
-    "summary": "2–3 plain sentences explaining the idea",
-    "keyPoints": ["3–5 short, self-contained statements, each ≤ 25 words"],
-    "searchQuery": "a web search query that would find a REAL, documented real-world case of this concept (a company, product, study, or event) — not an analogy"
-  }]
-}`,
-        },
-      ]);
-      const topics = (outline.topics ?? []).slice(0, 8);
-      if (topics.length === 0) throw new Error("The AI couldn't find topics in this document.");
-
-      // 3. For each topic (in parallel): real examples from the web + a 5-question quiz
-      await setStatus(`Building quizzes and finding real examples for ${topics.length} topics…`);
-      const detailed = await Promise.all(
-        topics.map(async (t) => {
-          const results = await webSearch(t.searchQuery || `${t.title} real world example`);
-          const extras = await askJson<TopicExtras>([
-            { role: "system", content: `${SYSTEM}\n\n${sourceBlock}` },
-            { role: "user", content: topicPrompt(t, results) },
-          ]);
-          return {
-            title: t.title,
-            summary: t.summary,
-            keyPoints: (t.keyPoints ?? []).slice(0, 5),
-            examples: (extras.examples ?? [])
-              .filter((e) => results[e.sourceIndex - 1]) // only keep examples tied to a real search result
-              .slice(0, 2)
-              .map((e) => ({ title: e.title, description: e.description, sourceUrl: results[e.sourceIndex - 1].url })),
-            quiz: (extras.quiz ?? [])
-              .filter((q) => q.options?.length === 4 && q.answerIndex >= 0 && q.answerIndex < 4)
-              .slice(0, 5)
-              .map(shuffleOptions),
-          };
-        })
+      await setStatus("Mapping the core ideas…");
+      const subject = course.subject ? ` (${course.subject})` : "";
+      const model = await askJson<ConceptModel>(
+        [
+          { role: "system", content: `${PROMPT}\n\nSOURCE: "${course.title}"${subject}\n"""\n${source}\n"""` },
+          { role: "user", content: "Build the concept model as JSON." },
+        ],
+        { model: "deepseek-v4-pro", effort: "high", label: "concept-model" }
       );
 
-      await ctx.runMutation(internal.processing.saveResults, {
+      const pillars = (model.pillars ?? []).slice(0, 7).map((p) => ({
+        title: p.title,
+        summary: p.summary,
+        subIdeas: (p.subIdeas ?? []).slice(0, 4).map((s) => ({
+          title: s.title,
+          detail: s.detail ?? "",
+          children: (s.children ?? []).slice(0, 3),
+        })),
+        insights: (p.insights ?? []).slice(0, 5).map((i) => ({ text: i.text, quote: i.quote ?? "" })),
+        misconceptions: (p.misconceptions ?? []).slice(0, 3),
+        searchQuery: p.searchQuery || `${p.title} real world example`,
+      }));
+      if (pillars.length === 0) throw new Error("The AI couldn't find the core ideas in this document.");
+      const titles = new Set(pillars.map((p) => p.title));
+      const links = (model.links ?? []).filter((l) => titles.has(l.from) && titles.has(l.to)).slice(0, 8);
+
+      await ctx.runMutation(internal.processing.saveConceptModel, {
         courseId,
         pageCount: totalPages,
-        mindMap: outline.mindMap ?? `# ${course.title}`,
-        topics: detailed,
+        thesis: model.thesis ?? "",
+        mindMap: toMindMap(course.title, pillars),
+        conceptLinks: links,
+        pillars,
       });
     } catch (err) {
       await ctx.runMutation(internal.processing.setStatus, {
@@ -105,35 +114,15 @@ export const processCourse = internalAction({
   },
 });
 
-// The LLM tends to put the right answer at A, B, C, D in order, so the quiz is guessable.
-// Shuffle the options ourselves (Fisher–Yates) and move answerIndex with the correct one.
-function shuffleOptions(q: TopicExtras["quiz"][number]) {
-  const order = [0, 1, 2, 3];
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
+// Course → pillars → sub-ideas → finer points, as the markdown outline the mind map reads.
+function toMindMap(title: string, pillars: { title: string; subIdeas: SubIdea[] }[]) {
+  const lines = [`# ${title}`];
+  for (const p of pillars) {
+    lines.push(`## ${p.title}`);
+    for (const s of p.subIdeas) {
+      lines.push(`- ${s.title}`);
+      for (const c of s.children) lines.push(`  - ${c}`);
+    }
   }
-  return { ...q, options: order.map((i) => q.options[i]), answerIndex: order.indexOf(q.answerIndex) };
-}
-
-function topicPrompt(t: Outline["topics"][number], results: SearchResult[]) {
-  const web = results.length
-    ? results.map((r, i) => `[${i + 1}] ${r.title} — ${r.url}\n${r.description}`).join("\n\n")
-    : "(no web results)";
-  return `TOPIC: ${t.title}
-SUMMARY: ${t.summary}
-KEY POINTS:
-${(t.keyPoints ?? []).map((p) => `- ${p}`).join("\n")}
-
-WEB RESULTS:
-${web}
-
-Return JSON:
-{
-  "examples": [{ "title": "short name of the real case", "description": "2–3 sentences: what happened and how it shows this concept", "sourceIndex": <number of the web result it comes from> }],
-  "quiz": [{ "question": "...", "options": ["A", "B", "C", "D"], "answerIndex": 0, "explanation": "1–2 sentences on why" }]
-}
-Rules:
-- Up to 2 examples. Each must be a real case actually described in the WEB RESULTS above. If none fit, return an empty list. Never invent cases or URLs.
-- Exactly 5 quiz questions grounded in the SOURCE. Test understanding and application, not trivia. Spread the correct answer across positions 0–3.`;
+  return lines.join("\n");
 }

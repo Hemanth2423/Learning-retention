@@ -29,9 +29,13 @@ describe("data isolation", () => {
         order: 0,
         title: "Photosynthesis",
         summary: "Plants turn light into sugar.",
-        keyPoints: ["Chlorophyll absorbs light"],
+        subIdeas: [{ title: "Chlorophyll", detail: "Absorbs light.", children: [] }],
+        insights: [{ text: "Chlorophyll absorbs light", quote: "" }],
+        misconceptions: [],
+        searchQuery: "photosynthesis",
+        lessonStatus: "pending",
         examples: [],
-        quiz: [],
+        checks: [],
       });
       await ctx.db.insert("quizAttempts", { userId: userA, topicId, courseId, score: 4, total: 5 });
       await ctx.db.insert("stars", { userId: userA, topicId });
@@ -53,6 +57,10 @@ describe("data isolation", () => {
     expect((await asB.query(api.topics.find, { text: "photo", mastery: "all", sort: "newest" })).rows).toEqual([]);
     expect(await asB.query(api.stars.listMine, {})).toEqual([]);
     expect((await asB.query(api.dashboard.stats, {})).quizzesTaken).toBe(0);
+
+    // ...can't make the app spend tokens building A's lessons...
+    await asB.mutation(api.lessons.ensure, { topicId });
+    expect((await asA.query(api.topics.get, { topicId }))?.lessonStatus).toBe("pending");
 
     // ...and can't change or delete it
     await expect(
