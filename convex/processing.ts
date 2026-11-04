@@ -1,6 +1,8 @@
 // Internal functions used by the AI job (not callable from the browser).
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { subIdea } from "./lessonTypes";
 
 export const getCourse = internalQuery({
   args: { courseId: v.id("courses") },
@@ -18,29 +20,27 @@ export const setStatus = internalMutation({
   },
 });
 
-const topicInput = v.object({
+const pillarInput = v.object({
   title: v.string(),
   summary: v.string(),
-  keyPoints: v.array(v.string()),
-  examples: v.array(v.object({ title: v.string(), description: v.string(), sourceUrl: v.string() })),
-  quiz: v.array(
-    v.object({
-      question: v.string(),
-      options: v.array(v.string()),
-      answerIndex: v.number(),
-      explanation: v.string(),
-    })
-  ),
+  subIdeas: v.array(subIdea),
+  insights: v.array(v.object({ text: v.string(), quote: v.string() })),
+  misconceptions: v.array(v.string()),
+  searchQuery: v.string(),
 });
 
-export const saveResults = internalMutation({
+// Saves step 1's concept model: one topic row per pillar (lessons still pending), and queues the
+// first pillar's lesson so the learner can start right away. The rest are built when opened.
+export const saveConceptModel = internalMutation({
   args: {
     courseId: v.id("courses"),
     pageCount: v.number(),
+    thesis: v.string(),
     mindMap: v.string(),
-    topics: v.array(topicInput),
+    conceptLinks: v.array(v.object({ from: v.string(), to: v.string(), relation: v.string() })),
+    pillars: v.array(pillarInput),
   },
-  handler: async (ctx, { courseId, pageCount, mindMap, topics }) => {
+  handler: async (ctx, { courseId, pageCount, thesis, mindMap, conceptLinks, pillars }) => {
     const course = await ctx.db.get(courseId);
     if (!course) return; // deleted while processing
     const old = await ctx.db
@@ -48,10 +48,28 @@ export const saveResults = internalMutation({
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
     for (const t of old) await ctx.db.delete(t._id);
-    for (const [order, t] of topics.entries()) {
-      await ctx.db.insert("topics", { ...t, courseId, userId: course.userId, order });
+    let firstId = null;
+    for (const [order, p] of pillars.entries()) {
+      const id = await ctx.db.insert("topics", {
+        ...p,
+        courseId,
+        userId: course.userId,
+        order,
+        lessonStatus: order === 0 ? "generating" : "pending",
+        examples: [],
+        checks: [],
+      });
+      if (order === 0) firstId = id;
     }
-    await ctx.db.patch(courseId, { pageCount, mindMap, status: "ready", statusMessage: undefined });
+    await ctx.db.patch(courseId, {
+      pageCount,
+      thesis,
+      mindMap,
+      conceptLinks,
+      status: "ready",
+      statusMessage: undefined,
+    });
+    if (firstId) await ctx.scheduler.runAfter(0, internal.lessons.generate, { topicId: firstId });
   },
 });
 

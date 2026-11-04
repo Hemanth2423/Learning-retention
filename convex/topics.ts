@@ -19,9 +19,8 @@ export const listByCourse = query({
       .collect();
     return topics
       .filter((t) => t.userId === userId)
-      .map(({ quiz, ...t }) => ({
+      .map(({ checks: _checks, lesson: _lesson, insights: _insights, ...t }) => ({
         ...t,
-        questionCount: quiz.length,
         best: bestPct(attempts.filter((a) => a.topicId === t._id && a.userId === userId)),
       }));
   },
@@ -36,9 +35,19 @@ export const get = query({
     const topic = topicId ? await ctx.db.get(topicId) : null;
     if (!topic || topic.userId !== userId) return null;
     const course = await ctx.db.get(topic.courseId);
-    // Hide the answers until the quiz is submitted.
-    const quiz = topic.quiz.map(({ question, options }) => ({ question, options }));
-    return { ...topic, quiz, courseTitle: course?.title ?? "" };
+    // Hide answers and explanations: they're only revealed after the learner answers.
+    const checks = topic.checks.map(({ id, level, question, options }) => ({ id, level, question, options }));
+    const path = await ctx.db
+      .query("topics")
+      .withIndex("by_course", (q) => q.eq("courseId", topic.courseId))
+      .collect();
+    return {
+      ...topic,
+      checks,
+      courseTitle: course?.title ?? "",
+      // The whole course path, for the "where am I / what's next" progression.
+      path: path.map((p) => ({ _id: p._id, order: p.order, title: p.title, lessonStatus: p.lessonStatus })),
+    };
   },
 });
 
@@ -62,7 +71,7 @@ export const find = query({
     const starred = new Set(stars.map((s) => s.topicId as string));
     const needle = args.text.trim().toLowerCase();
 
-    let rows = topics.map(({ quiz: _quiz, examples: _examples, ...t }) => ({
+    let rows = topics.map(({ checks: _checks, examples: _examples, lesson: _lesson, ...t }) => ({
       ...t,
       courseTitle: courseTitle.get(t.courseId) ?? "",
       best: bestPct(attempts.filter((a) => a.topicId === t._id)),
@@ -71,7 +80,9 @@ export const find = query({
 
     if (needle) {
       rows = rows.filter((t) =>
-        [t.title, t.summary, t.courseTitle, ...t.keyPoints].some((s) => s.toLowerCase().includes(needle))
+        [t.title, t.summary, t.courseTitle, ...t.subIdeas.map((s) => s.title), ...t.insights.map((i) => i.text)].some(
+          (s) => s.toLowerCase().includes(needle)
+        )
       );
     }
     if (args.courseId) rows = rows.filter((t) => t.courseId === args.courseId);
