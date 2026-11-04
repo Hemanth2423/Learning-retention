@@ -15,6 +15,7 @@ import type * as dashboard from "../dashboard.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as llm from "../llm.js";
+import type * as nextSteps from "../nextSteps.js";
 import type * as processing from "../processing.js";
 import type * as progress from "../progress.js";
 import type * as quizzes from "../quizzes.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   helpers: typeof helpers;
   http: typeof http;
   llm: typeof llm;
+  nextSteps: typeof nextSteps;
   processing: typeof processing;
   progress: typeof progress;
   quizzes: typeof quizzes;

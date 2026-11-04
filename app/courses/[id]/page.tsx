@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FieldError, errorMessage } from "@/components/FieldError";
 import { MindMap } from "@/components/MindMap";
+import { ProgressReport } from "@/components/ProgressReport";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TopicList } from "@/components/TopicList";
 import { api } from "@/convex/_generated/api";
@@ -126,6 +127,7 @@ function CourseDetail({ courseId }: { courseId: string }) {
       )}
       {course.status === "ready" && course.mindMap && <MindMap markdown={course.mindMap} />}
       {course.status === "ready" && <TopicList courseId={course._id} />}
+      {course.status === "ready" && <ProgressReport course={course} />}
 
       <ConfirmDialog
         open={confirming}
