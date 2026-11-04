@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireUser } from "./helpers";
+import { bestPct } from "./progress";
 
 export const listByCourse = query({
   args: { courseId: v.string() },
@@ -12,7 +13,17 @@ export const listByCourse = query({
       .query("topics")
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
-    return topics.filter((t) => t.userId === userId);
+    const attempts = await ctx.db
+      .query("quizAttempts")
+      .withIndex("by_course", (q) => q.eq("courseId", courseId))
+      .collect();
+    return topics
+      .filter((t) => t.userId === userId)
+      .map(({ quiz, ...t }) => ({
+        ...t,
+        questionCount: quiz.length,
+        best: bestPct(attempts.filter((a) => a.topicId === t._id && a.userId === userId)),
+      }));
   },
 });
 
@@ -25,6 +36,8 @@ export const get = query({
     const topic = topicId ? await ctx.db.get(topicId) : null;
     if (!topic || topic.userId !== userId) return null;
     const course = await ctx.db.get(topic.courseId);
-    return { ...topic, courseTitle: course?.title ?? "" };
+    // Hide the answers until the quiz is submitted.
+    const quiz = topic.quiz.map(({ question, options }) => ({ question, options }));
+    return { ...topic, quiz, courseTitle: course?.title ?? "" };
   },
 });

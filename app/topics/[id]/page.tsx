@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { Quiz } from "@/components/Quiz";
 import { api } from "@/convex/_generated/api";
 
 function hostname(url: string) {
@@ -68,6 +69,8 @@ function TopicDetail({ topicId }: { topicId: string }) {
           </div>
         )}
       </section>
+
+      <Quiz key={topic._id} topicId={topic._id} quiz={topic.quiz} />
     </article>
   );
 }
