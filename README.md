@@ -9,7 +9,7 @@ Recall turns a chapter or slide deck (PDF) into material built for **retention**
 - 🔎 **search / filter / sort** across all your topics, plus ★ **stars** for a review list
 - 🧭 an **honest progress report** (only quiz results count as "learned") with AI-suggested **next concepts and real resources**
 
-**Live app:** _coming soon (Vercel)_ · **Plan:** [PLAN.md](PLAN.md) · **Database:** [schema.md](schema.md)
+**Live app:** https://recall-psi-five.vercel.app · **Plan:** [PLAN.md](PLAN.md) · **Database:** [schema.md](schema.md)
 
 ## How it works
 1. You sign up (email + password) and upload a PDF with a title and subject.
