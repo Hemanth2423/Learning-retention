@@ -1,6 +1,6 @@
-# Recall — learn it, don't just read it
+# Ingrain — read once, know it for good
 
-Recall turns a chapter or slide deck (PDF) into material built for **retention**:
+Ingrain (formerly "Recall") turns a chapter or slide deck (PDF) into material built for **retention**:
 
 - 🧠 an interactive **mind map** of the concepts
 - 🗂️ **key topics**, each with a plain summary, visual key-point cards, and **real-world examples found by web search** (with source links)

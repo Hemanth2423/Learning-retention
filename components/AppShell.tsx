@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect } from "react";
 import { api } from "@/convex/_generated/api";
+import { Logo } from "./Logo";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
@@ -34,8 +35,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-paper/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
-          <Link href="/courses" className="font-serif text-xl font-semibold">
-            Recall<span className="text-accent">.</span>
+          <Link href="/courses" aria-label="Ingrain home">
+            <Logo />
           </Link>
           <nav className="flex flex-1 gap-1 overflow-x-auto">
             {NAV.map((n) => (

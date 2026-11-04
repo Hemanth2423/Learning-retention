@@ -7,9 +7,9 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Recall — learn it, don't just read it",
+  title: "Ingrain — read once, know it for good",
   description:
-    "Turn a chapter or slide deck into a mind map, visual topic breakdowns, quizzes, and an honest progress report.",
+    "Turn a book chapter or slide deck into a concept map, short visual lessons, and quick checks that prove you understood.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
