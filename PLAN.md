@@ -62,7 +62,7 @@ Both run with **Vitest + convex-test** (an in-memory Convex backend), so they do
 | **Convex** (database, file storage, backend functions) | One TypeScript backend for data, PDF storage, and long-running AI jobs; queries update the UI live while a document is being processed. |
 | **Convex Auth** (email + password) | Sign-up/login built into the same backend, so every account is a row in `users`. |
 | **DeepSeek API** (`deepseek-chat`) | Low-cost LLM with JSON output for topics, mind maps, quizzes, and next steps. |
-| **Tavily Search API** | DeepSeek can't browse the web, so Tavily supplies real examples and resource links, avoiding invented URLs. |
+| **Firecrawl Search API** | DeepSeek can't browse the web, so Firecrawl search supplies real examples and resource links, avoiding invented URLs. |
 | **unpdf** | Extracts text from uploaded PDFs, because DeepSeek reads text, not PDF files. |
 | **markmap** | Renders a markdown outline as an interactive, zoomable mind map. |
 | **Recharts** | Simple React charts for the dashboard. |

@@ -11,3 +11,8 @@
 
 ## Agent response (summary)
 Drafted PLAN.md. Pointed out that DeepSeek can't read PDFs or search the web, so the plan adds `unpdf` (PDF → text) and the Tavily Search API (real examples and resource links).
+
+## Prompt 2 (me → Claude Code)
+> Use Firecrawl API instead of Tavily for web search. Let's go ahead with the plan.
+
+Agent swapped Tavily → Firecrawl in section 5.
