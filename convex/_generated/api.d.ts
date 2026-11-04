@@ -17,6 +17,7 @@ import type * as llm from "../llm.js";
 import type * as processing from "../processing.js";
 import type * as progress from "../progress.js";
 import type * as quizzes from "../quizzes.js";
+import type * as stars from "../stars.js";
 import type * as topics from "../topics.js";
 import type * as users from "../users.js";
 import type * as validation from "../validation.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   processing: typeof processing;
   progress: typeof progress;
   quizzes: typeof quizzes;
+  stars: typeof stars;
   topics: typeof topics;
   users: typeof users;
   validation: typeof validation;

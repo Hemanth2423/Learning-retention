@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Quiz } from "@/components/Quiz";
+import { StarButton } from "@/components/StarButton";
 import { api } from "@/convex/_generated/api";
 
 function hostname(url: string) {
@@ -34,7 +35,10 @@ function TopicDetail({ topicId }: { topicId: string }) {
       </Link>
       <header>
         <p className="text-sm font-medium uppercase tracking-wide text-accent">Topic {topic.order + 1}</p>
-        <h1 className="mt-1 font-serif text-3xl">{topic.title}</h1>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-serif text-3xl">{topic.title}</h1>
+          <StarButton topicId={topic._id} />
+        </div>
         <p className="mt-3 max-w-2xl text-lg leading-relaxed">{topic.summary}</p>
       </header>
 
