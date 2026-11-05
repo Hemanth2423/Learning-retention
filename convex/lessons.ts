@@ -5,8 +5,9 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, mutation, MutationCtx } from "./_generated/server";
 import { requireUser } from "./helpers";
-import { cleanChecks, cleanVisual } from "./lessonRules";
-import { check, lesson } from "./lessonTypes";
+import { cleanVisual } from "./lessonRules";
+import { lesson, question } from "./lessonTypes";
+import { cleanQuestions } from "./questionRules";
 import { askJson, SearchResult, webSearch } from "./llm";
 
 async function queue(ctx: MutationCtx, topicId: Id<"topics">) {
@@ -68,7 +69,7 @@ type LessonReply = {
   takeaways: { title: string; body: string }[];
   trap?: { misconception: string; correction: string };
   examples: { title: string; description: string; sourceIndex: number }[];
-  checks: { level: "apply" | "easier" | "stretch"; question: string; options: string[]; answerIndex: number; explanation: string }[];
+  questions: Parameters<typeof cleanQuestions>[0];
 };
 
 const RULES = `You write one short, visual lesson that teaches a PILLAR to someone who will never read the original material.
@@ -85,19 +86,20 @@ Return JSON:
   "takeaways": [{ "title": "≤ 6 words", "body": "2–3 sentences that TEACH the insight so it makes sense on its own" }],   — 3–5, covering every insight given
   "trap": { "misconception": "one wrong belief from the list", "correction": "1–2 sentences on what's actually true" },
   "examples": [{ "title": "short name of the real case", "description": "2–3 sentences: what happened and how it shows this idea", "sourceIndex": <number of the web result> }],
-  "checks": [
-    { "level": "apply", "question": "...", "options": ["...", "...", "...", "..."], "answerIndex": 0, "explanation": "..." },
-    { "level": "easier", ... },
-    { "level": "stretch", ... }
-  ]
+  "questions": [ 7 questions, one of each shape below, in this order ]
 }
 
 Examples: up to 2, each a real case actually described in the WEB RESULTS. If none fit, return []. Never invent cases or URLs.
 
-Checks: exactly three, each with 4 options, answerIndex (0–3), and a 1–2 sentence explanation.
-- "apply": a short NEW scenario (not one from the material) where the learner must recognise which idea or action applies.
-- "easier": a plain check of the core idea itself, no scenario.
-- "stretch": a scenario with a nuance or edge case, or one that links this pillar to another pillar.
+Questions: make the learner THINK, with variety. Write these 7, in order:
+1. { "type": "choice", "style": "apply", "level": "apply", "prompt": "a short NEW scenario (not from the material): which idea or action applies?", "options": ["...", "...", "...", "..."], "answerIndex": 0, "explanation": "..." }
+2. { "type": "choice", "style": "spot", "level": "apply", "prompt": "Someone says: \"<one misconception, stated confidently>\" What's wrong with that?", "options": [4], "answerIndex": 0, "explanation": "..." }
+3. { "type": "match", "level": "easier", "prompt": "Match each … to …", "pairs": [{ "left": "≤ 6 words", "right": "≤ 12 words" }], "explanation": "..." }   — 3–4 pairs, e.g. concept ↔ what it does, or term ↔ real example
+4. { "type": "order", "level": "easier", "prompt": "Put these in order: …", "items": ["first", "second", "third"], "explanation": "..." }   — 3–5 items listed in the CORRECT order. Only for a real sequence; if the idea has none, write a second "match" instead
+5. { "type": "gap", "level": "easier", "prompt": "One sentence about the idea with ___ where the key term goes", "accepted": ["term", "common synonym"], "explanation": "..." }   — the blank is a word or short phrase the lesson teaches
+6. { "type": "choice", "style": "why", "level": "stretch", "prompt": "Why is it true that <one insight>?", "options": [4 candidate reasons], "answerIndex": 0, "explanation": "..." }
+7. { "type": "choice", "style": "apply", "level": "stretch", "prompt": "an edge case, or a scenario that needs this pillar AND another pillar", "options": [4], "answerIndex": 0, "explanation": "..." }
+- Every "explanation" is 1–2 sentences that teach WHY the answer is right.
 - Wrong options must be plausible. Base them on the misconceptions so a wrong pick reveals the misunderstanding.
 - Test understanding, not recall. Never say "according to", "the source", "the text", "the author", "the chapter", or "the document".`;
 
@@ -133,23 +135,25 @@ export const generate = internalAction({
       const prompt = lessonPrompt(c, results);
 
       let reply: LessonReply | null = null;
-      let checks = null;
+      let questions = null;
       // One retry if the questions break the rules (e.g. mention "the source" or are malformed).
-      for (let attempt = 0; attempt < 2 && !checks; attempt++) {
+      for (let attempt = 0; attempt < 2 && !questions; attempt++) {
         reply = await askJson<LessonReply>(
           [
             { role: "system", content: RULES },
             {
               role: "user",
-              content: attempt === 0 ? prompt : `${prompt}\n\nYour previous checks broke the rules. Follow the Checks rules exactly.`,
+              content: attempt === 0 ? prompt : `${prompt}\n\nYour previous questions broke the rules. Follow the Questions rules exactly.`,
             },
           ],
           { model: "deepseek-flash", label: `lesson:${c.topic.title}` }
         );
-        checks = cleanChecks(reply.checks);
-        if (!checks) console.log(`[checks rejected] ${JSON.stringify(reply.checks)?.slice(0, 1500)}`);
+        questions = cleanQuestions(reply.questions, Math.random, (r) =>
+          console.log(`[question dropped] ${JSON.stringify(r)?.slice(0, 600)}`)
+        );
+        if (!questions) console.log(`[questions rejected] ${JSON.stringify(reply.questions)?.slice(0, 1500)}`);
       }
-      if (!reply || !checks) throw new Error("Couldn't write good questions for this pillar.");
+      if (!reply || !questions) throw new Error("Couldn't write good questions for this pillar.");
 
       await ctx.runMutation(internal.lessons.save, {
         topicId,
@@ -163,7 +167,7 @@ export const generate = internalAction({
           .filter((e) => results[e.sourceIndex - 1]) // only keep examples tied to a real search result
           .slice(0, 2)
           .map((e) => ({ title: e.title, description: e.description, sourceUrl: results[e.sourceIndex - 1].url })),
-        checks,
+        questions,
       });
     } catch (err) {
       await ctx.runMutation(internal.lessons.fail, {
@@ -179,7 +183,7 @@ export const save = internalMutation({
     topicId: v.id("topics"),
     lesson,
     examples: v.array(v.object({ title: v.string(), description: v.string(), sourceUrl: v.string() })),
-    checks: v.array(check),
+    questions: v.array(question),
   },
   handler: async (ctx, { topicId, ...fields }) => {
     if (await ctx.db.get(topicId)) await ctx.db.patch(topicId, { ...fields, lessonStatus: "ready", lessonError: undefined });

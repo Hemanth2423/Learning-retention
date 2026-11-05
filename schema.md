@@ -43,13 +43,14 @@ erDiagram
     text lessonStatus
     object lesson
     list examples
-    list checks }
+    list questions }
   answers { id _id PK
     id userId FK
     id courseId FK
     id topicId FK
     text checkId
     text level
+    text type
     bool correct
     date _creationTime }
   stars { id _id PK
@@ -94,10 +95,11 @@ Created by Convex Auth when someone signs up. Columns: `_id`, `email` (text), `_
 | `lessonStatus` | text | `pending` / `generating` / `ready` / `failed`: lessons are built on demand |
 | `lesson` | {hook, visual, takeaways[], trap?} (optional) | `visual` is one of 5 templates: flow, cycle, compare, matrix, hierarchy |
 | `examples` | list of {title, description, sourceUrl} | real cases from web search |
-| `checks` | list of {id, level, question, options[4], answerIndex, explanation} | levels `apply` / `easier` / `stretch`. Answers are never sent to the browser before answering |
+| `questions` | list of typed questions (optional) | the practice bank, 4–8 per pillar. Types: `choice` (style apply / spot / why / core), `order`, `match`, `gap`. Levels `easier` / `apply` / `stretch`. Answer keys and explanations are never sent to the browser before answering |
+| `checks` | list of {id, level, question, options[4], answerIndex, explanation} | legacy V1 pool of 3 questions; served as `choice` questions when a pillar has no `questions` |
 
 ### answers — every check question answered
-`userId` → users, `courseId` → courses, `topicId` → topics (empty for end-of-course questions), `checkId`, `level` (`apply` / `easier` / `stretch` / `connect`), `correct` (true/false), `_creationTime` (when). A pillar is **mastered** once an `apply` or `stretch` answer is correct.
+`userId` → users, `courseId` → courses, `topicId` → topics (empty for end-of-course questions), `checkId`, `level` (`apply` / `easier` / `stretch` / `connect`), `type` (`choice` / `order` / `match` / `gap`, optional), `correct` (true/false), `_creationTime` (when). A pillar is **mastered** once an `apply` or `stretch` answer is correct.
 
 ### stars — junction table
 `userId` → users, `topicId` → topics. One row = "this user starred this pillar". One table for everyone; at most one row per (user, topic), enforced by the `by_user_topic` index check in `stars.toggle`.

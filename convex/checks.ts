@@ -6,19 +6,34 @@ import { getOwnCourse, requireUser } from "./helpers";
 import { cleanConnectChecks } from "./lessonRules";
 import { check } from "./lessonTypes";
 import { askJson } from "./llm";
+import { bankOf, grade } from "./questionRules";
 
-// Grades one answer on a pillar's check and records it. The browser never sees the answer key first.
-export const answerPillar = mutation({
-  args: { topicId: v.id("topics"), checkId: v.string(), choice: v.number() },
-  handler: async (ctx, { topicId, checkId, choice }) => {
+// Grades one answer to a pillar's practice question and records it.
+// The browser never sees the answer key before answering.
+export const answerQuestion = mutation({
+  args: {
+    topicId: v.id("topics"),
+    questionId: v.string(),
+    answer: v.union(v.number(), v.array(v.number()), v.string()),
+  },
+  handler: async (ctx, { topicId, questionId, answer }) => {
     const userId = await requireUser(ctx);
     const topic = await ctx.db.get(topicId);
     if (!topic || topic.userId !== userId) throw new Error("Lesson not found.");
-    const q = topic.checks.find((c) => c.id === checkId);
+    const q = bankOf(topic).find((c) => c.id === questionId);
     if (!q) throw new Error("Question not found.");
-    const correct = choice === q.answerIndex;
-    await ctx.db.insert("answers", { userId, courseId: topic.courseId, topicId, checkId, level: q.level, correct });
-    return { correct, answerIndex: q.answerIndex, explanation: q.explanation };
+    if (typeof answer === "string" && answer.length > 200) throw new Error("That answer is too long.");
+    const graded = grade(q, answer);
+    await ctx.db.insert("answers", {
+      userId,
+      courseId: topic.courseId,
+      topicId,
+      checkId: q.id,
+      level: q.level,
+      type: q.type,
+      correct: graded.correct,
+    });
+    return graded;
   },
 });
 

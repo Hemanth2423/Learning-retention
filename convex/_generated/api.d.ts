@@ -22,6 +22,8 @@ import type * as llm from "../llm.js";
 import type * as nextSteps from "../nextSteps.js";
 import type * as processing from "../processing.js";
 import type * as progress from "../progress.js";
+import type * as questionFlow from "../questionFlow.js";
+import type * as questionRules from "../questionRules.js";
 import type * as stars from "../stars.js";
 import type * as topics from "../topics.js";
 import type * as users from "../users.js";
@@ -48,6 +50,8 @@ declare const fullApi: ApiFromModules<{
   nextSteps: typeof nextSteps;
   processing: typeof processing;
   progress: typeof progress;
+  questionFlow: typeof questionFlow;
+  questionRules: typeof questionRules;
   stars: typeof stars;
   topics: typeof topics;
   users: typeof users;

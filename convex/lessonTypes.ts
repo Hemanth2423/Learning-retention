@@ -47,7 +47,31 @@ export const check = v.object({
   explanation: v.string(),
 });
 
+// The practice bank: varied question types, all graded on the server.
+// Difficulty level decides when a question is served (see questionFlow.ts).
+export const questionLevel = v.union(v.literal("easier"), v.literal("apply"), v.literal("stretch"));
+const base = { id: v.string(), level: questionLevel, prompt: v.string(), explanation: v.string() };
+
+export const question = v.union(
+  // Multiple choice. style: apply = new scenario, spot = find the misconception, why = pick the reason, core = the idea itself.
+  v.object({
+    ...base,
+    type: v.literal("choice"),
+    style: v.union(v.literal("apply"), v.literal("spot"), v.literal("why"), v.literal("core")),
+    options: v.array(v.string()),
+    answerIndex: v.number(),
+  }),
+  // Put steps in order. items are stored shuffled; answerOrder lists item indices in the right order.
+  v.object({ ...base, type: v.literal("order"), items: v.array(v.string()), answerOrder: v.array(v.number()) }),
+  // Match pairs. right is stored shuffled; answerMap[i] is the index in right that belongs to left[i].
+  v.object({ ...base, type: v.literal("match"), left: v.array(v.string()), right: v.array(v.string()), answerMap: v.array(v.number()) }),
+  // Fill the gap: prompt contains one "___"; any accepted answer counts (small typos allowed).
+  v.object({ ...base, type: v.literal("gap"), accepted: v.array(v.string()) })
+);
+
 export type SubIdea = Infer<typeof subIdea>;
+export type Question = Infer<typeof question>;
+export type QuestionLevel = Infer<typeof questionLevel>;
 export type Visual = Infer<typeof visual>;
 export type Lesson = Infer<typeof lesson>;
 export type Check = Infer<typeof check>;
