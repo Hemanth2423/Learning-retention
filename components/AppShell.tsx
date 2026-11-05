@@ -4,11 +4,12 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Logo } from "./Logo";
 
 const NAV = [
+  { href: "/today", label: "Today" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/courses", label: "Courses" },
   { href: "/find", label: "Find" },
@@ -20,6 +21,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
   const me = useQuery(api.users.me);
+  const [tz] = useState(() => new Date().getTimezoneOffset());
+  const due = useQuery(api.reviews.dueCount, isAuthenticated ? { tzOffsetMinutes: tz } : "skip");
   const router = useRouter();
   const pathname = usePathname();
 
@@ -48,6 +51,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 }`}
               >
                 {n.label}
+                {n.href === "/today" && !!due && (
+                  <span className="ml-1.5 rounded-full bg-accent px-1.5 text-xs font-semibold text-paper">{due}</span>
+                )}
               </Link>
             ))}
           </nav>

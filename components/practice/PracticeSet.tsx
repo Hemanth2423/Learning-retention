@@ -85,7 +85,10 @@ export function PracticeSet({
             You got {right} of {done.length} right.
           </p>
           {mastered ? (
-            <p className="rounded-xl bg-good/10 p-3 font-medium text-good">✓ Mastered. You applied this idea to a new situation.</p>
+            <p className="rounded-xl bg-good/10 p-3 font-medium text-good">
+              ✓ Mastered. You applied this idea to a new situation. It&apos;ll come back on your Today page
+              tomorrow, to make it stick.
+            </p>
           ) : (
             <p className="rounded-xl bg-accent-soft p-3 text-sm">
               <span className="font-medium">Not yet, and that&apos;s useful to know.</span> Re-read the takeaways and the
