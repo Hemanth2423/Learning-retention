@@ -1,7 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { check, lesson, subIdea } from "./lessonTypes";
+import { check, lesson, question, subIdea } from "./lessonTypes";
 
 export default defineSchema({
   // users (+ sessions/accounts) come from Convex Auth.
@@ -56,7 +56,8 @@ export default defineSchema({
     lessonError: v.optional(v.string()),
     lesson: v.optional(lesson),
     examples: v.array(v.object({ title: v.string(), description: v.string(), sourceUrl: v.string() })),
-    checks: v.array(check),
+    checks: v.array(check), // legacy: V1's 3 fixed questions; new lessons use `questions`
+    questions: v.optional(v.array(question)), // the practice bank (6–8 mixed types)
   })
     .index("by_course", ["courseId", "order"])
     .index("by_user", ["userId"]),
@@ -69,6 +70,7 @@ export default defineSchema({
     topicId: v.optional(v.id("topics")),
     checkId: v.string(),
     level: v.union(v.literal("apply"), v.literal("easier"), v.literal("stretch"), v.literal("connect")),
+    type: v.optional(v.union(v.literal("choice"), v.literal("order"), v.literal("match"), v.literal("gap"))),
     correct: v.boolean(),
   })
     .index("by_user", ["userId"])

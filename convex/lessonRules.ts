@@ -11,41 +11,6 @@ export function mentionsSource(s: string) {
 
 type RawCheck = Partial<Omit<Check, "id">> & { type?: string };
 
-// Keeps well-formed, source-free questions, at most one per level, with options shuffled so the
-// right answer isn't always in the same spot. Returns null if the pool is too weak to use.
-export function cleanChecks(raw: RawCheck[] | undefined, random = Math.random): Check[] | null {
-  const levels = ["apply", "easier", "stretch"] as const;
-  // Models sometimes drop the level or call it "type"; fall back to the requested order.
-  const labelled = (raw ?? []).map((c, i) => ({ ...c, level: (c.level ?? c.type ?? levels[i]) as Check["level"] }));
-  const out: Check[] = [];
-  for (const level of levels) {
-    const q = labelled.find(
-      (c) =>
-        c.level === level &&
-        typeof c.question === "string" &&
-        Array.isArray(c.options) &&
-        c.options.length === 4 &&
-        typeof c.answerIndex === "number" &&
-        c.answerIndex >= 0 &&
-        c.answerIndex < 4 &&
-        ![c.question, ...c.options].some(mentionsSource)
-    );
-    if (!q) continue;
-    const order = shuffle([0, 1, 2, 3], random);
-    out.push({
-      id: level,
-      level,
-      question: q.question!,
-      options: order.map((i) => q.options![i]),
-      answerIndex: order.indexOf(q.answerIndex!),
-      explanation: q.explanation ?? "",
-    });
-  }
-  // The flow needs an "apply" question to start and an "easier" one to fall back to.
-  const has = (l: string) => out.some((c) => c.level === l);
-  return has("apply") && has("easier") ? out : null;
-}
-
 // End-of-course questions: same rules, all level "connect". Needs at least 2 usable questions.
 export function cleanConnectChecks(raw: RawCheck[] | undefined, random = Math.random): Check[] | null {
   const out: Check[] = [];

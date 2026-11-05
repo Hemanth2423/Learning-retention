@@ -6,8 +6,8 @@ import { useParams } from "next/navigation";
 import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { LessonVisual } from "@/components/LessonVisual";
-import { PillarChecks } from "@/components/PillarChecks";
 import { PillarPath } from "@/components/PillarPath";
+import { PracticeSet } from "@/components/practice/PracticeSet";
 import { StarButton } from "@/components/StarButton";
 import { api } from "@/convex/_generated/api";
 
@@ -119,11 +119,10 @@ function LessonDetail({ topicId }: { topicId: string }) {
             )}
           </section>
 
-          <PillarChecks
+          <PracticeSet
             topicId={topic._id}
-            checks={topic.checks}
+            questions={topic.questions}
             mastered={topic.progress.state === "mastered"}
-            answered={topic.progress.answered}
           />
         </>
       )}
