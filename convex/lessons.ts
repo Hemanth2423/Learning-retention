@@ -10,9 +10,16 @@ import { lesson, question } from "./lessonTypes";
 import { cleanPredict, cleanQuestions } from "./questionRules";
 import { askJson, SearchResult, webSearch } from "./llm";
 
+// A lesson built before the mixed question bank (V1: 3 fixed checks, no guess or why) gets rebuilt
+// once in the new format. Answers, mastery and stars live in other tables, so they're kept.
+export function isOldLesson(topic: { lessonStatus: string; questions?: unknown[] }) {
+  return topic.lessonStatus === "ready" && !topic.questions?.length;
+}
+
 async function queue(ctx: MutationCtx, topicId: Id<"topics">) {
   const topic = await ctx.db.get(topicId);
-  if (!topic || topic.lessonStatus === "ready" || topic.lessonStatus === "generating") return;
+  if (!topic || topic.lessonStatus === "generating") return;
+  if (topic.lessonStatus === "ready" && !isOldLesson(topic)) return;
   await ctx.db.patch(topicId, { lessonStatus: "generating", lessonError: undefined });
   await ctx.scheduler.runAfter(0, internal.lessons.generate, { topicId });
 }
