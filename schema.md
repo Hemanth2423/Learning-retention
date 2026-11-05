@@ -33,6 +33,7 @@ erDiagram
     text thesis
     list conceptLinks
     object capstone
+    object placement
     list nextSteps
     date _creationTime }
   topics { id _id PK
@@ -48,7 +49,8 @@ erDiagram
     object lesson
     list examples
     list questions
-    object predict }
+    object predict
+    text placement }
   answers { id _id PK
     id userId FK
     id courseId FK
@@ -106,6 +108,7 @@ Created by Convex Auth when someone signs up. Columns: `_id`, `email` (text), `_
 | `thesis` | text (optional) | the one big idea from the concept model |
 | `conceptLinks` | list of {from, to, relation} (optional) | how pillars connect, e.g. "feeds into" |
 | `capstone` | {status, error?, checks[]} (optional) | end-of-course "connect" questions, built on demand |
+| `placement` | {status, error?, questions[{topicId, question}]} (optional) | the placement check: one `choice` question per pillar, built on demand. Status `generating` / `ready` / `failed` / `skipped` / `done`. Answer keys are hidden from the browser |
 | `nextSteps` | list of {concept, why, resourceTitle, resourceUrl} (optional) | AI suggestions + real links |
 | `mindMap` | text (optional) | legacy; the concept map is now drawn from `topics` |
 
@@ -124,6 +127,7 @@ Created by Convex Auth when someone signs up. Columns: `_id`, `email` (text), `_
 | `lesson` | {hook, why?, visual, takeaways[], trap?} (optional) | `why` = {problem, idea}: the problem the idea solves, shown first. `visual` is one of 5 templates: flow, cycle, compare, matrix, hierarchy |
 | `examples` | list of {title, description, sourceUrl} | real cases from web search |
 | `questions` | list of typed questions (optional) | the practice bank, 4–8 per pillar. Types: `choice` (style apply / spot / why / core), `order`, `match`, `gap`. Levels `easier` / `apply` / `stretch`. Answer keys and explanations are never sent to the browser before answering |
+| `placement` | text (optional) | placement result: `known` (skipped; first spaced review tomorrow), `shaky` (a wrong guess, so the guess question is skipped), `new` ("I don't know yet"). Not saved to `answers` |
 | `predict` | one `choice` question (optional) | asked before the lesson on a first visit. Graded so the answer can be shown, but never saved to `answers` |
 | `checks` | list of {id, level, question, options[4], answerIndex, explanation} | legacy V1 pool of 3 questions; served as `choice` questions when a pillar has no `questions` |
 

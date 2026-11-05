@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
 
 // Honest report: only answered scenario questions count as "learned". Reading a lesson doesn't.
-export function ProgressReport({ course }: { course: Omit<Doc<"courses">, "capstone"> }) {
+export function ProgressReport({ course }: { course: Omit<Doc<"courses">, "capstone" | "placement"> }) {
   const topics = useQuery(api.topics.listByCourse, { courseId: course._id });
   const suggest = useAction(api.nextSteps.suggest);
   const [busy, setBusy] = useState(false);

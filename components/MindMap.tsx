@@ -4,11 +4,13 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
+import { NodeState } from "@/convex/progress";
+import { NODE } from "./TopicList";
 
 // A collapsible concept map: course → pillars → sub-ideas → finer points.
 // Starts with only the first level open; (+) on a node opens the next level.
 
-type Node = { id: string; label: string; depth: number; href?: string; children: Node[] };
+type Node = { id: string; label: string; depth: number; href?: string; state?: NodeState; children: Node[] };
 type Placed = { node: Node; x: number; y: number; w: number; parent?: Placed };
 
 const ROW = 46; // vertical space per visible leaf
@@ -35,7 +37,7 @@ function textWidth(text: string, bold: boolean) {
 }
 
 // Text + padding (24) + borders, plus room for the (+) button; a few px spare for rounding.
-const nodeWidth = (n: Node) => Math.min(MAX_W, textWidth(n.label, n.depth <= 1) + (n.children.length ? 60 : 32));
+const nodeWidth = (n: Node) => Math.min(MAX_W, textWidth(n.label, n.depth <= 1) + (n.children.length ? 60 : 32) + (n.state ? 16 : 0));
 
 // Places visible nodes: each leaf takes one row; a parent sits centred on its children.
 function layout(root: Node, open: Set<string>) {
@@ -76,6 +78,7 @@ export function MindMap({ courseId, title }: { courseId: string; title: string }
         label: t.title,
         depth: 1,
         href: `/topics/${t._id}`,
+        state: t.node,
         children: t.subIdeas.map((s, i) => ({
           id: `${t._id}-${i}`,
           label: s.title,
@@ -153,6 +156,13 @@ export function MindMap({ courseId, title }: { courseId: string; title: string }
                 className={`absolute flex items-center gap-2 rounded-lg border px-3 text-sm ${STYLE[n.depth] ?? STYLE[3]}`}
                 style={{ left: p.x, top: p.y, width: p.w, height: H }}
               >
+                {n.state && (
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${NODE[n.state].dot}`}
+                    title={NODE[n.state].label}
+                    aria-label={NODE[n.state].label}
+                  />
+                )}
                 <span className="flex min-w-0 flex-1">{label}</span>
                 {n.children.length > 0 && (
                   <button
@@ -171,7 +181,15 @@ export function MindMap({ courseId, title }: { courseId: string; title: string }
           })}
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted">Click (+) to go deeper. Click a pillar&apos;s name to open its lesson.</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+        <span>Click (+) to go deeper. Click a pillar&apos;s name to open its lesson.</span>
+        {(["new", "learning", "known", "learned"] as NodeState[]).map((s) => (
+          <span key={s} className="flex items-center gap-1.5">
+            <span className={`h-2.5 w-2.5 rounded-full ${NODE[s].dot}`} />
+            {s === "learned" ? "Learned / ingrained" : NODE[s].label.split(":")[0]}
+          </span>
+        ))}
+      </div>
     </section>
   );
 }
