@@ -7,7 +7,7 @@ import { internalAction, internalMutation, internalQuery, mutation, MutationCtx 
 import { requireUser } from "./helpers";
 import { cleanVisual } from "./lessonRules";
 import { lesson, question } from "./lessonTypes";
-import { cleanQuestions } from "./questionRules";
+import { cleanPredict, cleanQuestions } from "./questionRules";
 import { askJson, SearchResult, webSearch } from "./llm";
 
 async function queue(ctx: MutationCtx, topicId: Id<"topics">) {
@@ -65,6 +65,8 @@ type LessonContext = {
 
 type LessonReply = {
   hook: string;
+  why?: { problem: string; idea: string };
+  predict?: Parameters<typeof cleanPredict>[0];
   visual: unknown;
   takeaways: { title: string; body: string }[];
   trap?: { misconception: string; correction: string };
@@ -77,6 +79,8 @@ const RULES = `You write one short, visual lesson that teaches a PILLAR to someo
 Return JSON:
 {
   "hook": "1–2 sentences: why this idea matters in practice",
+  "why": { "problem": "1–2 sentences: the concrete problem or mistake people run into WITHOUT this idea", "idea": "1–2 sentences: how this idea solves that problem" },
+  "predict": { "prompt": "ONE question asked BEFORE the lesson, answerable by intuition: what do you think happens / works best when …? Pick a case where the right answer is a little surprising", "options": ["...", "...", "...", "..."], "answerIndex": 0, "explanation": "1–2 sentences revealing the answer and hinting at the idea the lesson will teach" },
   "visual": ONE of these templates, whichever shows the idea best:
     { "kind": "flow", "title": "...", "steps": [{ "label": "≤ 4 words", "detail": "1 short sentence" }] }   — a process, sequence, or worked example (3–6 steps)
     { "kind": "cycle", "title": "...", "steps": [...] }   — a loop or flywheel (3–6 steps)
@@ -159,6 +163,7 @@ export const generate = internalAction({
         topicId,
         lesson: {
           hook: reply.hook ?? c.topic.summary,
+          why: reply.why?.problem && reply.why?.idea ? { problem: reply.why.problem, idea: reply.why.idea } : undefined,
           visual: cleanVisual(reply.visual, c.topic.title, c.topic.subIdeas),
           takeaways: (reply.takeaways ?? []).filter((t) => t?.title && t?.body).slice(0, 5),
           trap: reply.trap?.misconception && reply.trap?.correction ? reply.trap : undefined,
@@ -168,6 +173,7 @@ export const generate = internalAction({
           .slice(0, 2)
           .map((e) => ({ title: e.title, description: e.description, sourceUrl: results[e.sourceIndex - 1].url })),
         questions,
+        predict: cleanPredict(reply.predict) ?? undefined,
       });
     } catch (err) {
       await ctx.runMutation(internal.lessons.fail, {
@@ -184,6 +190,7 @@ export const save = internalMutation({
     lesson,
     examples: v.array(v.object({ title: v.string(), description: v.string(), sourceUrl: v.string() })),
     questions: v.array(question),
+    predict: v.optional(question),
   },
   handler: async (ctx, { topicId, ...fields }) => {
     if (await ctx.db.get(topicId)) await ctx.db.patch(topicId, { ...fields, lessonStatus: "ready", lessonError: undefined });

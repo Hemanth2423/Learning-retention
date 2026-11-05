@@ -32,6 +32,8 @@ export const visual = v.union(
 
 export const lesson = v.object({
   hook: v.string(),
+  // Why-first: the problem this idea solves, before any detail. Optional so V1 lessons still load.
+  why: v.optional(v.object({ problem: v.string(), idea: v.string() })),
   visual,
   takeaways: v.array(v.object({ title: v.string(), body: v.string() })),
   trap: v.optional(v.object({ misconception: v.string(), correction: v.string() })),

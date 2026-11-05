@@ -58,6 +58,7 @@ export default defineSchema({
     examples: v.array(v.object({ title: v.string(), description: v.string(), sourceUrl: v.string() })),
     checks: v.array(check), // legacy: V1's 3 fixed questions; new lessons use `questions`
     questions: v.optional(v.array(question)), // the practice bank (6–8 mixed types)
+    predict: v.optional(question), // asked BEFORE the lesson; not scored (pretesting)
   })
     .index("by_course", ["courseId", "order"])
     .index("by_user", ["userId"]),

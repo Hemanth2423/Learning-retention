@@ -20,7 +20,7 @@ export const listByCourse = query({
       .collect();
     return topics
       .filter((t) => t.userId === userId)
-      .map(({ checks: _checks, questions: _questions, lesson: _lesson, insights: _insights, ...t }) => ({
+      .map(({ checks: _checks, questions: _questions, predict: _predict, lesson: _lesson, insights: _insights, ...t }) => ({
         ...t,
         progress: pillarProgress(answers.filter((a) => a.topicId === t._id && a.userId === userId)),
       }));
@@ -38,7 +38,7 @@ export const get = query({
     const course = await ctx.db.get(topic.courseId);
     // Hide answers and explanations: they're only revealed after the learner answers.
     const questions = bankOf(topic).map(publicQuestion);
-    const { checks: _checks, questions: _questions, ...rest } = topic;
+    const { checks: _checks, questions: _questions, predict, ...rest } = topic;
     const path = await ctx.db
       .query("topics")
       .withIndex("by_course", (q) => q.eq("courseId", topic.courseId))
@@ -51,6 +51,7 @@ export const get = query({
     return {
       ...rest,
       questions,
+      predict: predict ? publicQuestion(predict) : null,
       courseTitle: course?.title ?? "",
       // The whole course path, for the "where am I / what's next" progression.
       path: path.map((p) => ({
@@ -85,7 +86,7 @@ export const find = query({
     const starred = new Set(stars.map((s) => s.topicId as string));
     const needle = args.text.trim().toLowerCase();
 
-    let rows = topics.map(({ checks: _checks, questions: _questions, examples: _examples, lesson: _lesson, ...t }) => ({
+    let rows = topics.map(({ checks: _checks, questions: _questions, predict: _predict, examples: _examples, lesson: _lesson, ...t }) => ({
       ...t,
       courseTitle: courseTitle.get(t.courseId) ?? "",
       progress: pillarProgress(answers.filter((a) => a.topicId === t._id)),

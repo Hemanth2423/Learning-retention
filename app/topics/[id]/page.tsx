@@ -3,11 +3,12 @@
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { LessonVisual } from "@/components/LessonVisual";
 import { PillarPath } from "@/components/PillarPath";
 import { PracticeSet } from "@/components/practice/PracticeSet";
+import { PredictFirst } from "@/components/practice/PredictFirst";
 import { StarButton } from "@/components/StarButton";
 import { api } from "@/convex/_generated/api";
 
@@ -22,6 +23,7 @@ function hostname(url: string) {
 function LessonDetail({ topicId }: { topicId: string }) {
   const topic = useQuery(api.topics.get, { topicId });
   const ensure = useMutation(api.lessons.ensure);
+  const [predicted, setPredicted] = useState(false);
 
   // Opening a pillar builds its lesson (and the next one) if they don't exist yet.
   useEffect(() => {
@@ -75,8 +77,24 @@ function LessonDetail({ topicId }: { topicId: string }) {
             {topic.subIdeas.map((s, i) => <li key={i}>{s.title}</li>)}
           </ul>
         </div>
+      ) : topic.predict && !predicted && topic.progress.answered === 0 ? (
+        // First visit: guess before the lesson is shown.
+        <PredictFirst topicId={topic._id} q={topic.predict} onDone={() => setPredicted(true)} />
       ) : (
         <>
+          {lesson.why && (
+            <section className="grid gap-3 sm:grid-cols-2">
+              <div className="card border-l-4 border-l-bad/60">
+                <p className="text-xs font-semibold uppercase tracking-wide text-bad">The problem</p>
+                <p className="mt-2 leading-relaxed">{lesson.why.problem}</p>
+              </div>
+              <div className="card border-l-4 border-l-good/60">
+                <p className="text-xs font-semibold uppercase tracking-wide text-good">The idea</p>
+                <p className="mt-2 leading-relaxed">{lesson.why.idea}</p>
+              </div>
+            </section>
+          )}
+
           <LessonVisual visual={lesson.visual} />
 
           <section>

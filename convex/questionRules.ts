@@ -153,6 +153,13 @@ export function cleanQuestions(
   return out.length >= 4 && types.size >= 3 && has("apply") && has("easier") ? out : null;
 }
 
+// The predict-first question: one multiple-choice guess asked before the lesson. Same rules as the bank.
+export function cleanPredict(raw: Raw | undefined, random = Math.random): Question | null {
+  if (!raw) return null;
+  const q = cleanOne({ ...raw, type: "choice", style: "core", level: "easier" }, 0, random);
+  return q ? { ...q, id: "predict" } : null;
+}
+
 // V1 lessons stored 3 multiple-choice checks; serve them as choice questions.
 export function bankOf(topic: { questions?: Question[]; checks: Check[] }): Question[] {
   if (topic.questions?.length) return topic.questions;

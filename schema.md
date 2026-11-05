@@ -43,7 +43,8 @@ erDiagram
     text lessonStatus
     object lesson
     list examples
-    list questions }
+    list questions
+    object predict }
   answers { id _id PK
     id userId FK
     id courseId FK
@@ -93,9 +94,10 @@ Created by Convex Auth when someone signs up. Columns: `_id`, `email` (text), `_
 | `misconceptions` | list of text | become the "common trap" and the wrong answer options |
 | `searchQuery` | text | for finding real-world examples |
 | `lessonStatus` | text | `pending` / `generating` / `ready` / `failed`: lessons are built on demand |
-| `lesson` | {hook, visual, takeaways[], trap?} (optional) | `visual` is one of 5 templates: flow, cycle, compare, matrix, hierarchy |
+| `lesson` | {hook, why?, visual, takeaways[], trap?} (optional) | `why` = {problem, idea}: the problem the idea solves, shown first. `visual` is one of 5 templates: flow, cycle, compare, matrix, hierarchy |
 | `examples` | list of {title, description, sourceUrl} | real cases from web search |
 | `questions` | list of typed questions (optional) | the practice bank, 4–8 per pillar. Types: `choice` (style apply / spot / why / core), `order`, `match`, `gap`. Levels `easier` / `apply` / `stretch`. Answer keys and explanations are never sent to the browser before answering |
+| `predict` | one `choice` question (optional) | asked before the lesson on a first visit. Graded so the answer can be shown, but never saved to `answers` |
 | `checks` | list of {id, level, question, options[4], answerIndex, explanation} | legacy V1 pool of 3 questions; served as `choice` questions when a pillar has no `questions` |
 
 ### answers — every check question answered
