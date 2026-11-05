@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, MutationCtx, query } from "./_generated/server";
 import { requireUser } from "./helpers";
+import { award, recordActivity } from "./rewards";
 import { pillarState } from "./progress";
 import { bankOf, grade, publicQuestion } from "./questionRules";
 import { afterReview, dayIndex, endOfToday, firstSchedule, isIngrained } from "./spacing";
@@ -116,12 +117,15 @@ export const answer = mutation({
     const { _id, _creationTime, userId: _u, courseId: _c, topicId: _t, ...schedule } = review;
     const next = afterReview(schedule, graded.correct, Date.now(), tzOffsetMinutes);
     await ctx.db.patch(_id, next);
-    return {
-      ...graded,
-      nextDueAt: next.dueAt,
-      ingrained: isIngrained(next),
-      justIngrained: isIngrained(next) && !isIngrained(schedule),
-    };
+    const justIngrained = isIngrained(next) && !isIngrained(schedule);
+    const reward = await recordActivity(ctx, {
+      userId, courseId: topic.courseId, topic, level: q.level, correct: graded.correct, review: true, tz: tzOffsetMinutes,
+    });
+    if (justIngrained) {
+      const got = await award(ctx, userId, "ingrained", topic._id, "Idea Ingrained", topic.title);
+      if (got) reward.achievements.push(got);
+    }
+    return { ...graded, nextDueAt: next.dueAt, ingrained: isIngrained(next), justIngrained, reward };
   },
 });
 

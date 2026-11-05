@@ -67,7 +67,7 @@ export function PracticeSet({
           <QuestionCard
             key={`${round}-${q.id}`}
             q={q}
-            onSubmit={(a) => answer({ topicId, questionId: q.id, answer: a })}
+            onSubmit={(a) => answer({ topicId, questionId: q.id, answer: a, tzOffsetMinutes: new Date().getTimezoneOffset() })}
             onGraded={(g) => {
               setDone([...done, { id: q.id, correct: g.correct }]);
               setAnswered(true);

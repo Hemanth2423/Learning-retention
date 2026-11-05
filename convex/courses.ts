@@ -120,6 +120,7 @@ export const remove = mutation({
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
     for (const a of answers) await ctx.db.delete(a._id);
+    // Earned achievements stay (like Codecademy's): they're a record of what you did.
     await ctx.storage.delete(course.fileId);
     await ctx.db.delete(courseId);
   },

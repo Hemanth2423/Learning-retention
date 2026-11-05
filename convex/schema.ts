@@ -93,6 +93,27 @@ export default defineSchema({
     .index("by_user_due", ["userId", "dueAt"])
     .index("by_topic", ["topicId"]),
 
+  // XP, level and streak: one row per user. Rules in gamification.ts.
+  profiles: defineTable({
+    userId: v.id("users"),
+    xp: v.number(),
+    streak: v.number(),
+    longestStreak: v.number(),
+    lastActiveDay: v.union(v.number(), v.null()), // local day number of the last answer
+    freezes: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // Earned achievements, each at most once per (user, kind, ref). earnedAt = _creationTime.
+  achievements: defineTable({
+    userId: v.id("users"),
+    kind: v.string(), // e.g. pillar-mastered, ingrained, course-completed, streak-7, level-Thinker
+    refId: v.string(), // the pillar or course it's about, or "" for one-offs
+    label: v.string(), // "Pillar Mastered"
+    subject: v.string(), // "Working Memory"
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_kind_ref", ["userId", "kind", "refId"]),
+
   // Junction table: "this user starred this topic". Many users ↔ many topics.
   stars: defineTable({
     userId: v.id("users"),

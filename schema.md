@@ -14,6 +14,8 @@ erDiagram
   users ||--o{ stars : "stars"
   topics ||--o| reviews : "is scheduled by"
   users ||--o{ reviews : "reviews"
+  users ||--o| profiles : "has"
+  users ||--o{ achievements : "earns"
   topics ||--o{ stars : "is starred in"
 
   users { id _id PK
@@ -65,6 +67,20 @@ erDiagram
     number successes
     date lastRecallAt
     number longestGapDays }
+  profiles { id _id PK
+    id userId FK
+    number xp
+    number streak
+    number longestStreak
+    number lastActiveDay
+    number freezes }
+  achievements { id _id PK
+    id userId FK
+    text kind
+    text refId
+    text label
+    text subject
+    date _creationTime }
   stars { id _id PK
     id userId FK
     id topicId FK
@@ -116,6 +132,12 @@ Created by Convex Auth when someone signs up. Columns: `_id`, `email` (text), `_
 
 ### reviews — the spaced-review schedule, one row per mastered pillar
 `userId` → users, `courseId` → courses, `topicId` → topics, `dueAt` (date), `intervalDays`, `successes` (correct review recalls, at most one per day), `lastRecallAt` (date), `longestGapDays`. Created when a pillar is first mastered, with the first review due the next day. A right answer grows the gap (1 → 3 → 7 → 21 → ×2.5 days), and a miss brings it back tomorrow. **Ingrained** = 3+ successes and a gap of 7+ days. Rules in [`convex/spacing.ts`](convex/spacing.ts).
+
+### profiles — XP, level and streak, one row per user
+`userId` → users, `xp`, `streak`, `longestStreak`, `lastActiveDay` (local day number of the last answer), `freezes`. The level is computed from `xp` (Curious 0 → Learner 100 → Thinker 300 → Expert 700 → Sage 1500). Rules in [`convex/gamification.ts`](convex/gamification.ts).
+
+### achievements — earned badges
+`userId` → users, `kind` (`first-answer`, `pillar-mastered`, `ingrained`, `course-completed`, `comeback`, `streak-3/7/30`, `level-<name>`), `refId` (the pillar or course id, or empty), `label` and `subject` (what the card shows), `_creationTime` (earned date). At most one row per (user, kind, refId), enforced by the `by_user_kind_ref` check in `rewards.award`. Achievements stay when a course is deleted.
 
 ### stars — junction table
 `userId` → users, `topicId` → topics. One row = "this user starred this pillar". One table for everyone; at most one row per (user, topic), enforced by the `by_user_topic` index check in `stars.toggle`.
