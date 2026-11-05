@@ -3,6 +3,7 @@ import { query } from "./_generated/server";
 import { requireUser } from "./helpers";
 import { pillarProgress } from "./progress";
 import { bankOf, publicQuestion } from "./questionRules";
+import { isIngrained } from "./spacing";
 
 export const listByCourse = query({
   args: { courseId: v.string() },
@@ -47,6 +48,10 @@ export const get = query({
       .query("answers")
       .withIndex("by_course", (q) => q.eq("courseId", topic.courseId))
       .collect();
+    const review = await ctx.db
+      .query("reviews")
+      .withIndex("by_topic", (q) => q.eq("topicId", topic._id))
+      .first();
     const progressOf = (id: string) => pillarProgress(answers.filter((a) => a.topicId === id && a.userId === userId));
     return {
       ...rest,
@@ -62,6 +67,7 @@ export const get = query({
         mastered: progressOf(p._id).state === "mastered",
       })),
       progress: progressOf(topic._id),
+      review: review ? { dueAt: review.dueAt, successes: review.successes, ingrained: isIngrained(review) } : null,
     };
   },
 });

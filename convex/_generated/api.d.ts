@@ -24,6 +24,8 @@ import type * as processing from "../processing.js";
 import type * as progress from "../progress.js";
 import type * as questionFlow from "../questionFlow.js";
 import type * as questionRules from "../questionRules.js";
+import type * as reviews from "../reviews.js";
+import type * as spacing from "../spacing.js";
 import type * as stars from "../stars.js";
 import type * as topics from "../topics.js";
 import type * as users from "../users.js";
@@ -52,6 +54,8 @@ declare const fullApi: ApiFromModules<{
   progress: typeof progress;
   questionFlow: typeof questionFlow;
   questionRules: typeof questionRules;
+  reviews: typeof reviews;
+  spacing: typeof spacing;
   stars: typeof stars;
   topics: typeof topics;
   users: typeof users;

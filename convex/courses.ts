@@ -108,6 +108,11 @@ export const remove = mutation({
         .withIndex("by_topic", (q) => q.eq("topicId", topic._id))
         .collect();
       for (const s of stars) await ctx.db.delete(s._id);
+      const reviews = await ctx.db
+        .query("reviews")
+        .withIndex("by_topic", (q) => q.eq("topicId", topic._id))
+        .collect();
+      for (const r of reviews) await ctx.db.delete(r._id);
       await ctx.db.delete(topic._id);
     }
     const answers = await ctx.db

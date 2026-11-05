@@ -11,6 +11,7 @@ import { PracticeSet } from "@/components/practice/PracticeSet";
 import { PredictFirst } from "@/components/practice/PredictFirst";
 import { StarButton } from "@/components/StarButton";
 import { api } from "@/convex/_generated/api";
+import { whenLabel } from "@/lib/when";
 
 function hostname(url: string) {
   try {
@@ -60,6 +61,13 @@ function LessonDetail({ topicId }: { topicId: string }) {
           <h1 className="font-serif text-3xl md:text-4xl">{topic.title}</h1>
           <StarButton topicId={topic._id} />
         </div>
+        {topic.review && (
+          <p className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-medium ${topic.review.ingrained ? "bg-good/10 text-good" : "bg-accent-soft text-muted"}`}>
+            {topic.review.ingrained
+              ? "✦ Ingrained"
+              : `Next review ${whenLabel(topic.review.dueAt)} · recalled ${topic.review.successes} of 3`}
+          </p>
+        )}
         <p className="mt-3 max-w-2xl text-lg leading-relaxed">{lesson?.hook ?? topic.summary}</p>
       </header>
 

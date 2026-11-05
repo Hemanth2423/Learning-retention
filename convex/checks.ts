@@ -7,6 +7,7 @@ import { cleanConnectChecks } from "./lessonRules";
 import { check } from "./lessonTypes";
 import { askJson } from "./llm";
 import { bankOf, grade } from "./questionRules";
+import { startReviews } from "./reviews";
 
 // Grades one answer to a pillar's practice question and records it.
 // The browser never sees the answer key before answering.
@@ -33,6 +34,8 @@ export const answerQuestion = mutation({
       type: q.type,
       correct: graded.correct,
     });
+    // Mastered (a Core or Stretch question right): start spaced review, first due tomorrow.
+    if (graded.correct && q.level !== "easier") await startReviews(ctx, topic, Date.now());
     return graded;
   },
 });

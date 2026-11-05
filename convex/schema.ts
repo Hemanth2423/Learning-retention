@@ -72,11 +72,26 @@ export default defineSchema({
     checkId: v.string(),
     level: v.union(v.literal("apply"), v.literal("easier"), v.literal("stretch"), v.literal("connect")),
     type: v.optional(v.union(v.literal("choice"), v.literal("order"), v.literal("match"), v.literal("gap"))),
+    context: v.optional(v.literal("review")), // empty = answered inside the lesson
     correct: v.boolean(),
   })
     .index("by_user", ["userId"])
     .index("by_topic", ["topicId"])
     .index("by_course", ["courseId"]),
+
+  // Spaced review: one row per mastered pillar. See spacing.ts for the rules.
+  reviews: defineTable({
+    userId: v.id("users"),
+    courseId: v.id("courses"),
+    topicId: v.id("topics"),
+    dueAt: v.number(),
+    intervalDays: v.number(),
+    successes: v.number(),
+    lastRecallAt: v.number(),
+    longestGapDays: v.number(),
+  })
+    .index("by_user_due", ["userId", "dueAt"])
+    .index("by_topic", ["topicId"]),
 
   // Junction table: "this user starred this topic". Many users ↔ many topics.
   stars: defineTable({

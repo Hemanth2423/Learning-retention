@@ -12,6 +12,8 @@ erDiagram
   courses ||--o{ answers : "has"
   users ||--o{ answers : "gives"
   users ||--o{ stars : "stars"
+  topics ||--o| reviews : "is scheduled by"
+  users ||--o{ reviews : "reviews"
   topics ||--o{ stars : "is starred in"
 
   users { id _id PK
@@ -54,6 +56,15 @@ erDiagram
     text type
     bool correct
     date _creationTime }
+  reviews { id _id PK
+    id userId FK
+    id courseId FK
+    id topicId FK
+    date dueAt
+    number intervalDays
+    number successes
+    date lastRecallAt
+    number longestGapDays }
   stars { id _id PK
     id userId FK
     id topicId FK
@@ -101,7 +112,10 @@ Created by Convex Auth when someone signs up. Columns: `_id`, `email` (text), `_
 | `checks` | list of {id, level, question, options[4], answerIndex, explanation} | legacy V1 pool of 3 questions; served as `choice` questions when a pillar has no `questions` |
 
 ### answers — every check question answered
-`userId` → users, `courseId` → courses, `topicId` → topics (empty for end-of-course questions), `checkId`, `level` (`apply` / `easier` / `stretch` / `connect`), `type` (`choice` / `order` / `match` / `gap`, optional), `correct` (true/false), `_creationTime` (when). A pillar is **mastered** once an `apply` or `stretch` answer is correct.
+`userId` → users, `courseId` → courses, `topicId` → topics (empty for end-of-course questions), `checkId`, `level` (`apply` / `easier` / `stretch` / `connect`), `type` (`choice` / `order` / `match` / `gap`, optional), `context` (`review` for Today answers, empty for lesson answers), `correct` (true/false), `_creationTime` (when). A pillar is **mastered** once an `apply` or `stretch` answer is correct.
+
+### reviews — the spaced-review schedule, one row per mastered pillar
+`userId` → users, `courseId` → courses, `topicId` → topics, `dueAt` (date), `intervalDays`, `successes` (correct review recalls, at most one per day), `lastRecallAt` (date), `longestGapDays`. Created when a pillar is first mastered, with the first review due the next day. A right answer grows the gap (1 → 3 → 7 → 21 → ×2.5 days), and a miss brings it back tomorrow. **Ingrained** = 3+ successes and a gap of 7+ days. Rules in [`convex/spacing.ts`](convex/spacing.ts).
 
 ### stars — junction table
 `userId` → users, `topicId` → topics. One row = "this user starred this pillar". One table for everyone; at most one row per (user, topic), enforced by the `by_user_topic` index check in `stars.toggle`.
