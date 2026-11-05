@@ -9,6 +9,7 @@ import { CapstoneChecks } from "@/components/Capstone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FieldError, errorMessage } from "@/components/FieldError";
 import { MindMap } from "@/components/MindMap";
+import { PlacementCheck } from "@/components/Placement";
 import { ProgressReport } from "@/components/ProgressReport";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TopicList } from "@/components/TopicList";
@@ -16,7 +17,7 @@ import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
 import { FieldErrors, validateCourse } from "@/convex/validation";
 
-function EditForm({ course, onDone }: { course: Omit<Doc<"courses">, "capstone">; onDone: () => void }) {
+function EditForm({ course, onDone }: { course: Omit<Doc<"courses">, "capstone" | "placement">; onDone: () => void }) {
   const update = useMutation(api.courses.update);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -126,6 +127,7 @@ function CourseDetail({ courseId }: { courseId: string }) {
           <button className="btn-ghost mt-3" onClick={() => reprocess({ courseId: course._id })}>Try again</button>
         </div>
       )}
+      {course.status === "ready" && <PlacementCheck courseId={course._id} placement={course.placement} />}
       {course.status === "ready" && <MindMap courseId={course._id} title={course.title} />}
       {course.status === "ready" && <TopicList courseId={course._id} thesis={course.thesis} />}
       {course.status === "ready" && <CapstoneChecks courseId={course._id} capstone={course.capstone} />}

@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { getOwnCourse, requireUser } from "./helpers";
+import { publicQuestion } from "./questionRules";
 import { CourseFields, validateCourse } from "./validation";
 
 function assertValid(fields: CourseFields) {
@@ -67,7 +68,12 @@ export const get = query({
       ...course.capstone,
       checks: course.capstone.checks.map(({ id, level, question, options }) => ({ id, level, question, options })),
     };
-    return { ...course, capstone };
+    // Same for the placement check.
+    const placement = course.placement && {
+      ...course.placement,
+      questions: course.placement.questions.map((x) => ({ topicId: x.topicId, question: publicQuestion(x.question) })),
+    };
+    return { ...course, capstone, placement };
   },
 });
 

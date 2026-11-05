@@ -19,19 +19,25 @@ const LEVEL: Record<string, string> = { easier: "Warm-up", apply: "Core", stretc
 type Result = Graded & { reward?: { xp: number; achievements: string[]; levelUp: string | null } };
 
 // One practice question of any type. The server grades it; then we reveal the answer and why.
-// guess: a predict-first question, framed as a guess (no level, no "wrong").
+// guess: framed as a guess (no level, no "wrong"). label overrides the type label.
+// dontKnow: adds an "I don't know yet" option, sent as answer -1.
 export function QuestionCard({
   q,
   onSubmit,
   onGraded,
   guess = false,
+  label: labelOverride,
+  dontKnow = false,
 }: {
   q: PublicQuestion;
   onSubmit: (answer: Answer) => Promise<Result>;
   onGraded: (g: Result) => void;
   guess?: boolean;
+  label?: string;
+  dontKnow?: boolean;
 }) {
   const [graded, setGraded] = useState<Result | null>(null);
+  const [skipped, setSkipped] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +56,7 @@ export function QuestionCard({
     }
   }
 
-  const label = guess ? "Before you start: make a guess" : LABEL[q.type === "choice" ? q.style : q.type];
+  const label = labelOverride ?? (guess ? "Before you start: make a guess" : LABEL[q.type === "choice" ? q.style : q.type]);
   return (
     <div className="space-y-3">
       <p className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide">
@@ -63,12 +69,24 @@ export function QuestionCard({
       {q.type === "order" && <Order items={q.items} graded={graded} busy={busy} onCheck={submit} />}
       {q.type === "match" && <Match left={q.left} right={q.right} graded={graded} busy={busy} onCheck={submit} />}
       {q.type === "gap" && <Gap prompt={q.prompt} graded={graded} busy={busy} onCheck={submit} />}
+      {dontKnow && !graded && (
+        <button
+          className="text-sm text-muted underline underline-offset-2 hover:text-ink"
+          disabled={busy}
+          onClick={() => {
+            setSkipped(true);
+            void submit(-1);
+          }}
+        >
+          I don&apos;t know yet
+        </button>
+      )}
 
       {error && <p role="alert" className="text-sm text-bad">{error}</p>}
       {graded && (
         <p role="status" className={`rounded-xl p-3 text-sm ${guess ? "bg-accent-soft" : graded.correct ? "bg-good/10" : "bg-bad/10"}`}>
           <span className={`font-semibold ${guess ? "text-accent" : graded.correct ? "text-good" : "text-bad"}`}>
-            {guess ? (graded.correct ? "Good instinct. " : "Interesting guess. ") : graded.correct ? "Right. " : "Not quite. "}
+            {skipped ? "No problem, that's what the lesson is for. " : guess ? (graded.correct ? "Good instinct. " : "Interesting guess. ") : graded.correct ? "Right. " : "Not quite. "}
           </span>
           {graded.explanation}
           {graded.reward && (

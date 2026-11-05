@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireUser } from "./helpers";
-import { pillarProgress } from "./progress";
+import { nodeState, pillarProgress } from "./progress";
 import { bankOf, publicQuestion } from "./questionRules";
 import { isIngrained } from "./spacing";
 
@@ -19,12 +19,17 @@ export const listByCourse = query({
       .query("answers")
       .withIndex("by_course", (q) => q.eq("courseId", courseId))
       .collect();
+    const reviews = await ctx.db
+      .query("reviews")
+      .withIndex("by_user_due", (q) => q.eq("userId", userId))
+      .collect();
+    const ingrained = new Set(reviews.filter(isIngrained).map((r) => r.topicId as string));
     return topics
       .filter((t) => t.userId === userId)
-      .map(({ checks: _checks, questions: _questions, predict: _predict, lesson: _lesson, insights: _insights, ...t }) => ({
-        ...t,
-        progress: pillarProgress(answers.filter((a) => a.topicId === t._id && a.userId === userId)),
-      }));
+      .map(({ checks: _checks, questions: _questions, predict: _predict, lesson: _lesson, insights: _insights, ...t }) => {
+        const progress = pillarProgress(answers.filter((a) => a.topicId === t._id && a.userId === userId));
+        return { ...t, progress, node: nodeState(progress, ingrained.has(t._id), t.placement) };
+      });
   },
 });
 
@@ -65,6 +70,7 @@ export const get = query({
         title: p.title,
         lessonStatus: p.lessonStatus,
         mastered: progressOf(p._id).state === "mastered",
+        known: p.placement === "known",
       })),
       progress: progressOf(topic._id),
       review: review ? { dueAt: review.dueAt, successes: review.successes, ingrained: isIngrained(review) } : null,

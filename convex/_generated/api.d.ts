@@ -21,6 +21,7 @@ import type * as lessonTypes from "../lessonTypes.js";
 import type * as lessons from "../lessons.js";
 import type * as llm from "../llm.js";
 import type * as nextSteps from "../nextSteps.js";
+import type * as placement from "../placement.js";
 import type * as processing from "../processing.js";
 import type * as progress from "../progress.js";
 import type * as questionFlow from "../questionFlow.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   lessons: typeof lessons;
   llm: typeof llm;
   nextSteps: typeof nextSteps;
+  placement: typeof placement;
   processing: typeof processing;
   progress: typeof progress;
   questionFlow: typeof questionFlow;

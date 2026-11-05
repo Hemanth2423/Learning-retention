@@ -61,6 +61,12 @@ function LessonDetail({ topicId }: { topicId: string }) {
           <h1 className="font-serif text-3xl md:text-4xl">{topic.title}</h1>
           <StarButton topicId={topic._id} />
         </div>
+        {topic.placement === "known" && topic.progress.state !== "mastered" && (
+          <p className="mt-2 rounded-xl bg-good/10 p-3 text-sm">
+            ◆ You showed you know this in the placement check, so you can skip it. It&apos;ll come up on your Today
+            review to confirm it stuck.
+          </p>
+        )}
         {topic.review && (
           <p className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-medium ${topic.review.ingrained ? "bg-good/10 text-good" : "bg-accent-soft text-muted"}`}>
             {topic.review.ingrained
@@ -86,7 +92,8 @@ function LessonDetail({ topicId }: { topicId: string }) {
             {topic.subIdeas.map((s, i) => <li key={i}>{s.title}</li>)}
           </ul>
         </div>
-      ) : topic.predict && !predicted && topic.progress.answered === 0 ? (
+      ) : topic.predict && !predicted && topic.progress.answered === 0 && !topic.placement ? (
+        // First visit: guess before the lesson is shown (skipped if you already answered this idea in the placement check).
         // First visit: guess before the lesson is shown.
         <PredictFirst topicId={topic._id} q={topic.predict} onDone={() => setPredicted(true)} />
       ) : (

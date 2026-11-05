@@ -28,6 +28,14 @@ export default defineSchema({
         checks: v.array(check),
       })
     ),
+    // The placement check: one question per pillar, built on demand when the learner starts it.
+    placement: v.optional(
+      v.object({
+        status: v.union(v.literal("generating"), v.literal("ready"), v.literal("failed"), v.literal("skipped"), v.literal("done")),
+        error: v.optional(v.string()),
+        questions: v.array(v.object({ topicId: v.id("topics"), question })),
+      })
+    ),
     nextSteps: v.optional(
       v.array(
         v.object({
@@ -59,6 +67,7 @@ export default defineSchema({
     checks: v.array(check), // legacy: V1's 3 fixed questions; new lessons use `questions`
     questions: v.optional(v.array(question)), // the practice bank (6–8 mixed types)
     predict: v.optional(question), // asked BEFORE the lesson; not scored (pretesting)
+    placement: v.optional(v.union(v.literal("known"), v.literal("shaky"), v.literal("new"))), // placement check result
   })
     .index("by_course", ["courseId", "order"])
     .index("by_user", ["userId"]),

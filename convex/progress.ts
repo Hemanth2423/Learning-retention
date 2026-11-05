@@ -26,6 +26,23 @@ export function pillarProgress(answers: Answer[]) {
   };
 }
 
+// What the map and path show for a pillar. Known = proved in the placement check, not yet confirmed by a review.
+export type NodeState = "new" | "learning" | "learned" | "ingrained" | "known";
+export function nodeState(p: { state: PillarState }, ingrained: boolean, placement?: "known" | "shaky" | "new"): NodeState {
+  if (ingrained) return "ingrained";
+  if (p.state === "mastered") return "learned";
+  if (placement === "known") return "known";
+  return p.state === "learning" ? "learning" : "new";
+}
+
+// Rough minutes left on the path: a full lesson for new ideas, less for ones you've started or guessed at.
+export function pathMinutes(pillars: { node: NodeState; placement?: "known" | "shaky" | "new" }[]) {
+  return pillars.reduce((m, p) => {
+    if (p.node === "learned" || p.node === "ingrained" || p.node === "known") return m;
+    return m + (p.node === "learning" || p.placement === "shaky" ? 4 : 6);
+  }, 0);
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
