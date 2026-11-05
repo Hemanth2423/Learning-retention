@@ -50,6 +50,18 @@ export const answerConnect = mutation({
   },
 });
 
+// The predict-first guess: graded so we can reveal the answer, but NOT recorded.
+// A guess before learning shouldn't count against accuracy or mastery.
+export const answerPredict = mutation({
+  args: { topicId: v.id("topics"), choice: v.number() },
+  handler: async (ctx, { topicId, choice }) => {
+    const userId = await requireUser(ctx);
+    const topic = await ctx.db.get(topicId);
+    if (!topic || topic.userId !== userId || !topic.predict) throw new Error("Question not found.");
+    return grade(topic.predict, choice);
+  },
+});
+
 // Builds the end-of-course questions on demand (only for courses people actually finish).
 export const buildCapstone = mutation({
   args: { courseId: v.id("courses") },

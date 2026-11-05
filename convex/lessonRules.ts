@@ -2,11 +2,20 @@
 // these decide what is allowed to reach the learner.
 import { Check, SubIdea, Visual } from "./lessonTypes";
 
-// Questions must test the idea, not memory of the text.
-const BANNED = /\b(according to|the (source|text|author|authors|chapter|document|passage|reading|book|slides?|deck|lecture))\b/i;
+// Questions must test the idea, not memory of the text. Blocks pointing at the material as the
+// authority ("according to", "the author", "this chapter", "the text says"), but allows a scenario
+// that happens to involve a chapter ("a student re-reads the chapter").
+const MATERIAL = "text|chapter|book|slides?|deck|lecture|reading|document|passage|material|article";
+const BANNED = [
+  /\baccording to\b/i,
+  /\bthe (source|sources|author|authors|passage|document)\b/i,
+  new RegExp(`\\b(this|these) (${MATERIAL})\\b`, "i"),
+  new RegExp(`\\bthe (${MATERIAL}) (say|says|said|state|states|describe|describes|mention|mentions|explain|explains|argue|argues|suggest|suggests|claim|claims|define|defines|note|notes|list|lists)\\b`, "i"),
+  new RegExp(`\\b(as|what) (described|stated|mentioned|explained|defined) in the (${MATERIAL})\\b`, "i"),
+];
 
 export function mentionsSource(s: string) {
-  return BANNED.test(s);
+  return BANNED.some((r) => r.test(s));
 }
 
 type RawCheck = Partial<Omit<Check, "id">> & { type?: string };

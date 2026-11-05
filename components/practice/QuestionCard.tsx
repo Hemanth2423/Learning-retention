@@ -16,14 +16,17 @@ const LABEL: Record<string, string> = {
 const LEVEL: Record<string, string> = { easier: "Warm-up", apply: "Core", stretch: "Stretch" };
 
 // One practice question of any type. The server grades it; then we reveal the answer and why.
+// guess: a predict-first question, framed as a guess (no level, no "wrong").
 export function QuestionCard({
   q,
   onSubmit,
   onGraded,
+  guess = false,
 }: {
   q: PublicQuestion;
   onSubmit: (answer: Answer) => Promise<Graded>;
   onGraded: (g: Graded) => void;
+  guess?: boolean;
 }) {
   const [graded, setGraded] = useState<Graded | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,12 +47,12 @@ export function QuestionCard({
     }
   }
 
-  const label = LABEL[q.type === "choice" ? q.style : q.type];
+  const label = guess ? "Before you start: make a guess" : LABEL[q.type === "choice" ? q.style : q.type];
   return (
     <div className="space-y-3">
       <p className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide">
         <span className="text-accent">{label}</span>
-        <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] text-muted">{LEVEL[q.level]}</span>
+        {!guess && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] text-muted">{LEVEL[q.level]}</span>}
       </p>
       {q.type !== "gap" && <p className="font-medium leading-relaxed">{q.prompt}</p>}
 
@@ -60,9 +63,9 @@ export function QuestionCard({
 
       {error && <p role="alert" className="text-sm text-bad">{error}</p>}
       {graded && (
-        <p role="status" className={`rounded-xl p-3 text-sm ${graded.correct ? "bg-good/10" : "bg-bad/10"}`}>
-          <span className={`font-semibold ${graded.correct ? "text-good" : "text-bad"}`}>
-            {graded.correct ? "Right. " : "Not quite. "}
+        <p role="status" className={`rounded-xl p-3 text-sm ${guess ? "bg-accent-soft" : graded.correct ? "bg-good/10" : "bg-bad/10"}`}>
+          <span className={`font-semibold ${guess ? "text-accent" : graded.correct ? "text-good" : "text-bad"}`}>
+            {guess ? (graded.correct ? "Good instinct. " : "Interesting guess. ") : graded.correct ? "Right. " : "Not quite. "}
           </span>
           {graded.explanation}
         </p>
