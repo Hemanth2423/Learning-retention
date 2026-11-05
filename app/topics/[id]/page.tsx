@@ -69,9 +69,10 @@ function LessonDetail({ topicId }: { topicId: string }) {
           <p className="mt-1 text-sm text-muted">{topic.lessonError}</p>
           <button className="btn-ghost mt-3" onClick={() => void ensure({ topicId })}>Try again</button>
         </div>
-      ) : !lesson ? (
+      ) : !lesson || topic.lessonStatus === "generating" ? (
+        // Also shown while an old lesson is rebuilt in the new format, so it doesn't swap mid-practice.
         <div className="card animate-pulse space-y-3" aria-live="polite">
-          <p className="font-medium">Building this lesson…</p>
+          <p className="font-medium">{lesson ? "Upgrading this lesson to the new format…" : "Building this lesson…"}</p>
           <p className="text-sm text-muted">Usually 20–40 seconds. Here&apos;s what it covers:</p>
           <ul className="list-disc space-y-1 pl-5 text-sm">
             {topic.subIdeas.map((s, i) => <li key={i}>{s.title}</li>)}
