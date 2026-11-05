@@ -41,7 +41,7 @@ export function CapstoneChecks({ courseId, capstone }: { courseId: Id<"courses">
                 label={`Connect ${i + 1} of ${capstone.checks.length}`}
                 question={q.question}
                 options={q.options}
-                onAnswer={(choice) => answer({ courseId, checkId: q.id, choice })}
+                onAnswer={(choice) => answer({ courseId, checkId: q.id, choice, tzOffsetMinutes: new Date().getTimezoneOffset() })}
               />
             </li>
           ))}

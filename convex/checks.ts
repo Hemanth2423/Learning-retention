@@ -8,6 +8,7 @@ import { check } from "./lessonTypes";
 import { askJson } from "./llm";
 import { bankOf, grade } from "./questionRules";
 import { startReviews } from "./reviews";
+import { recordActivity } from "./rewards";
 
 // Grades one answer to a pillar's practice question and records it.
 // The browser never sees the answer key before answering.
@@ -16,8 +17,9 @@ export const answerQuestion = mutation({
     topicId: v.id("topics"),
     questionId: v.string(),
     answer: v.union(v.number(), v.array(v.number()), v.string()),
+    tzOffsetMinutes: v.optional(v.number()),
   },
-  handler: async (ctx, { topicId, questionId, answer }) => {
+  handler: async (ctx, { topicId, questionId, answer, tzOffsetMinutes }) => {
     const userId = await requireUser(ctx);
     const topic = await ctx.db.get(topicId);
     if (!topic || topic.userId !== userId) throw new Error("Lesson not found.");
@@ -36,20 +38,26 @@ export const answerQuestion = mutation({
     });
     // Mastered (a Core or Stretch question right): start spaced review, first due tomorrow.
     if (graded.correct && q.level !== "easier") await startReviews(ctx, topic, Date.now());
-    return graded;
+    const reward = await recordActivity(ctx, {
+      userId, courseId: topic.courseId, topic, level: q.level, correct: graded.correct, review: false, tz: tzOffsetMinutes ?? 0,
+    });
+    return { ...graded, reward };
   },
 });
 
 export const answerConnect = mutation({
-  args: { courseId: v.id("courses"), checkId: v.string(), choice: v.number() },
-  handler: async (ctx, { courseId, checkId, choice }) => {
+  args: { courseId: v.id("courses"), checkId: v.string(), choice: v.number(), tzOffsetMinutes: v.optional(v.number()) },
+  handler: async (ctx, { courseId, checkId, choice, tzOffsetMinutes }) => {
     const userId = await requireUser(ctx);
     const course = await getOwnCourse(ctx, userId, courseId);
     const q = course?.capstone?.checks.find((c) => c.id === checkId);
     if (!q) throw new Error("Question not found.");
     const correct = choice === q.answerIndex;
     await ctx.db.insert("answers", { userId, courseId, checkId, level: "connect", correct });
-    return { correct, answerIndex: q.answerIndex, explanation: q.explanation };
+    const reward = await recordActivity(ctx, {
+      userId, courseId, topic: null, level: "connect", correct, review: false, tz: tzOffsetMinutes ?? 0,
+    });
+    return { correct, answerIndex: q.answerIndex, explanation: q.explanation, reward };
   },
 });
 

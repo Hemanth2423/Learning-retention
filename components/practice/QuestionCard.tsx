@@ -15,6 +15,9 @@ const LABEL: Record<string, string> = {
 };
 const LEVEL: Record<string, string> = { easier: "Warm-up", apply: "Core", stretch: "Stretch" };
 
+// What a graded answer can also carry back: XP earned and anything newly unlocked.
+type Result = Graded & { reward?: { xp: number; achievements: string[]; levelUp: string | null } };
+
 // One practice question of any type. The server grades it; then we reveal the answer and why.
 // guess: a predict-first question, framed as a guess (no level, no "wrong").
 export function QuestionCard({
@@ -24,11 +27,11 @@ export function QuestionCard({
   guess = false,
 }: {
   q: PublicQuestion;
-  onSubmit: (answer: Answer) => Promise<Graded>;
-  onGraded: (g: Graded) => void;
+  onSubmit: (answer: Answer) => Promise<Result>;
+  onGraded: (g: Result) => void;
   guess?: boolean;
 }) {
-  const [graded, setGraded] = useState<Graded | null>(null);
+  const [graded, setGraded] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,8 +71,17 @@ export function QuestionCard({
             {guess ? (graded.correct ? "Good instinct. " : "Interesting guess. ") : graded.correct ? "Right. " : "Not quite. "}
           </span>
           {graded.explanation}
+          {graded.reward && (
+            <span className="ml-2 inline-block rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-paper">+{graded.reward.xp} XP</span>
+          )}
         </p>
       )}
+      {graded?.reward?.levelUp && (
+        <p className="rounded-xl border border-accent bg-accent-soft p-3 text-sm font-medium">▲ Level up! You&apos;re now a {graded.reward.levelUp}.</p>
+      )}
+      {graded?.reward?.achievements.map((a) => (
+        <p key={a} className="rounded-xl border border-good/40 bg-good/10 p-3 text-sm font-medium text-good">🏆 Achievement unlocked · {a}</p>
+      ))}
     </div>
   );
 }
