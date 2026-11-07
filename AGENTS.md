@@ -27,9 +27,10 @@ Test accounts are in `.env.example`. Backend secrets are set with `npx convex en
 ## How a feature gets built
 
 1. **Spec first.** A feature starts with `tasks/<feature>.md` (copy `tasks/_TEMPLATE.md`). No acceptance criteria means no code: ask for them.
-2. **One branch, one PR per feature**, named `feat/…`, `fix/…` or `docs/…`.
-3. **Flag deviations.** If the build differs from the task file, say so in the task file and the PR.
-4. **Finish with HANDOFF.md:** the last verified state, open problems and the next action.
+2. **One branch per feature**, named `feat/…`, `fix/…` or `docs/…`. Build and verify it **locally** first.
+3. **Never merge a PR** until Hemanth explicitly says so. Nothing ships until the first feature experience is right.
+4. **Flag deviations.** If the build differs from the task file, say so in the task file and the PR.
+5. **Finish with HANDOFF.md:** the last verified state, open problems and the next action.
 
 ## Conventions
 
