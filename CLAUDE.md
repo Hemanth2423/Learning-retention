@@ -13,11 +13,20 @@
 | `tasks/<feature>.md` | Acceptance criteria, constraints, files, status | During that task |
 | [HANDOFF.md](HANDOFF.md) | Last verified state, open problems, next action | Start and end of every session |
 | [LEARNINGS.md](LEARNINGS.md) | What Hemanth has learned building this | When planning a feature |
+| `research/` (local only) | Competitive research companions + figures | When writing a task or designing UX |
+
+## Central rule: competitive research never goes into git
+
+- **`research/` is gitignored. Never commit, push or paste its contents** into committed files, PRs or issues. Never force-add it (`git add -f`).
+- **Use it as a local reference:** read the relevant companion section before writing a `tasks/<feature>.md` or designing UX, and cite it by figure ID (e.g. "research F15"), not by copying.
+- **Weigh it thoughtfully:** treat `[Observed]` as fact, `[Author]` as Hemanth's opinion and `[Inference]` as a guess. Inspiration, not a spec: PRODUCT.md decides.
+- If `research/` is missing (a fresh clone or worktree), say so and ask. Don't guess its contents.
 
 ## Principles (every session, every file)
 
 ### 1. Docs stay crisp
 - **Max 1–2 pages per file.** If it grows past that, split it or cut it.
+- **Exception:** research companions in `research/` may run 6–8 pages. Completeness of the evidence matters more there.
 - **Structure over prose:** short headings, bullets, bold lead-ins, tables where they help.
 - **Plain words.** Write for someone reading for the first time.
 
