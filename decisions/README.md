@@ -22,3 +22,6 @@ One file per architectural decision: `NNN-short-name.md`. Read one only when you
 | [001](001-convex-backend.md) | Convex for backend, database, storage and auth |
 | [002](002-read-once-concept-model.md) | Read the PDF once; build lessons on demand |
 | [003](003-question-rules-in-code.md) | Question rules live in code, not prompts |
+| [004](004-source-agnostic-documents.md) | Documents made of chunks + locators; one adapter per format |
+| [005](005-chat-retrieval-checked-citations.md) | Chat = retrieval + checked citations; AI only on request (replaces 002) |
+| [006](006-pdfjs-and-highlight-anchoring.md) | pdf.js renders; highlights anchor to page + boxes |

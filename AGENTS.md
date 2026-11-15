@@ -50,7 +50,7 @@ Test accounts are in `.env.example`. Backend secrets are set with `npx convex en
 
 - Changing `convex/schema.ts` (also update ARCHITECTURE.md and add a `decisions/` entry)
 - Adding a dependency, an AI model or an external API
-- Sending the full PDF to any step after the concept model
+- Sending the whole book to the model in one call (use retrieved passages or the current chapter)
 - Editing `convex/_generated/` or the Next.js block at the top of this file
 - Deleting user data or running destructive commands against the Convex deployment
 - Committing `.env.local` or any secret

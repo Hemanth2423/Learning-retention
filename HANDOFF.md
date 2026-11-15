@@ -2,7 +2,7 @@
 
 Update at the end of every session. Keep only the latest state, since git keeps the history.
 
-**Last updated:** 2026-11-09 · **Branch:** `docs/project-setup` (no merges until Hemanth says so)
+**Last updated:** 2026-11-14 · **Branch:** `docs/project-setup` (no merges until Hemanth says so)
 
 ## Last verified state
 
@@ -14,14 +14,13 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 
 ## Unresolved problems
 
-- **PRODUCT.md is incomplete.** Core outcome and non-goals wait on Hemanth's new vision.
-- **Tests run twice from the main checkout.** Vitest also picks up copies in `.claude/worktrees/`, so `npm test` shows 72. Fix: exclude `.claude/**` in `vitest.config.mts`.
-- **Every existing feature is unreviewed against the new vision.** Keep, change or remove each one once PRODUCT.md is done.
-
-- **Research lives only where it was created.** Gitignored files don't travel between worktrees or clones. Keep the master copy in the main checkout.
-- **5 research ambiguities need Hemanth's call** (companion §11), e.g. whether "Animation during upload!" on p.11 is a caption or a missing item.
+- **Non-goals and the success measure are still open** in PRODUCT.md. Core outcome and persona are written.
+- **Architecture is proposed, not built.** The new tables and `pdfjs-dist` are approved, but nothing is built yet.
+- **Tests run twice from the main checkout.** Vitest also picks up copies in `.claude/worktrees/`. Fix: exclude `.claude/**` in `vitest.config.mts`.
+- **Legacy code (courses, lessons, reviews, gamification) is untouched** until a feature replaces it.
+- **Research lives only where it was created** (gitignored). Master copy is in the main checkout. 5 ambiguities are listed in companion §11.
 
 ## Next action
 
-1. **Hemanth:** write the core outcome and non-goals in PRODUCT.md.
-2. **Then:** list which existing features serve that outcome, and write the first `tasks/<feature>.md`.
+1. **Hemanth:** OK to start slice 1 (upload + ingest) in `tasks/feature-1-reading.md`.
+2. **Then:** create `feat/reading-experience` and build slice 1, with its layout proposed first.
