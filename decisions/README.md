@@ -25,3 +25,4 @@ One file per architectural decision: `NNN-short-name.md`. Read one only when you
 | [004](004-source-agnostic-documents.md) | Documents made of chunks + locators; one adapter per format |
 | [005](005-chat-retrieval-checked-citations.md) | Chat = retrieval + checked citations; AI only on request (replaces 002) |
 | [006](006-pdfjs-and-highlight-anchoring.md) | pdf.js renders; highlights anchor to page + boxes |
+| [007](007-gemini-for-testing.md) | Free Gemini for testing via `LLM_PROVIDER`; DeepSeek stays default |

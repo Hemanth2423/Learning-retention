@@ -48,6 +48,19 @@ export default defineSchema({
     dismissed: v.optional(v.boolean()),
   }).index("by_document_section", ["documentId", "sectionKey"]),
 
+  // Chat with one book. A user row is one question (it also counts toward the daily limit); an assistant row is
+  // the answer, with the pages it cites. `kind: "validate"` rows are note checks: they count toward the limit but are never shown.
+  chatMessages: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    kind: v.optional(v.union(v.literal("chat"), v.literal("summary"), v.literal("validate"))),
+    text: v.string(),
+    citations: v.optional(v.array(v.object({ n: v.number(), page: v.number() }))),
+  })
+    .index("by_document", ["documentId"])
+    .index("by_user", ["userId"]),
+
   // A readable piece of text with a locator (one page for a PDF). Chat searches these.
   chunks: defineTable({
     documentId: v.id("documents"),

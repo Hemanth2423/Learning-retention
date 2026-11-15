@@ -11,6 +11,7 @@ import { chapterOf, chapterRanges, finishedChapter } from "@/convex/chapters";
 import { ContentsPanel } from "./ContentsPanel";
 import { HighlightsPanel } from "./HighlightsPanel";
 import { PdfViewer, PdfViewerHandle, SelectionInfo } from "./PdfViewer";
+import { ChatPanel, useChat } from "./Chat";
 import { ChapterPrompt, NoteWindow, ReflectionsPanel, useReflections } from "./Reflections";
 import { RightPanel, RightTab } from "./RightPanel";
 import { SelectionMenu } from "./SelectionMenu";
@@ -61,8 +62,11 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
   const removeHighlight = useMutation(api.highlights.remove);
   const highlights = useQuery(api.highlights.list, canHighlight ? { documentId: doc._id } : "skip") ?? NO_HIGHLIGHTS;
 
-  const reflections = useReflections(doc._id, ranges);
   const viewer = useRef<PdfViewerHandle>(null);
+  const jumpToPage = useCallback((p: number) => viewer.current?.jumpTo(p), []);
+  const reflections = useReflections(doc._id, ranges, jumpToPage, canHighlight);
+  const chat = useChat(doc._id);
+  const [chatDraft, setChatDraft] = useState("");
   const [page, setPage] = useState(initialPage);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [panel, setPanel] = useState<Panel | null>(null); // the left overlay starts closed
@@ -285,7 +289,7 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
             tab={rightTab}
             onTab={setRightTab}
             chatAvailable={canHighlight}
-            chat={<p className="p-4 text-sm text-muted">Chat arrives in the next step.</p>}
+            chat={<ChatPanel chat={chat} page={page} draft={chatDraft} onDraft={setChatDraft} onJump={jumpToPage} />}
             reflections={<ReflectionsPanel state={reflections} ranges={ranges} currentKey={chapterOf(sections, page)?.key ?? null} />}
           />
         )}
@@ -303,7 +307,21 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
       </div>
 
       {reflections.activeKey && reflections.expanded && <NoteWindow state={reflections} />}
-      {selection && <SelectionMenu selection={selection} onHighlight={() => void createHighlight(false)} onComment={() => void createHighlight(true)} />}
+      {selection && (
+        <SelectionMenu
+          selection={selection}
+          onHighlight={() => void createHighlight(false)}
+          onComment={() => void createHighlight(true)}
+          onAsk={() => {
+            // Take the selected text to the chat; the reader edits it and sends it.
+            setChatDraft(`Explain this: "${selection.text.slice(0, 600)}"`);
+            setRightTab("chat");
+            setRightOpen(true);
+            setSelection(null);
+            window.getSelection()?.removeAllRanges();
+          }}
+        />
+      )}
       {notice && (
         <p role="alert" className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-sm text-paper shadow-lg">
           {notice}

@@ -10,7 +10,8 @@ Browser (Next.js 16, React 19, Tailwind 4)  ── hosted on Vercel
    ▼
 Convex (backend + database + file storage + auth)
    │  scheduled actions
-   └──► DeepSeek flash (chat answers, chapter summaries) via llm.ts
+   └──► DeepSeek flash (chat answers, chapter summaries, note checks) via llm.ts
+        (set LLM_PROVIDER=gemini on the dev deployment to use a free Gemini model for testing, ADR 007)
 ```
 
 No other external service. Firecrawl and the v4-pro concept model are not part of Feature 1.
@@ -42,7 +43,7 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 | `chunks` | page of text | `documentId`, `index`, `text`, `locator` · **search index on `text`**, filtered by `documentId` |
 | `highlights` | highlight | `userId`, `documentId`, `locator` (first page), `text`, `segments` (per page: boxes as fractions of the page), `comment?` |
 | `reflections` | chapter reflection | `userId`, `documentId`, `sectionKey` (the chapter), `content` (Tiptap JSON), `plainText` (for AI), `dismissed?` |
-| `chatMessages` | message | `userId`, `documentId`, `role`, `text`, `citations[]` (locators) · index by `userId` + time, which also powers the daily limit (no extra table) |
+| `chatMessages` | message | `userId`, `documentId`, `role`, `kind` (chat, summary, validate), `text`, `citations[]` (`{n, page}`) · the `by_user` index also powers the daily limit. `validate` rows count toward the limit but aren't shown |
 
 - **Chapter is computed, not stored.** `chapters.ts` maps a page to its chapter from `sections`, so highlights group correctly even if the TOC rule changes.
 - **Ownership:** every row carries `userId`; every public function starts with `requireUser`, and documents load through `getOwnDocument`.
@@ -55,8 +56,8 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 | `convex/sources/pdf.ts` | The PDF adapter. One file per future format |
 | `convex/chapters.ts` | **Pure** page→chapter rules, chapter page ranges and "finished a chapter" detection (tested) |
 | `convex/highlights.ts`, `highlightRules.ts`, `reflections.ts`, `reflectionRules.ts` | CRUD, owner only; pure rules for checking input, joining boxes and validating notes |
-| `convex/chat.ts`, `retrieval.ts` | Ask action + daily limit; search, chapter boost, citation check (pure parts tested) |
-| `convex/llm.ts`, `auth.ts`, `helpers.ts` | Kept as is (every LLM call, sign-in, access) |
+| `convex/chat.ts`, `chatRules.ts` | Ask and validate actions, history, daily limit; pure rules for the limit, search words, chapter boost, citation and answer checks |
+| `convex/llm.ts`, `auth.ts`, `helpers.ts` | Every LLM call (DeepSeek, or Gemini when `LLM_PROVIDER=gemini`), sign-in, access |
 | `app/` + `components/reader/` | Upload page, `/read/[id]`, `/read/[id]/test`; viewer, left overlay (Contents, Highlights), resizable right panel (Chat, Reflections), test tab |
 
 **Legacy** (`courses`, `topics`, `lessons`, `reviews`, gamification, etc.) stays untouched until a feature replaces it. Nothing is deleted without asking.

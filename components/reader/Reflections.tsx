@@ -1,10 +1,12 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { ChapterRange } from "@/convex/chapters";
+import { CitedText } from "./CitedText";
+import { whenOf } from "./time";
 import { NoteEditor, NoteValue } from "./NoteEditor";
 import { SaveStatus, useAutosave } from "./useAutosave";
 
@@ -12,10 +14,11 @@ type Row = { _id: Id<"reflections">; sectionKey: string; content?: string; plain
 const NO_ROWS: Row[] = [];
 
 // State shared by the panel, the expanded window and the end-of-chapter prompt.
-export function useReflections(documentId: Id<"documents">, ranges: ChapterRange[]) {
+export function useReflections(documentId: Id<"documents">, ranges: ChapterRange[], onJump: (page: number) => void, canValidate: boolean) {
   const rows = useQuery(api.reflections.list, { documentId }) ?? NO_ROWS;
   const saveMutation = useMutation(api.reflections.save);
   const dismissMutation = useMutation(api.reflections.dismiss);
+  const validate = useAction(api.chat.validateNote);
   const [activeKey, setActiveKey] = useState<string | null>(null); // the chapter being written
   const [expanded, setExpanded] = useState(false);
   // The latest text typed locally, so expanding or minimizing never shows an older copy.
@@ -35,15 +38,83 @@ export function useReflections(documentId: Id<"documents">, ranges: ChapterRange
     setExpanded(false);
   }, []);
 
-  return { rows, byKey, activeKey, expanded, setExpanded, open, close, titleOf, initialFor, setDraft, save, dismiss };
+  return { rows, byKey, activeKey, expanded, setExpanded, open, close, titleOf, initialFor, setDraft, save, dismiss, validate, onJump, canValidate, documentId };
 }
 export type ReflectionsState = ReturnType<typeof useReflections>;
 
 const statusText: Record<SaveStatus, string> = { idle: "", saving: "Saving…", saved: "Saved", error: "Couldn't save. Trying again…" };
 
-// One chapter's note: the editor plus its saving. Remounted (by key) when the chapter changes or the note is expanded.
+type CheckResult = Extract<Awaited<ReturnType<ReflectionsState["validate"]>>, { ok: true }>;
+
+const statusLabel = { supported: "Matches the book", incorrect: "Not quite", not_in_book: "Not covered in these pages" } as const;
+const statusMark = { supported: "✓", incorrect: "✗", not_in_book: "?" } as const;
+
+function ValidationCard({ result, onJump, onClose }: { result: CheckResult; onJump: (page: number) => void; onClose: () => void }) {
+  const { verdict, summary, checks } = result.result;
+  const title = verdict === "accurate" ? "Looks accurate" : verdict === "has_issues" ? "A few things to check" : "Couldn't check this";
+  return (
+    <section aria-label="Validation" className="max-h-[45%] shrink-0 overflow-y-auto border-t border-line bg-paper p-4 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-semibold">{title}</h3>
+        <button onClick={onClose} aria-label="Close validation" className="text-muted hover:text-ink">
+          ✕
+        </button>
+      </div>
+      {summary && (
+        <p className="mt-1 text-muted">
+          <CitedText text={summary} pages={result.pages} onJump={onJump} />
+        </p>
+      )}
+      <ul className="mt-3 space-y-2.5">
+        {checks.map((c, i) => (
+          <li key={i} className="flex gap-2">
+            <span aria-hidden="true" className={`mt-0.5 w-4 shrink-0 text-center font-bold ${c.status === "supported" ? "text-good" : c.status === "incorrect" ? "text-bad" : "text-muted"}`}>
+              {statusMark[c.status]}
+            </span>
+            <div className="min-w-0">
+              <p>
+                {c.claim} <span className="text-xs text-muted">· {statusLabel[c.status]}</span>
+              </p>
+              {c.correction && (
+                <p className="mt-0.5 text-muted">
+                  <CitedText text={c.correction} pages={result.pages} onJump={onJump} />
+                </p>
+              )}
+              {c.citations.length > 0 && !c.correction && (
+                <p className="mt-0.5">
+                  <CitedText text={c.citations.map((n) => `[${n}]`).join("")} pages={result.pages} onJump={onJump} />
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// One chapter's note: the editor plus its saving and Validate. Remounted (by key) when the chapter changes or the note is expanded.
 function NoteSession({ state, chapterKey, header }: { state: ReflectionsState; chapterKey: string; header: (status: SaveStatus) => React.ReactNode }) {
   const { status, schedule } = useAutosave<NoteValue>((value) => state.save(chapterKey, value));
+  const [plain, setPlain] = useState(() => state.byKey.get(chapterKey)?.plainText ?? "");
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<CheckResult | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function validate() {
+    setChecking(true);
+    setProblem(null);
+    try {
+      const res = await state.validate({ documentId: state.documentId, chapterKey, noteText: plain });
+      if (res.ok) setResult(res);
+      else setProblem(res.resetAt ? `You've used today's questions. The next one frees up ${whenOf(res.resetAt)}.` : res.message);
+    } catch {
+      setProblem("We couldn't check this note just now. Try again.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {header(status)}
@@ -53,10 +124,30 @@ function NoteSession({ state, chapterKey, header }: { state: ReflectionsState; c
           autoFocus
           onChange={(value) => {
             state.setDraft({ key: chapterKey, ...value });
+            setPlain(value.plainText);
             schedule(value);
           }}
+          actions={
+            state.canValidate ? (
+              <button
+                type="button"
+                onClick={() => void validate()}
+                disabled={checking || !plain.trim()}
+                title="Checks your note against the book. Uses one of your 5 questions today."
+                className="rounded-md border border-line px-3 py-1 text-xs font-medium hover:bg-accent-soft disabled:opacity-50"
+              >
+                {checking ? "Checking…" : result ? "Validate again" : "Validate"}
+              </button>
+            ) : undefined
+          }
         />
       </div>
+      {problem && (
+        <p role="alert" className="shrink-0 border-t border-line px-4 py-2 text-sm text-bad">
+          {problem}
+        </p>
+      )}
+      {result && <ValidationCard result={result} onJump={state.onJump} onClose={() => setResult(null)} />}
     </div>
   );
 }

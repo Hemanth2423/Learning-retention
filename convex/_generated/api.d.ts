@@ -11,6 +11,8 @@
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
 import type * as chapters from "../chapters.js";
+import type * as chat from "../chat.js";
+import type * as chatRules from "../chatRules.js";
 import type * as checks from "../checks.js";
 import type * as courses from "../courses.js";
 import type * as dashboard from "../dashboard.js";
@@ -54,6 +56,8 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
   chapters: typeof chapters;
+  chat: typeof chat;
+  chatRules: typeof chatRules;
   checks: typeof checks;
   courses: typeof courses;
   dashboard: typeof dashboard;
