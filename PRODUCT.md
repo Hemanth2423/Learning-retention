@@ -41,19 +41,21 @@ Read this at the start of every feature. If a feature doesn't serve the target u
 - [ ] Nothing competes with the page: panel buttons sit on the edges, plus the test button (E).
 
 ### C. Left panel: Contents and Highlights
-- [ ] **Collapsed by default**, with an always-visible edge button (icon + label). Opening it resizes the page area, so it never covers the text.
+- [ ] **Collapsed by default**, with an always-visible edge button (icon + label). Opening it shows the panel as an **overlay on top of the book's left edge**, so the page doesn't move. It closes on Esc, on clicking the book, or after choosing a contents entry.
 - [ ] **Contents:** shows the PDF's table of contents, nested. Clicking an entry goes to **that exact page**. The current chapter is marked. No table of contents → "No contents found".
-- [ ] **Highlights:** dragging the cursor over text shows a small menu: **Highlight** or **Highlight + comment**. The highlight shows in the page and in the panel at once.
+- [ ] **Highlights:** dragging the cursor over text shows a small menu: **Highlight**, **+ Comment** and **Ask AI** (sends the selected text to the chat, arrives with chat). The highlight shows in the page and in the panel at once. A selection can cross a page break.
 - [ ] A comment is optional. It can be added, edited or deleted at any time, and shows under its highlight in the panel.
 - [ ] The panel groups highlights **by chapter**, in reading order.
-- [ ] Clicking a highlight in the panel goes to **its exact spot** in the page and briefly flashes it.
+- [ ] Clicking a highlight in the panel goes to **its exact spot** in the page (its first page, if it crosses a break) and briefly flashes it.
 - [ ] Highlights and comments are saved per user and per document, and survive a reload. Only the owner can see them.
 
 ### D. Right panel: Reflections and Chat
-- [ ] **Collapsed by default**, same edge-button pattern as the left.
+- [ ] **Collapsed by default**, with its own edge buttons (**Chat** and **Reflect**). Opening it **pushes the book over** (the book re-fits live). It starts at **one third of the window** (at least 360 px), and the reader can **drag its edge to widen it** up to about 60%. The width is remembered. Chat and Reflections share it through a **Chat | Reflections** switch, and it reopens on the last tab used. Esc closes it.
+- [ ] **Reflection notes** are rich text (bold, italic, bullets, numbered lists). In the panel the note fills the panel, Gmail-style. **Expand** opens it larger over the book, and **Minimize** returns it to the panel. A **Validate** button checks the note against the book and corrects anything inaccurate. It counts toward the 5.
 - [ ] **Reflections:** at the end of a chapter, a gentle, dismissible prompt asks *"What did you learn?"* with a short text box. Skipping never blocks reading. It asks once per chapter. Saved reflections are listed by chapter and can be edited. *(Needs a table of contents; without one, no prompts.)*
 - [ ] **Chat (this document only):** the reader asks and gets a **short answer, grounded in the PDF, with numbered citations**. It searches the whole book but **favors the chapter the reader is in**. Clicking a citation goes to the cited page. If the PDF doesn't contain the answer, it says so. *(Answer quality gets tuned later.)*
 - [ ] **5 questions per user per day** (rolling 24 hours). The panel shows "3 left today"; at 0 it says when the next one frees up.
+- [ ] **Ask AI** from selected text puts that text in the chat as the question. It counts toward the 5.
 - [ ] **Quick replies** sit above the input, starting with **"Summarize this chapter"** (the chapter the reader is in). Quick replies count toward the 5. With no table of contents, it summarizes the current page and the next 4.
 - [ ] Chat history is kept per document.
 

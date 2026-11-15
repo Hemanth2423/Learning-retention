@@ -11,7 +11,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) router.replace("/courses");
+    if (isAuthenticated) router.replace("/read");
   }, [isAuthenticated, router]);
 
   return (

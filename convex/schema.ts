@@ -2,10 +2,51 @@ import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { check, lesson, question, subIdea } from "./lessonTypes";
+import { locator } from "./locators";
 
 export default defineSchema({
   // users (+ sessions/accounts) come from Convex Auth.
   ...authTables,
+
+  // ---- Reading experience (Feature 1). See ARCHITECTURE.md and decisions/004. ----
+
+  // One thing the user is learning from. `sourceType` is "pdf" today; links/video come later.
+  documents: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    sourceType: v.literal("pdf"),
+    fileId: v.id("_storage"),
+    status: v.union(v.literal("processing"), v.literal("ready"), v.literal("failed")),
+    statusMessage: v.optional(v.string()),
+    hasText: v.optional(v.boolean()), // false = scanned/image-only: reading works, highlights and chat are off
+    pageCount: v.optional(v.number()),
+    sections: v.optional(v.array(v.object({ key: v.string(), title: v.string(), level: v.number(), locator }))), // contents
+    lastLocator: v.optional(locator), // where the reader left off
+  }).index("by_user", ["userId"]),
+
+  // A highlight, with an optional comment. `locator` is its first page (where the left panel jumps).
+  // `segments` are the PDF boxes it covers, one entry per page, as fractions of the page size.
+  highlights: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    locator,
+    text: v.string(),
+    segments: v.array(
+      v.object({ page: v.number(), rects: v.array(v.object({ x: v.number(), y: v.number(), w: v.number(), h: v.number() })) })
+    ),
+    comment: v.optional(v.string()),
+  }).index("by_document", ["documentId"]),
+
+  // A readable piece of text with a locator (one page for a PDF). Chat searches these.
+  chunks: defineTable({
+    documentId: v.id("documents"),
+    userId: v.id("users"),
+    index: v.number(),
+    text: v.string(),
+    locator,
+  })
+    .index("by_document", ["documentId", "index"])
+    .searchIndex("by_text", { searchField: "text", filterFields: ["documentId"] }),
 
   // One uploaded PDF (a chapter or slide deck). One user → many courses.
   courses: defineTable({

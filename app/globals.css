@@ -66,3 +66,17 @@ body {
     @apply mb-1 block text-sm font-medium;
   }
 }
+
+/* A highlight pulses once when the reader jumps to it from the left panel. */
+@keyframes hl-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
+  }
+  30% {
+    box-shadow: 0 0 0 5px rgba(250, 204, 21, 0.9);
+  }
+}
+.hl-flash {
+  animation: hl-flash 1.6s ease-out 1;
+}
