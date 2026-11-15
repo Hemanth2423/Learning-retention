@@ -19,6 +19,8 @@ type Props = {
   highlights: { _id: string; segments: Segment[] }[];
   onPageChange: (page: number) => void;
   onSelection?: (selection: SelectionInfo | null) => void; // leave out to switch selecting off (scanned PDFs)
+  // The last page whose bottom edge is on screen. `natural` is false while a jump or restore is settling.
+  onReadProgress?: (bottomPage: number, natural: boolean) => void;
   onError: () => void;
 };
 
@@ -30,7 +32,7 @@ const MAX_LINE_HEIGHT = 0.08; // fraction of the page; taller boxes are containe
 
 // Scrolls the pages of one PDF. Only pages near the screen are drawn, so long books stay fast.
 export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
-  { url, pageCount, zoom, initialPage, highlights, onPageChange, onSelection, onError },
+  { url, pageCount, zoom, initialPage, highlights, onPageChange, onSelection, onReadProgress, onError },
   ref
 ) {
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
@@ -208,6 +210,22 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
         currentRef.current = lo;
         onPageChange(lo);
       }
+      if (onReadProgress) {
+        const bottomEdge = root.scrollTop + root.clientHeight;
+        const bottomOf = (n: number) => {
+          const top = pageTop(n);
+          const el = pageEl(n);
+          return top !== null && el ? top + el.offsetHeight : Infinity;
+        };
+        let bl = 0;
+        let bh = pageCount;
+        while (bl < bh) {
+          const mid = Math.ceil((bl + bh) / 2);
+          if (bottomOf(mid) <= bottomEdge + 2) bl = mid;
+          else bh = mid - 1;
+        }
+        onReadProgress(bl, pendingJump.current === null);
+      }
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
@@ -217,7 +235,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
       root.removeEventListener("scroll", onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [root, pageCount, pageTop, onPageChange]);
+  }, [root, pageCount, pageTop, pageEl, onPageChange, onReadProgress]);
 
   // Selecting text: when the reader lets go of the mouse, work out the boxes the selection covers on each page.
   useEffect(() => {

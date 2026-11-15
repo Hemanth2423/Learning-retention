@@ -30,3 +30,34 @@ export function chapterOf<T extends SectionLike>(sections: T[], page: number): T
   }
   return found;
 }
+
+export type ChapterRange = { key: string; title: string; startPage: number; endPage: number };
+
+// Each chapter with the pages it covers: from its own start to the page before the next chapter starts
+// (the last chapter runs to the end of the book).
+export function chapterRanges(sections: (SectionLike & { title: string })[], pageCount: number): ChapterRange[] {
+  const level = chapterLevel(sections);
+  const chapters = sections.filter((s) => s.level === level).sort((a, b) => a.locator.page - b.locator.page);
+  return chapters.map((c, i) => {
+    const next = chapters[i + 1];
+    return {
+      key: c.key,
+      title: c.title,
+      startPage: c.locator.page,
+      endPage: next ? Math.max(c.locator.page, next.locator.page - 1) : Math.max(c.locator.page, pageCount),
+    };
+  });
+}
+
+// Reading past a chapter's last page counts as finishing it, but only for a small natural step.
+// A big jump (a contents link, a restored position) is not reading, so it finishes nothing.
+const MAX_READING_STEP = 3;
+
+export function finishedChapter(previousBottomPage: number, bottomPage: number, ranges: ChapterRange[]): ChapterRange | null {
+  if (bottomPage <= previousBottomPage || bottomPage - previousBottomPage > MAX_READING_STEP) return null;
+  let found: ChapterRange | null = null;
+  for (const r of ranges) {
+    if (previousBottomPage < r.endPage && bottomPage >= r.endPage) found = r;
+  }
+  return found;
+}

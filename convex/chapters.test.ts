@@ -36,3 +36,37 @@ describe("chapterOf", () => {
   });
   test("no contents means no chapters", () => expect(chapterOf([], 5)).toBeNull());
 });
+
+import { chapterRanges, finishedChapter } from "./chapters";
+
+const named = (key: string, page: number, level = 1) => ({ key, level, title: key.toUpperCase(), locator: { kind: "pdf" as const, page } });
+
+describe("chapterRanges", () => {
+  const sections = [named("a", 1), named("a1", 3, 2), named("b", 10), named("c", 20)];
+  test("each chapter runs to the page before the next; the last to the end of the book", () => {
+    expect(chapterRanges(sections, 30).map((r) => [r.key, r.startPage, r.endPage])).toEqual([
+      ["a", 1, 9],
+      ["b", 10, 19],
+      ["c", 20, 30],
+    ]);
+  });
+  test("no contents, no chapters", () => expect(chapterRanges([], 30)).toEqual([]));
+});
+
+describe("finishedChapter", () => {
+  const ranges = chapterRanges([named("a", 1), named("b", 10), named("c", 20)], 30);
+  test("reading past a chapter's last page finishes it", () => {
+    expect(finishedChapter(8, 9, ranges)?.key).toBe("a");
+    expect(finishedChapter(18, 20, ranges)?.key).toBe("b");
+    expect(finishedChapter(29, 30, ranges)?.key).toBe("c"); // the end of the book
+  });
+  test("moving within a chapter, or backwards, finishes nothing", () => {
+    expect(finishedChapter(4, 5, ranges)).toBeNull();
+    expect(finishedChapter(9, 8, ranges)).toBeNull();
+    expect(finishedChapter(9, 9, ranges)).toBeNull();
+  });
+  test("a big jump (contents link, restored position) finishes nothing", () => {
+    expect(finishedChapter(2, 25, ranges)).toBeNull();
+    expect(finishedChapter(5, 10, ranges)).toBeNull();
+  });
+});

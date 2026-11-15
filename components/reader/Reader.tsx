@@ -2,14 +2,16 @@
 
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/FieldError";
 import { Logo } from "@/components/Logo";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
+import { chapterOf, chapterRanges, finishedChapter } from "@/convex/chapters";
 import { ContentsPanel } from "./ContentsPanel";
 import { HighlightsPanel } from "./HighlightsPanel";
 import { PdfViewer, PdfViewerHandle, SelectionInfo } from "./PdfViewer";
+import { ChapterPrompt, NoteWindow, ReflectionsPanel, useReflections } from "./Reflections";
 import { RightPanel, RightTab } from "./RightPanel";
 import { SelectionMenu } from "./SelectionMenu";
 
@@ -26,7 +28,7 @@ type ReaderDoc = {
 };
 type Panel = "contents" | "highlights";
 
-function RailButton({ label, badge, active, onClick, controls, children }: { label: string; badge?: number; active: boolean; onClick: () => void; controls: string; children: React.ReactNode }) {
+function RailButton({ label, badge, dot, active, onClick, controls, children }: { label: string; badge?: number; dot?: boolean; active: boolean; onClick: () => void; controls: string; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
@@ -40,6 +42,7 @@ function RailButton({ label, badge, active, onClick, controls, children }: { lab
         {children}
       </svg>
       {label}
+      {dot && <span aria-label="Reflection waiting" className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-accent" />}
       {!!badge && <span className="absolute right-0.5 top-0.5 min-w-4 rounded-full bg-accent px-1 text-[9px] font-semibold leading-4 text-paper">{badge}</span>}
     </button>
   );
@@ -49,7 +52,8 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
   const pageCount = doc.pageCount ?? 1;
   const initialPage = doc.lastLocator?.page ?? 1;
   const canHighlight = doc.hasText !== false;
-  const sections = doc.sections ?? [];
+  const sections = useMemo(() => doc.sections ?? [], [doc.sections]);
+  const ranges = useMemo(() => chapterRanges(sections, pageCount), [sections, pageCount]);
 
   const saveProgress = useMutation(api.documents.saveProgress);
   const addHighlight = useMutation(api.highlights.add);
@@ -57,6 +61,7 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
   const removeHighlight = useMutation(api.highlights.remove);
   const highlights = useQuery(api.highlights.list, canHighlight ? { documentId: doc._id } : "skip") ?? NO_HIGHLIGHTS;
 
+  const reflections = useReflections(doc._id, ranges);
   const viewer = useRef<PdfViewerHandle>(null);
   const [page, setPage] = useState(initialPage);
   const [zoomIndex, setZoomIndex] = useState(2);
@@ -74,20 +79,53 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
     else {
       setRightTab(tab);
       setRightOpen(true);
+      if (tab === "reflections" && prompt) reflectOnPrompt(); // a waiting prompt opens its note
     }
   };
+
+  // After finishing a chapter by reading (not by jumping), offer to write a reflection, once per chapter.
+  const [prompt, setPrompt] = useState<{ key: string; tucked: boolean } | null>(null);
+  const previousBottom = useRef<number | null>(null);
+  const haveRow = useRef(reflections.byKey);
+  useEffect(() => {
+    haveRow.current = reflections.byKey;
+  }, [reflections.byKey]);
+  const onReadProgress = useCallback(
+    (bottom: number, natural: boolean) => {
+      const previous = previousBottom.current;
+      previousBottom.current = bottom;
+      if (previous === null || !natural) return;
+      const done = finishedChapter(previous, bottom, ranges);
+      if (!done || haveRow.current.has(done.key)) return; // already written, or "not now" was chosen
+      setPrompt((cur) => (cur?.key === done.key ? cur : { key: done.key, tucked: false }));
+    },
+    [ranges]
+  );
+  const promptKey = prompt && !reflections.byKey.has(prompt.key) ? prompt.key : null;
+  useEffect(() => {
+    if (!prompt || prompt.tucked) return;
+    const timer = window.setTimeout(() => setPrompt((cur) => (cur ? { ...cur, tucked: true } : cur)), 15000);
+    return () => window.clearTimeout(timer);
+  }, [prompt]);
+  function reflectOnPrompt() {
+    if (!prompt) return;
+    reflections.open(prompt.key);
+    setRightTab("reflections");
+    setRightOpen(true);
+    setPrompt(null);
+  }
 
   // Esc closes the left overlay, then the right panel, unless the reader is typing somewhere (that field handles Esc).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== "Escape" || reflections.expanded) return; // the larger note handles its own Esc
       if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable='true']")) return;
       if (panel) setPanel(null);
       else if (rightOpen) setRightOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [panel, rightOpen]);
+  }, [panel, rightOpen, reflections.expanded]);
 
   // Remember the page a moment after the reader stops moving.
   const saved = useRef(initialPage);
@@ -197,9 +235,20 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
               highlights={highlights}
               onPageChange={setPage}
               onSelection={canHighlight ? setSelection : undefined}
+              onReadProgress={onReadProgress}
               onError={onError}
             />
           </div>
+          {promptKey && prompt && !prompt.tucked && (
+            <ChapterPrompt
+              title={reflections.titleOf(promptKey)}
+              onReflect={reflectOnPrompt}
+              onNotNow={() => {
+                void reflections.dismiss(promptKey);
+                setPrompt(null);
+              }}
+            />
+          )}
           {panel && (
             <div id="left-panel" className="absolute inset-y-0 left-0 z-20 shadow-xl">
               {panel === "contents" ? (
@@ -237,7 +286,7 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
             onTab={setRightTab}
             chatAvailable={canHighlight}
             chat={<p className="p-4 text-sm text-muted">Chat arrives in the next step.</p>}
-            reflections={<p className="p-4 text-sm text-muted">Reflections arrive in the next step.</p>}
+            reflections={<ReflectionsPanel state={reflections} ranges={ranges} currentKey={chapterOf(sections, page)?.key ?? null} />}
           />
         )}
         <div className="flex w-14 shrink-0 flex-col items-center gap-1 border-l border-line bg-paper pt-3">
@@ -246,13 +295,14 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </RailButton>
           )}
-          <RailButton label="Reflect" active={rightOpen && rightTab === "reflections"} onClick={() => toggleRight("reflections")} controls="right-panel">
+          <RailButton label="Reflect" dot={!!promptKey && !!prompt?.tucked} active={rightOpen && rightTab === "reflections"} onClick={() => toggleRight("reflections")} controls="right-panel">
             <path d="M12 20h9" />
             <path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
           </RailButton>
         </div>
       </div>
 
+      {reflections.activeKey && reflections.expanded && <NoteWindow state={reflections} />}
       {selection && <SelectionMenu selection={selection} onHighlight={() => void createHighlight(false)} onComment={() => void createHighlight(true)} />}
       {notice && (
         <p role="alert" className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-sm text-paper shadow-lg">

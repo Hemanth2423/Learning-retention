@@ -37,6 +37,17 @@ export default defineSchema({
     comment: v.optional(v.string()),
   }).index("by_document", ["documentId"]),
 
+  // The reader's note on one chapter. `content` is the editor's saved format (JSON), `plainText` a plain copy for AI.
+  // `dismissed` with no text means "not now" was chosen at the end-of-chapter prompt, so it isn't asked again.
+  reflections: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    sectionKey: v.string(), // the chapter, a key from documents.sections
+    content: v.optional(v.string()),
+    plainText: v.optional(v.string()),
+    dismissed: v.optional(v.boolean()),
+  }).index("by_document_section", ["documentId", "sectionKey"]),
+
   // A readable piece of text with a locator (one page for a PDF). Chat searches these.
   chunks: defineTable({
     documentId: v.id("documents"),

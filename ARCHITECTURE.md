@@ -41,7 +41,7 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 | `documents` | upload | `userId`, `title`, `sourceType`, `fileId`, `status`, `hasText`, `pageCount`, `sections[]`, `lastLocator` |
 | `chunks` | page of text | `documentId`, `index`, `text`, `locator` · **search index on `text`**, filtered by `documentId` |
 | `highlights` | highlight | `userId`, `documentId`, `locator` (first page), `text`, `segments` (per page: boxes as fractions of the page), `comment?` |
-| `reflections` | chapter reflection | `userId`, `documentId`, `sectionKey`, `text` |
+| `reflections` | chapter reflection | `userId`, `documentId`, `sectionKey` (the chapter), `content` (Tiptap JSON), `plainText` (for AI), `dismissed?` |
 | `chatMessages` | message | `userId`, `documentId`, `role`, `text`, `citations[]` (locators) · index by `userId` + time, which also powers the daily limit (no extra table) |
 
 - **Chapter is computed, not stored.** `chapters.ts` maps a page to its chapter from `sections`, so highlights group correctly even if the TOC rule changes.
@@ -53,8 +53,8 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 |---|---|
 | `convex/documents.ts`, `ingest.ts` | Create, list-latest, status; the ingest action |
 | `convex/sources/pdf.ts` | The PDF adapter. One file per future format |
-| `convex/chapters.ts` | **Pure** page→chapter rules (tested) |
-| `convex/highlights.ts`, `highlightRules.ts`, `reflections.ts` | CRUD, owner only; pure rules for checking input and joining boxes |
+| `convex/chapters.ts` | **Pure** page→chapter rules, chapter page ranges and "finished a chapter" detection (tested) |
+| `convex/highlights.ts`, `highlightRules.ts`, `reflections.ts`, `reflectionRules.ts` | CRUD, owner only; pure rules for checking input, joining boxes and validating notes |
 | `convex/chat.ts`, `retrieval.ts` | Ask action + daily limit; search, chapter boost, citation check (pure parts tested) |
 | `convex/llm.ts`, `auth.ts`, `helpers.ts` | Kept as is (every LLM call, sign-in, access) |
 | `app/` + `components/reader/` | Upload page, `/read/[id]`, `/read/[id]/test`; viewer, left overlay (Contents, Highlights), resizable right panel (Chat, Reflections), test tab |
