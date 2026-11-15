@@ -15,6 +15,7 @@ import { ChatPanel, useChat } from "./Chat";
 import { ChapterPrompt, NoteWindow, ReflectionsPanel, useReflections } from "./Reflections";
 import { RightPanel, RightTab } from "./RightPanel";
 import { SelectionMenu } from "./SelectionMenu";
+import { TestTab, useTestTabReveal } from "./TestTab";
 
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const NO_HIGHLIGHTS: Doc<"highlights">[] = [];
@@ -66,6 +67,7 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
   const jumpToPage = useCallback((p: number) => viewer.current?.jumpTo(p), []);
   const reflections = useReflections(doc._id, ranges, jumpToPage, canHighlight);
   const chat = useChat(doc._id);
+  const testTab = useTestTabReveal();
   const [chatDraft, setChatDraft] = useState("");
   const [page, setPage] = useState(initialPage);
   const [zoomIndex, setZoomIndex] = useState(2);
@@ -229,7 +231,14 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
 
         <div className="relative flex min-w-0 flex-1">
           {/* Clicking the book closes the left overlay. */}
-          <div className="flex min-w-0 flex-1" onPointerDownCapture={() => panel && setPanel(null)}>
+          <div
+            className="flex min-w-0 flex-1"
+            {...testTab.handlers}
+            onPointerDownCapture={() => {
+              testTab.handlers.onPointerDownCapture();
+              if (panel) setPanel(null); // clicking the book also closes the left overlay
+            }}
+          >
             <PdfViewer
               ref={viewer}
               url={url}
@@ -243,6 +252,7 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
               onError={onError}
             />
           </div>
+          <TestTab href={`/read/${doc._id}/test`} expanded={testTab.expanded} onHold={testTab.hold} />
           {promptKey && prompt && !prompt.tucked && (
             <ChapterPrompt
               title={reflections.titleOf(promptKey)}
