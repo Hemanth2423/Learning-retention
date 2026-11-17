@@ -48,6 +48,8 @@ import type * as stars from "../stars.js";
 import type * as topics from "../topics.js";
 import type * as users from "../users.js";
 import type * as validation from "../validation.js";
+import type * as xp from "../xp.js";
+import type * as xpRules from "../xpRules.js";
 
 import type {
   ApiFromModules,
@@ -96,6 +98,8 @@ declare const fullApi: ApiFromModules<{
   topics: typeof topics;
   users: typeof users;
   validation: typeof validation;
+  xp: typeof xp;
+  xpRules: typeof xpRules;
 }>;
 
 /**

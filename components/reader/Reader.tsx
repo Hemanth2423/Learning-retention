@@ -1,5 +1,6 @@
 "use client";
 
+import { XP } from "@/convex/xpRules";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -54,7 +55,23 @@ type ReaderDoc = {
 };
 
 // A closable notification at the bottom of the book when a chapter ends: write a note or test yourself.
-function ChapterEndNotice({ range, number, isPart, onNote, testHref, onClose }: { range: ChapterRange; number: string; isPart: boolean; onNote: () => void; testHref: string; onClose: () => void }) {
+function ChapterEndNotice({
+  range,
+  number,
+  isPart,
+  read,
+  onNote,
+  testHref,
+  onClose,
+}: {
+  range: ChapterRange;
+  number: string;
+  isPart: boolean;
+  read: boolean; // every page seen: the reading XP has been earned
+  onNote: () => void;
+  testHref: string;
+  onClose: () => void;
+}) {
   return (
     <section
       role="status"
@@ -66,10 +83,11 @@ function ChapterEndNotice({ range, number, isPart, onNote, testHref, onClose }: 
       </button>
       <p className="font-game text-xs text-good">
         {isPart ? `END OF PART ${number.slice(1)}` : number === "•" ? "END OF THIS SECTION" : `END OF CHAPTER ${number}`}
+        {read && ` · +${XP.read} XP FOR READING`}
       </p>
       <h2 className="mt-1 pr-8 font-serif text-xl font-bold leading-snug">Lock it in before you move on</h2>
       <p className="mt-1 line-clamp-2 text-sm text-muted">
-        Two minutes now saves rereading later. <span className="italic">{readableTitle(range.title)}</span>
+        A note earns {XP.note} XP; each right answer earns {XP.answer}. <span className="italic">{readableTitle(range.title)}</span>
       </p>
       <div className="mt-3.5 flex flex-wrap gap-3">
         <button onClick={onNote} className="chunky py-2.5">
@@ -382,6 +400,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
               setEndNotice(null);
             }}
             testHref={`/read/${doc._id}/test?chapter=${encodeURIComponent(ranges[endNotice].key)}`}
+            read={readKeys.has(ranges[endNotice].key)}
           />
         )}
       </div>

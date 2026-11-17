@@ -1,5 +1,6 @@
 "use client";
 
+import { XpStats } from "@/components/XpStats";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
@@ -81,7 +82,10 @@ function Library() {
           <span aria-hidden="true">⌕</span>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your books" aria-label="Search your books" className="flex-1 bg-transparent text-ink outline-none" />
         </label>
-        <button onClick={() => void signOut().then(() => router.replace("/"))} className="ml-auto text-sm text-muted hover:text-ink">
+        <div className="ml-auto">
+          <XpStats />
+        </div>
+        <button onClick={() => void signOut().then(() => router.replace("/"))} className="text-sm text-muted hover:text-ink">
           Sign out
         </button>
       </header>

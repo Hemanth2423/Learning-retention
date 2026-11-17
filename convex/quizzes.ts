@@ -5,6 +5,8 @@ import { Doc, Id } from "./_generated/dataModel";
 import { action, internalMutation, internalQuery, mutation, query, QueryCtx } from "./_generated/server";
 import { passageBlock, summaryPassages } from "./chatRules";
 import { getOwnDocument, requireUser } from "./helpers";
+import { awardXp } from "./xp";
+import { awardKey, XP } from "./xpRules";
 import { quizQuestion } from "./schema";
 import { askJson } from "./llm";
 import { ASK_FOR, bestScore, cleanQuiz, gradeChoice, isFinished, missedOf, publicQuestion, QuizQuestion, scoreOf } from "./quizRules";
@@ -101,7 +103,9 @@ export const answer = mutation({
     const finished = isFinished(results);
     const score = scoreOf(results);
     await ctx.db.patch(attemptId, { results, score, finished });
-    return { ...feedback, finished, score, missed: finished ? missedOf(results).length : 0 };
+    // 10 XP the first time each question is answered right (retakes and reviews don't pay twice).
+    const xp = feedback.correct ? await awardXp(ctx, userId, [{ key: awardKey.answer(quiz.documentId, quiz.chapterKey, slot.index), xp: XP.answer }]) : 0;
+    return { ...feedback, finished, score, missed: finished ? missedOf(results).length : 0, xp };
   },
 });
 

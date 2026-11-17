@@ -57,6 +57,7 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 | `convex/chapters.ts` | **Pure** page→chapter rules, chapter page ranges and "finished a chapter" detection (tested) |
 | `convex/highlights.ts`, `highlightRules.ts`, `reflections.ts`, `reflectionRules.ts` | CRUD, owner only; pure rules for checking input, joining boxes and validating notes |
 | `convex/chat.ts`, `chatRules.ts` | Ask and validate actions, history, daily limit; pure rules for the limit, search words, chapter boost, citation and answer checks |
+| `convex/xp.ts`, `xpRules.ts` | XP, level and streak: `awardXp` (called only from saveProgress, notes save and test answers), `stats`, `setTimeZone`; pure rules for award keys, levels, the reader's day and streaks |
 | `convex/quizzes.ts`, `quizRules.ts` | Test yourself: make a chapter's test once (`prepare`), start a round (full or missed only), grade each answer on the server, best scores for the path; pure rules for a usable question, shuffling and scores |
 | `convex/llm.ts`, `auth.ts`, `helpers.ts` | Every LLM call (DeepSeek, or Gemini when `LLM_PROVIDER=gemini`), sign-in, access |
 | `app/` + `components/reader/` | Upload page, `/read/[id]`, `/read/[id]/test`; viewer, left overlay (Contents, Highlights), resizable right panel (Chat, Reflections), test tab |

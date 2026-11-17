@@ -8,6 +8,7 @@ import { Bulb } from "@/components/icons/Bulb";
 import { BookCover } from "@/components/library/BookCover";
 import { ChapterPath, Stop } from "@/components/path/ChapterPath";
 import { ReadingShell } from "@/components/ReadingShell";
+import { LevelBar, XpStats } from "@/components/XpStats";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { chapterRanges } from "@/convex/chapters";
@@ -73,6 +74,9 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
         <h1 className="min-w-0 truncate font-serif text-[17px] font-bold" title={doc.title}>
           {doc.title}
         </h1>
+        <div className="ml-auto shrink-0">
+          <XpStats level={false} />
+        </div>
       </header>
       <div className="mx-auto grid max-w-[1060px] items-start gap-10 px-4 pb-20 pt-7 md:grid-cols-[300px_1fr] md:px-7">
         <aside className="rounded-2xl border border-line bg-card p-5 md:sticky md:top-[84px]">
@@ -86,6 +90,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
           <div className="h-1.5 overflow-hidden rounded-full bg-line">
             <div className="h-full rounded-full bg-good" style={{ width: `${view.pct}%` }} />
           </div>
+          <LevelBar />
           <Link href={`/read/${doc._id}/book`} className="chunky mt-4 w-full">
             📖 {view.started ? "Continue reading" : "Start reading"}
           </Link>

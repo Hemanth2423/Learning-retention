@@ -3,6 +3,8 @@ import { mutation, query } from "./_generated/server";
 import { chapterRanges } from "./chapters";
 import { getOwnDocument, requireUser } from "./helpers";
 import { isEmptyNote, validateNote, validateNoteImage } from "./reflectionRules";
+import { awardXp } from "./xp";
+import { awardKey, XP } from "./xpRules";
 
 export const list = query({
   args: { documentId: v.id("documents") },
@@ -26,12 +28,14 @@ export const save = mutation({
 
     if (isEmptyNote(plainText, content)) {
       if (existing) await ctx.db.delete(existing._id);
-      return;
+      return { xp: 0 };
     }
     const problem = validateNote({ content, plainText });
     if (problem) throw new ConvexError(problem);
     if (existing) await ctx.db.patch(existing._id, { content, plainText, dismissed: undefined });
     else await ctx.db.insert("reflections", { userId, documentId, sectionKey, content, plainText });
+    // 20 XP for the chapter's first note (paid once, even if it's rewritten).
+    return { xp: await awardXp(ctx, userId, [{ key: awardKey.note(documentId, sectionKey), xp: XP.note }]) };
   },
 });
 

@@ -101,6 +101,17 @@ export default defineSchema({
     finished: v.boolean(),
   }).index("by_document_chapter", ["documentId", "chapterKey"]),
 
+  // XP, level and streak (ADR 009): one row per user, started fresh (not the legacy profiles). XP is only added by
+  // server mutations; `awarded` holds the key of every award paid, so each action on a chapter pays once.
+  learnerStats: defineTable({
+    userId: v.id("users"),
+    xp: v.number(),
+    streak: v.number(),
+    lastActiveDay: v.optional(v.string()), // "2026-11-17" in the reader's time zone
+    timeZone: v.optional(v.string()),
+    awarded: v.array(v.string()),
+  }).index("by_user", ["userId"]),
+
   // A readable piece of text with a locator (one page for a PDF). Chat searches these.
   chunks: defineTable({
     documentId: v.id("documents"),

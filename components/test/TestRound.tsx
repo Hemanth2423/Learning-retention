@@ -3,6 +3,7 @@
 import { useMutation } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { Bulb } from "@/components/icons/Bulb";
+import { XpStats } from "@/components/XpStats";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import type { PublicQuizQuestion } from "@/convex/quizRules";
@@ -10,8 +11,8 @@ import type { PublicQuizQuestion } from "@/convex/quizRules";
 const HEARTS = 3;
 const KEYS = "ABCD";
 
-type Feedback = { correct: boolean; answer: number; explanation: string; whyWrong: string; page?: number; finished: boolean; score: number; missed: number };
-export type RoundResult = { score: number; total: number; missed: number };
+type Feedback = { correct: boolean; answer: number; explanation: string; whyWrong: string; page?: number; finished: boolean; score: number; missed: number; xp: number };
+export type RoundResult = { score: number; total: number; missed: number; xp: number };
 
 // One round of questions: a full test, or only the missed ones. Every answer is graded on the server.
 export function TestRound({
@@ -32,6 +33,7 @@ export function TestRound({
   const [chosen, setChosen] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [hearts, setHearts] = useState(HEARTS);
+  const [gained, setGained] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const q = questions[pos];
   const last = pos === questions.length - 1;
@@ -44,6 +46,7 @@ export function TestRound({
       try {
         const fb = await answer({ attemptId, position: pos, choice: i });
         setFeedback(fb);
+        setGained((g) => g + fb.xp);
         if (!fb.correct) setHearts((h) => Math.max(0, h - 1));
       } catch {
         setChosen(null);
@@ -55,11 +58,11 @@ export function TestRound({
 
   const next = useCallback(() => {
     if (!feedback) return;
-    if (feedback.finished) return onDone({ score: feedback.score, total: questions.length, missed: feedback.missed });
+    if (feedback.finished) return onDone({ score: feedback.score, total: questions.length, missed: feedback.missed, xp: gained });
     setPos((p) => p + 1);
     setChosen(null);
     setFeedback(null);
-  }, [feedback, onDone, questions.length]);
+  }, [feedback, gained, onDone, questions.length]);
 
   // Keyboard: A–D or 1–4 to answer, Enter for the next question.
   useEffect(() => {
@@ -93,6 +96,7 @@ export function TestRound({
           {"❤️".repeat(hearts)}
           {"🤍".repeat(HEARTS - hearts)}
         </span>
+        <XpStats level={false} />
       </div>
 
       <div className="mt-6 rounded-[18px] border-2 border-ink bg-card p-6" style={{ boxShadow: "0 6px 0 var(--ink)" }}>
@@ -147,7 +151,8 @@ export function TestRound({
                 </>
               )}
             </p>
-            <div className="mt-3 flex justify-end">
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="font-game text-sm text-[#2f4a2b]">{feedback.xp > 0 ? `+${feedback.xp} XP` : ""}</span>
               <button onClick={next} className="chunky" autoFocus>
                 {last ? "Finish ›" : "Next ›"}
               </button>

@@ -7,8 +7,9 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 ## Last verified state
 
 - **App:** main @ `14a43fe` (placement check merged). Live at https://recall-psi-five.vercel.app
-- **Tests:** `npm test` → 150 tests in 29 files pass; lint 0 errors, 22 warnings (2026-11-17)
-- **Feature 2 slices 1–4 built and browser-checked** on `feat/library-and-path` (local commits, not pushed): Home, chapter path, reader layout, Test yourself. Details in the task file's status log
+- **Tests:** `npm test` → 163 tests in 31 files pass; lint 0 errors, 22 warnings (2026-11-17)
+- **Feature 2 slices 1–5 built and browser-checked** on `feat/library-and-path` (local commits, not pushed; slice 5 not committed yet): Home, chapter path, reader layout, Test yourself, XP. Details in the task file's status log
+- **AI:** Groq (`openai/gpt-oss-120b`) is the default (ADR 011); `GROQ_API_KEY` is in the gitignored `.env.local` and on the dev deployment. The key was pasted in chat, so rotate it before anything public
 - **Lint:** 0 errors, 42 warnings (known debt, mostly unused variables)
 - **Docs:** new setup in place (PRODUCT, ARCHITECTURE, AGENTS, CLAUDE, decisions/, tasks/, LEARNINGS). Old plans are in `docs/archive/`
 - **Research (local, gitignored):** `research/competitive-teardown/COMPANION.md` + 23 figures from `Ingrain App.pdf`
@@ -23,5 +24,5 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 
 ## Next action
 
-1. **Hemanth:** review slice 4 (Test yourself): open a book's path → 💡 Test on a chapter.
-2. **Then:** slice 5 (XP, level, streak) of `tasks/feature-2-library-and-path.md`.
+1. **Hemanth:** review slices 4–5 (Test yourself, XP), then commit slice 5.
+2. **Then:** Feature 2 is complete: a full pass with a real book, then a PR (never merged without Hemanth's OK).

@@ -3,10 +3,12 @@ import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { chapterRanges } from "./chapters";
-import { bookProgress, markPages, MAX_SEEN_PER_SAVE } from "./readingRules";
+import { bookProgress, chapterProgress, markPages, MAX_SEEN_PER_SAVE } from "./readingRules";
 import { libraryOrder, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateTitle } from "./documentRules";
 import { getOwnDocument, requireUser } from "./helpers";
 import { locator } from "./locators";
+import { awardXp } from "./xp";
+import { awardKey, XP } from "./xpRules";
 
 export const generateUploadUrl = mutation({
   args: {},
@@ -78,6 +80,11 @@ export const saveProgress = mutation({
     };
     if (seen?.length) patch.pagesSeen = markPages(doc.pagesSeen, doc.pageCount, seen.slice(0, MAX_SEEN_PER_SAVE));
     await ctx.db.patch(documentId, patch);
+    // 10 XP for each chapter read in full (paid once per chapter).
+    if (patch.pagesSeen && patch.pagesSeen !== doc.pagesSeen) {
+      const read = chapterProgress(chapterRanges(doc.sections ?? [], doc.pageCount), patch.pagesSeen).filter((c) => c.read);
+      await awardXp(ctx, userId, read.map((c) => ({ key: awardKey.read(documentId, c.key), xp: XP.read })));
+    }
   },
 });
 

@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { Bulb } from "@/components/icons/Bulb";
 import { ReadingShell } from "@/components/ReadingShell";
+import { XpStats } from "@/components/XpStats";
 import { readableTitle, splitChapterTitle } from "@/components/reader/text";
 import { RoundResult, TestRound } from "@/components/test/TestRound";
 import { api } from "@/convex/_generated/api";
@@ -81,6 +82,9 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
       <Link href={pathHref} className="retro">
         ← Path
       </Link>
+      <div className="ml-auto">
+        <XpStats level={false} />
+      </div>
     </header>
   );
 
@@ -98,6 +102,9 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
           </p>
           <p className="mt-3 text-lg font-bold">
             {done.score} of {done.total} right{perfect ? " 🎉" : ""}
+            <span className="ml-2 font-game text-base text-good" title={done.xp === 0 && done.score > 0 ? "You earned XP for these answers on an earlier try" : undefined}>
+              +{done.xp} XP
+            </span>
           </p>
           <p className="mt-1 text-muted">
             {quiz?.best != null ? `Your best on this ${isParts ? "part" : "chapter"}: ${quiz.best}/${quiz.total}. It shows on the path.` : "Your best score shows on the path."}
