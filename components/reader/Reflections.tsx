@@ -276,22 +276,3 @@ export function NoteWindow({ state }: { state: ReflectionsState }) {
     </div>
   );
 }
-
-// The gentle prompt after finishing a chapter.
-export function ChapterPrompt({ title, onReflect, onNotNow }: { title: string; onReflect: () => void; onNotNow: () => void }) {
-  return (
-    <div role="status" className="absolute bottom-4 right-4 z-10 w-72 rounded-xl border border-line bg-card p-4 shadow-lg">
-      <p className="text-sm">
-        You finished <span className="font-semibold">{title}</span>. What did you take away?
-      </p>
-      <div className="mt-3 flex gap-2">
-        <button onClick={onReflect} className="btn-primary px-3 py-1.5">
-          Reflect
-        </button>
-        <button onClick={onNotNow} className="btn-ghost px-3 py-1.5">
-          Not now
-        </button>
-      </div>
-    </div>
-  );
-}

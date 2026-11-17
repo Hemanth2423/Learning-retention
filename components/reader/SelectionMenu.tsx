@@ -1,19 +1,21 @@
 "use client";
 
 import type { SelectionInfo } from "./PdfViewer";
+import { IconButton, Icons } from "./Tooltip";
 
 type Props = {
   selection: SelectionInfo;
   onHighlight: () => void;
   onComment: () => void;
-  onAsk?: () => void; // only shown once chat exists
+  onAsk?: () => void; // only when chat is available
 };
 
-// The small menu that appears above selected text.
+const button = "flex h-9 w-9 items-center justify-center rounded-md hover:bg-paper/15 focus-visible:bg-paper/15 outline-none";
+
+// The small icon menu above selected text. Each icon names itself when the pointer is over it.
 export function SelectionMenu({ selection, onHighlight, onComment, onAsk }: Props) {
-  const left = Math.min(Math.max(selection.x, 130), window.innerWidth - 130);
+  const left = Math.min(Math.max(selection.x, 90), window.innerWidth - 90);
   const top = Math.max(selection.y - 8, 56);
-  const button = "px-3 py-1.5 text-sm font-medium hover:bg-paper/15 focus-visible:bg-paper/15 outline-none";
   return (
     <div
       role="toolbar"
@@ -21,18 +23,18 @@ export function SelectionMenu({ selection, onHighlight, onComment, onAsk }: Prop
       style={{ left, top, transform: "translate(-50%, -100%)" }}
       // Keep the text selected while a button is pressed.
       onMouseDown={(e) => e.preventDefault()}
-      className="fixed z-30 flex divide-x divide-paper/20 overflow-hidden rounded-lg bg-ink text-paper shadow-lg"
+      className="fixed z-30 flex gap-0.5 rounded-lg bg-ink p-1 text-paper shadow-lg"
     >
-      <button onClick={onHighlight} className={button}>
-        Highlight
-      </button>
-      <button onClick={onComment} className={button}>
-        + Comment
-      </button>
+      <IconButton label="Highlight" onClick={onHighlight} className={button}>
+        {Icons.highlight}
+      </IconButton>
+      <IconButton label="Add comment" onClick={onComment} className={button}>
+        {Icons.comment}
+      </IconButton>
       {onAsk && (
-        <button onClick={onAsk} className={button}>
-          Ask AI
-        </button>
+        <IconButton label="Ask AI" onClick={onAsk} className={button}>
+          {Icons.ask}
+        </IconButton>
       )}
     </div>
   );

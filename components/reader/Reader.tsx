@@ -12,10 +12,11 @@ import { ContentsPanel } from "./ContentsPanel";
 import { HighlightsPanel } from "./HighlightsPanel";
 import { PdfViewer, PdfViewerHandle, SelectionInfo } from "./PdfViewer";
 import { ChatPanel, useChat } from "./Chat";
-import { ChapterPrompt, NoteWindow, ReflectionsPanel, useReflections } from "./Reflections";
+import { ChapterDock } from "./ChapterDock";
+import { PageNav } from "./PageNav";
+import { NoteWindow, ReflectionsPanel, useReflections } from "./Reflections";
 import { RightPanel, RightTab } from "./RightPanel";
 import { SelectionMenu } from "./SelectionMenu";
-import { TestTab, useTestTabReveal } from "./TestTab";
 
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const NO_HIGHLIGHTS: Doc<"highlights">[] = [];
@@ -67,7 +68,6 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
   const jumpToPage = useCallback((p: number) => viewer.current?.jumpTo(p), []);
   const reflections = useReflections(doc._id, ranges, jumpToPage, canHighlight);
   const chat = useChat(doc._id);
-  const testTab = useTestTabReveal();
   const [chatDraft, setChatDraft] = useState("");
   const [page, setPage] = useState(initialPage);
   const [zoomIndex, setZoomIndex] = useState(2);
@@ -85,12 +85,13 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
     else {
       setRightTab(tab);
       setRightOpen(true);
-      if (tab === "reflections" && prompt) reflectOnPrompt(); // a waiting prompt opens its note
+      if (tab === "reflections" && waitingKey) reflectOn(waitingKey); // a finished chapter without a reflection opens its note
     }
   };
 
-  // After finishing a chapter by reading (not by jumping), offer to write a reflection, once per chapter.
-  const [prompt, setPrompt] = useState<{ key: string; tucked: boolean } | null>(null);
+  // After finishing a chapter by reading (not by jumping), the chapter card opens by itself for 10 seconds.
+  const [finished, setFinished] = useState<{ key: string; token: number } | null>(null);
+  const [dockOpen, setDockOpen] = useState(false);
   const previousBottom = useRef<number | null>(null);
   const haveRow = useRef(reflections.byKey);
   useEffect(() => {
@@ -102,24 +103,22 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
       previousBottom.current = bottom;
       if (previous === null || !natural) return;
       const done = finishedChapter(previous, bottom, ranges);
-      if (!done || haveRow.current.has(done.key)) return; // already written, or "not now" was chosen
-      setPrompt((cur) => (cur?.key === done.key ? cur : { key: done.key, tucked: false }));
+      if (!done || haveRow.current.has(done.key)) return; // already written, or "not now" was chosen earlier
+      setFinished((cur) => (cur?.key === done.key ? cur : { key: done.key, token: Date.now() }));
+      setDockOpen(true);
     },
-    [ranges]
+    [ranges, setFinished, setDockOpen]
   );
-  const promptKey = prompt && !reflections.byKey.has(prompt.key) ? prompt.key : null;
-  useEffect(() => {
-    if (!prompt || prompt.tucked) return;
-    const timer = window.setTimeout(() => setPrompt((cur) => (cur ? { ...cur, tucked: true } : cur)), 15000);
-    return () => window.clearTimeout(timer);
-  }, [prompt]);
-  function reflectOnPrompt() {
-    if (!prompt) return;
-    reflections.open(prompt.key);
+  const waitingKey = finished && !reflections.byKey.has(finished.key) ? finished.key : null;
+  const currentChapter = chapterOf(sections, page);
+  function reflectOn(key: string | null) {
+    if (key) reflections.open(key);
     setRightTab("reflections");
     setRightOpen(true);
-    setPrompt(null);
+    setDockOpen(false);
+    setFinished(null);
   }
+  const zoomPercent = Math.round(ZOOMS[zoomIndex] * 100);
 
   // Esc closes the left overlay, then the right panel, unless the reader is typing somewhere (that field handles Esc).
   useEffect(() => {
@@ -192,28 +191,6 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
         </Link>
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{doc.title}</h1>
         {!canHighlight && <span className="hidden text-xs text-muted sm:inline">Scanned PDF: highlights and chat are off</span>}
-        <span className="text-sm tabular-nums text-muted" aria-live="off">
-          {page} / {pageCount}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setZoomIndex((i) => Math.max(0, i - 1))}
-            disabled={zoomIndex === 0}
-            aria-label="Zoom out"
-            className="btn-ghost px-2.5 py-1"
-          >
-            −
-          </button>
-          <span className="w-12 text-center text-sm tabular-nums text-muted">{Math.round(ZOOMS[zoomIndex] * 100)}%</span>
-          <button
-            onClick={() => setZoomIndex((i) => Math.min(ZOOMS.length - 1, i + 1))}
-            disabled={zoomIndex === ZOOMS.length - 1}
-            aria-label="Zoom in"
-            className="btn-ghost px-2.5 py-1"
-          >
-            +
-          </button>
-        </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -231,14 +208,8 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
 
         <div className="relative flex min-w-0 flex-1">
           {/* Clicking the book closes the left overlay. */}
-          <div
-            className="flex min-w-0 flex-1"
-            {...testTab.handlers}
-            onPointerDownCapture={() => {
-              testTab.handlers.onPointerDownCapture();
-              if (panel) setPanel(null); // clicking the book also closes the left overlay
-            }}
-          >
+          {/* Clicking the book closes the left overlay. */}
+          <div className="flex min-w-0 flex-1" onPointerDownCapture={() => panel && setPanel(null)}>
             <PdfViewer
               ref={viewer}
               url={url}
@@ -252,17 +223,27 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
               onError={onError}
             />
           </div>
-          <TestTab href={`/read/${doc._id}/test`} expanded={testTab.expanded} onHold={testTab.hold} />
-          {promptKey && prompt && !prompt.tucked && (
-            <ChapterPrompt
-              title={reflections.titleOf(promptKey)}
-              onReflect={reflectOnPrompt}
-              onNotNow={() => {
-                void reflections.dismiss(promptKey);
-                setPrompt(null);
-              }}
-            />
-          )}
+          <PageNav
+            page={page}
+            pageCount={pageCount}
+            onGo={jumpToPage}
+            zoomPercent={zoomPercent}
+            canZoomOut={zoomIndex > 0}
+            canZoomIn={zoomIndex < ZOOMS.length - 1}
+            onZoomOut={() => setZoomIndex((i) => Math.max(0, i - 1))}
+            onZoomIn={() => setZoomIndex((i) => Math.min(ZOOMS.length - 1, i + 1))}
+          />
+          <ChapterDock
+            open={dockOpen}
+            onOpenChange={setDockOpen}
+            autoToken={finished?.token ?? null}
+            finished={!!waitingKey}
+            chapterTitle={waitingKey ? reflections.titleOf(waitingKey) : (currentChapter?.title ?? null)}
+            canReflect={ranges.length > 0}
+            waiting={!!waitingKey}
+            onReflect={() => reflectOn(waitingKey ?? currentChapter?.key ?? null)}
+            testHref={`/read/${doc._id}/test`}
+          />
           {panel && (
             <div id="left-panel" className="absolute inset-y-0 left-0 z-20 shadow-xl">
               {panel === "contents" ? (
@@ -309,7 +290,7 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </RailButton>
           )}
-          <RailButton label="Reflect" dot={!!promptKey && !!prompt?.tucked} active={rightOpen && rightTab === "reflections"} onClick={() => toggleRight("reflections")} controls="right-panel">
+          <RailButton label="Reflect" dot={!!waitingKey && !dockOpen} active={rightOpen && rightTab === "reflections"} onClick={() => toggleRight("reflections")} controls="right-panel">
             <path d="M12 20h9" />
             <path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
           </RailButton>
@@ -333,7 +314,7 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
         />
       )}
       {notice && (
-        <p role="alert" className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-sm text-paper shadow-lg">
+        <p role="alert" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-sm text-paper shadow-lg">
           {notice}
         </p>
       )}

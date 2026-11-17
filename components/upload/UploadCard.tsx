@@ -70,11 +70,14 @@ export function UploadCard() {
 
   const source = SOURCES[0];
 
+  // Every state lives in the same box, so the page never jumps while a book uploads.
+  const box = "flex h-full min-h-[180px] flex-col items-center justify-center gap-2 rounded-2xl border-2 p-6 text-center";
+
   if (errorMessage) {
     return (
-      <div className="card text-center" role="alert">
+      <div className={`${box} border-bad/40 bg-card`} role="alert">
         <p className="font-medium text-bad">{errorMessage}</p>
-        <button onClick={() => void tryAgain()} className="btn-primary mt-4">
+        <button onClick={() => void tryAgain()} className="btn-primary mt-2">
           Try again
         </button>
       </div>
@@ -83,37 +86,39 @@ export function UploadCard() {
 
   if (phase.name === "uploading") {
     return (
-      <div className="card" aria-live="polite">
-        <p className="truncate text-sm font-medium">{phase.fileName}</p>
+      <div className={`${box} border-line bg-card`} aria-live="polite">
+        <p className="w-full truncate text-sm font-medium">{phase.fileName}</p>
         <div
           role="progressbar"
           aria-valuenow={phase.pct}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-label="Upload progress"
-          className="mt-3 h-2 overflow-hidden rounded-full bg-line"
+          className="mt-1 h-2 w-full overflow-hidden rounded-full bg-line"
         >
           <div className="h-full bg-accent transition-[width]" style={{ width: `${phase.pct}%` }} />
         </div>
-        <p className="mt-2 text-sm text-muted">Uploading… {phase.pct}%</p>
+        <p className="text-sm text-muted">Uploading… {phase.pct}%</p>
       </div>
     );
   }
 
   if (phase.name === "preparing") {
     return (
-      <div className="card" aria-live="polite">
-        <div className="h-2 overflow-hidden rounded-full bg-line">
+      <div className={`${box} border-line bg-card`} aria-live="polite">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-line">
           <div className="h-full w-1/3 animate-pulse rounded-full bg-accent" />
         </div>
-        <p className="mt-3 font-medium">Preparing your book…</p>
-        <p className="text-sm text-muted">Getting the pages and contents ready. This can take a minute for a large book.</p>
+        <p className="mt-1 font-serif font-semibold">Preparing your book…</p>
+        <p className="text-sm text-muted">Getting the pages and contents ready. A large book can take a minute.</p>
       </div>
     );
   }
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -124,25 +129,27 @@ export function UploadCard() {
         setDragging(false);
         void start(e.dataTransfer.files[0]);
       }}
-      className={`flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-6 py-14 text-center transition ${
-        dragging ? "border-accent bg-accent-soft" : "border-line"
-      }`}
+      className={`${box} w-full border-dashed transition ${dragging ? "border-accent bg-card" : "border-[#b9a88f] bg-card/50 hover:border-accent hover:bg-card"}`}
     >
-      <button onClick={() => inputRef.current?.click()} className="btn-primary px-6 py-3 text-base">
-        {source.label}
-      </button>
-      <p className="text-sm text-muted">{source.hint}. Or drop it here.</p>
+      <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-full bg-accent text-3xl leading-none text-white">
+        +
+      </span>
+      <span className="font-serif text-lg font-semibold">Add a new book</span>
+      <span className="text-sm text-muted">Drop a PDF here, or click to choose one</span>
+      <span className="text-sm text-muted">{source.hint}</span>
       <input
         ref={inputRef}
         type="file"
         accept={source.accept}
         className="sr-only"
         aria-label={source.label}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
         onChange={(e) => {
           void start(e.target.files?.[0]);
           e.target.value = "";
         }}
       />
-    </div>
+    </button>
   );
 }

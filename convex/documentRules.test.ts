@@ -35,3 +35,22 @@ describe("documentTitle", () => {
     expect(documentTitle("  ", "")).toBe("Untitled");
   });
 });
+
+import { libraryOrder, validateTitle } from "./documentRules";
+
+describe("library rules", () => {
+  test("titles must be 1 to 120 characters after trimming", () => {
+    expect(validateTitle("  Deep Work ")).toBeUndefined();
+    expect(validateTitle("   ")).toMatch(/Give the book a title/);
+    expect(validateTitle("x".repeat(121))).toMatch(/under 120/);
+  });
+  test("the most recently read book comes first; unread books sort by when they were added", () => {
+    const books = [
+      { id: "old-unread", _creationTime: 100 },
+      { id: "read-yesterday", _creationTime: 50, lastReadAt: 500 },
+      { id: "new-unread", _creationTime: 900 },
+      { id: "read-now", _creationTime: 10, lastReadAt: 1000 },
+    ];
+    expect(libraryOrder(books).map((b) => b.id)).toEqual(["read-now", "new-unread", "read-yesterday", "old-unread"]);
+  });
+});

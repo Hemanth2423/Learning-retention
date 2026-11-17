@@ -77,3 +77,15 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 - **Cited answers only cite what was retrieved**, checked in code and tested.
 - **Every LLM call goes through `llm.ts`**, which logs `[tokens]`. AI runs only in actions, only on a user request.
 - **Never trust the browser's file check.** Type and size are re-checked on the server after upload.
+
+## Feature 2 changes (approved 2026-11-17, being built)
+
+See [tasks/feature-2-library-and-path.md](tasks/feature-2-library-and-path.md). ⚠ = schema change.
+
+| Change | How | Why this way |
+|---|---|---|
+| ⚠ **% read per chapter** | `documents.pagesSeen`: one compact string, one bit per page (344 pages ≈ 43 bytes). A page counts once it's on screen for about 2 s during normal reading. The browser sends only new pages, folded into the existing last-page save every 1.5 s. Chapter % = pages seen ÷ chapter pages, worked out from `sections` (pure rule, tested) | No new table, no extra request, no slowdown. Jumps don't count as reading. Simpler fallback: store only the furthest page (one number), but a jump to the end would mark the whole book read |
+| ⚠ **Tests** | `quizzes`: one row per chapter (5 questions; answer keys never sent to the browser). `quizAttempts`: score, answers, best score. Generated on the first "Test yourself" from that chapter's pages via `llm.ts`, then reused | One AI call per chapter. Retakes and "review missed" are free and instant. Rules (4 options, 1 right, shuffled, server grading) live in code |
+| ⚠ **XP, level, streak** | `learnerStats`: one row per user (xp, streak, last active day). XP is added by server mutations only (read 10, note 20, right answer 10); each award recorded once per chapter so it can't be farmed. Level = xp ÷ 100 + 1 | Started fresh, not the legacy `profiles`/`achievements` (ADR 009). Simple and testable |
+| **Library** | `documents.list` (owner's books, newest-read first), `documents.rename`, `documents.remove` | Remove deletes the file, chunks, highlights, notes, chat, tests and attempts for that book |
+| **Parts for books without contents** | `chapterRanges` falls back to 20-page parts with keys `part-1`, `part-2`… | One code path for the chapter path, % read, notes and tests (ADR 008) |

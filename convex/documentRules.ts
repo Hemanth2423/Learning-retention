@@ -29,3 +29,17 @@ export function documentTitle(metaTitle: string | undefined, fileName: string): 
   const title = fromMeta.length >= 3 ? fromMeta : fromFile || "Untitled";
   return title.slice(0, 120);
 }
+
+export const MAX_TITLE = 120;
+
+export function validateTitle(title: string): string | undefined {
+  const t = title.trim();
+  if (!t) return "Give the book a title.";
+  if (t.length > MAX_TITLE) return `Keep the title under ${MAX_TITLE} characters.`;
+  return undefined;
+}
+
+// Library order: the book read most recently first; books never opened sort by when they were added.
+export function libraryOrder<T extends { lastReadAt?: number; _creationTime: number }>(books: T[]): T[] {
+  return [...books].sort((a, b) => (b.lastReadAt ?? b._creationTime) - (a.lastReadAt ?? a._creationTime));
+}
