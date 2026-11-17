@@ -1,12 +1,14 @@
 "use client";
 
 import { useAction, useMutation, useQuery } from "convex/react";
+import { validateNoteImage } from "@/convex/reflectionRules";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { ChapterRange } from "@/convex/chapters";
 import { CitedText } from "./CitedText";
 import { whenOf } from "./time";
+import { readableTitle } from "./text";
 import { NoteEditor, NoteValue } from "./NoteEditor";
 import { SaveStatus, useAutosave } from "./useAutosave";
 
@@ -19,13 +21,32 @@ export function useReflections(documentId: Id<"documents">, ranges: ChapterRange
   const saveMutation = useMutation(api.reflections.save);
   const dismissMutation = useMutation(api.reflections.dismiss);
   const validate = useAction(api.chat.validateNote);
+  const imageUploadUrl = useMutation(api.reflections.imageUploadUrl);
+  const attachImage = useMutation(api.reflections.attachImage);
+  // Uploads an image for a note and returns its link (or why it failed).
+  const addImage = useCallback(
+    async (file: File): Promise<{ ok: true; url: string } | { ok: false; message: string }> => {
+      const problem = validateNoteImage({ size: file.size, contentType: file.type });
+      if (problem) return { ok: false, message: problem };
+      try {
+        const uploadUrl = await imageUploadUrl();
+        const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
+        if (!res.ok) throw new Error("upload failed");
+        const { storageId } = (await res.json()) as { storageId: Id<"_storage"> };
+        return await attachImage({ documentId, storageId });
+      } catch {
+        return { ok: false, message: "That image didn't upload. Try again." };
+      }
+    },
+    [imageUploadUrl, attachImage, documentId]
+  );
   const [activeKey, setActiveKey] = useState<string | null>(null); // the chapter being written
   const [expanded, setExpanded] = useState(false);
   // The latest text typed locally, so expanding or minimizing never shows an older copy.
   const [draft, setDraft] = useState<({ key: string } & NoteValue) | null>(null);
 
   const byKey = useMemo(() => new Map(rows.map((r) => [r.sectionKey, r])), [rows]);
-  const titleOf = useCallback((key: string) => ranges.find((r) => r.key === key)?.title ?? "", [ranges]);
+  const titleOf = useCallback((key: string) => readableTitle(ranges.find((r) => r.key === key)?.title ?? ""), [ranges]);
   const initialFor = (key: string) => (draft?.key === key ? draft.content : (byKey.get(key)?.content ?? null));
 
   const save = useCallback((key: string, value: NoteValue) => saveMutation({ documentId, sectionKey: key, ...value }), [saveMutation, documentId]);
@@ -38,7 +59,7 @@ export function useReflections(documentId: Id<"documents">, ranges: ChapterRange
     setExpanded(false);
   }, []);
 
-  return { rows, byKey, activeKey, expanded, setExpanded, open, close, titleOf, initialFor, setDraft, save, dismiss, validate, onJump, canValidate, documentId };
+  return { rows, byKey, activeKey, expanded, setExpanded, open, close, titleOf, initialFor, setDraft, save, dismiss, validate, addImage, onJump, canValidate, documentId };
 }
 export type ReflectionsState = ReturnType<typeof useReflections>;
 
@@ -118,7 +139,7 @@ function NoteSession({ state, chapterKey, header }: { state: ReflectionsState; c
   return (
     <div className="flex h-full min-h-0 flex-col">
       {header(status)}
-      <div className="min-h-0 flex-1">
+      <div className="min-h-[220px] flex-1 px-4 pb-2">
         <NoteEditor
           initial={state.initialFor(chapterKey)}
           autoFocus
@@ -127,6 +148,13 @@ function NoteSession({ state, chapterKey, header }: { state: ReflectionsState; c
             setPlain(value.plainText);
             schedule(value);
           }}
+          onAddImage={async (file) => {
+            setProblem(null);
+            const res = await state.addImage(file);
+            if (res.ok) return res.url;
+            setProblem(res.message);
+            return null;
+          }}
           actions={
             state.canValidate ? (
               <button
@@ -134,9 +162,9 @@ function NoteSession({ state, chapterKey, header }: { state: ReflectionsState; c
                 onClick={() => void validate()}
                 disabled={checking || !plain.trim()}
                 title="Checks your note against the book. Uses one of your 5 questions today."
-                className="rounded-md border border-line px-3 py-1 text-xs font-medium hover:bg-accent-soft disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-good-line bg-card px-3 py-1.5 text-[13px] font-semibold text-good hover:bg-good-soft disabled:opacity-50"
               >
-                {checking ? "Checking…" : result ? "Validate again" : "Validate"}
+                ✓ {checking ? "Checking…" : result ? "Check again" : "Check against the book"}
               </button>
             ) : undefined
           }
@@ -181,62 +209,96 @@ export function ReflectionsPanel({ state, ranges, currentKey }: { state: Reflect
         state={state}
         chapterKey={key}
         header={(status) => (
-          <div className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
-            <button onClick={state.close} className="text-sm text-muted hover:text-ink" aria-label="Back to all reflections">
-              ‹ All
-            </button>
-            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{state.titleOf(key)}</h2>
-            <span className="text-xs text-muted" aria-live="polite">
-              {statusText[status]}
-            </span>
-            <button onClick={() => state.setExpanded(true)} aria-label="Expand note" title="Expand" className={iconButton}>
+          <div className="shrink-0 px-4 pb-3 pt-3">
+            <div className="flex items-center gap-2">
+              <button onClick={state.close} className="text-[13px] font-semibold text-accent hover:text-accent-dark" aria-label="Back to all notes">
+                ‹ All notes
+              </button>
+              <span className="ml-auto text-xs text-muted" aria-live="polite">
+                {statusText[status]}
+              </span>
+              <button onClick={() => state.setExpanded(true)} aria-label="Expand note" title="Open larger" className={iconButton}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
               </svg>
-            </button>
+              </button>
+            </div>
+            <h2 className="mt-1.5 font-serif text-lg font-bold leading-snug">{state.titleOf(key)}</h2>
+            <p className="mt-0.5 text-[13px] text-muted">Write what you took away, in your own words. A few lines is enough.</p>
           </div>
         )}
       />
     );
   }
 
-  const written = ranges.filter((r) => state.byKey.get(r.key)?.plainText);
+  const written = ranges.filter((r) => { const row = state.byKey.get(r.key); return !!row?.plainText?.trim() || !!row?.content?.includes('"type":"image"'); });
+  // One text size (14 px) across the panel; weight and colour do the work instead.
   return (
-    <div className="p-4">
-      <label htmlFor="reflect-on" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-        Reflect on
-      </label>
-      <div className="flex gap-2">
-        <select id="reflect-on" value={choice} onChange={(e) => setPick(e.target.value)} className="input min-w-0 flex-1">
-          {ranges.map((r) => (
-            <option key={r.key} value={r.key}>
-              {r.title}
-              {r.key === currentKey ? " (you are here)" : ""}
-            </option>
-          ))}
-        </select>
-        <button onClick={() => state.open(choice)} className="btn-primary shrink-0">
-          Write
-        </button>
+    <div className="space-y-5 p-4 text-sm">
+      <div className="rounded-xl border border-line bg-card p-3.5">
+        <label htmlFor="reflect-on" className="block font-serif font-bold">
+          Write a note
+        </label>
+        <p className="mb-2.5 mt-0.5 text-muted">What you took away from a chapter, in your own words.</p>
+        <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
+            <select
+              id="reflect-on"
+              value={choice}
+              onChange={(e) => setPick(e.target.value)}
+              className="h-10 w-full appearance-none truncate rounded-lg border border-line bg-cream py-2 pl-3 pr-9 text-sm text-ink focus:border-accent focus:outline-none"
+            >
+              {ranges.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {readableTitle(r.title)}
+                  {r.key === currentKey ? " · you're here" : ""}
+                </option>
+              ))}
+            </select>
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+          <button onClick={() => state.open(choice)} className="btn-primary h-10 shrink-0 text-sm">
+            ✏️ Write
+          </button>
+        </div>
       </div>
 
-      <h2 className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">Your reflections</h2>
-      {written.length === 0 ? (
-        <p className="text-sm text-muted">Nothing yet. After a chapter, write what you took away in your own words.</p>
-      ) : (
-        <ul className="space-y-2">
-          {written.map((r) => (
-            <li key={r.key}>
-              <button onClick={() => state.open(r.key)} className="block w-full rounded-lg border border-line p-3 text-left hover:bg-accent-soft">
-                <span className="block text-sm font-semibold">{r.title}</span>
-                <span className="mt-1 line-clamp-3 block whitespace-pre-line text-sm text-muted">{state.byKey.get(r.key)?.plainText?.replace(/\n{2,}/g, "\n")}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <section>
+        <h2 className="mb-2.5 font-serif font-bold">
+          Your notes <span className="font-sans font-normal text-muted">· {written.length}</span>
+        </h2>
+        {written.length === 0 ? (
+          <p className="text-muted">Nothing yet. At the end of a chapter, write what you took away.</p>
+        ) : (
+          <ul className="space-y-2.5">
+            {written.map((r) => (
+              <li key={r.key}>
+                <button
+                  onClick={() => state.open(r.key)}
+                  title="Open this note"
+                  className="block w-full rounded-xl border border-line border-l-4 border-l-accent bg-card px-3.5 py-3 text-left transition hover:border-accent hover:shadow-sm"
+                >
+                  <span className="block truncate font-serif font-bold">{readableTitle(r.title)}</span>
+                  <span className="mt-1 line-clamp-2 text-muted">{notePreview(state.byKey.get(r.key)?.plainText) || "🖼 Image"}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
+}
+
+// The first lines of a note on one line each joined by " · ", without the empty lines lists leave behind.
+function notePreview(text?: string): string {
+  return (text ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(" · ");
 }
 
 // The larger note, floating over the book (like expanding a Gmail draft). Minimize returns it to the panel.

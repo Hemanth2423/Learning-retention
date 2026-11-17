@@ -19,8 +19,6 @@ type Props = {
   highlights: { _id: string; segments: Segment[] }[];
   onPageChange: (page: number) => void;
   onSelection?: (selection: SelectionInfo | null) => void; // leave out to switch selecting off (scanned PDFs)
-  // The last page whose bottom edge is on screen. `natural` is false while a jump or restore is settling.
-  onReadProgress?: (bottomPage: number, natural: boolean) => void;
   // Pages mostly on screen right now (at least half the page, or 40% of the view). Used to count pages read.
   onVisiblePages?: (pages: number[]) => void;
   onError: () => void;
@@ -28,13 +26,13 @@ type Props = {
 
 const MAX_COLUMN = 860; // widest a page gets at 100% zoom
 const GUTTER = 48;
-const TOP_GAP = 16;
+const TOP_GAP = 76; // room for the top menu, so a jump never lands under it
 const CONTEXT_ABOVE = 120; // when jumping to a spot, show this much above it
 const MAX_LINE_HEIGHT = 0.08; // fraction of the page; taller boxes are containers, not text
 
 // Scrolls the pages of one PDF. Only pages near the screen are drawn, so long books stay fast.
 export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
-  { url, pageCount, zoom, initialPage, highlights, onPageChange, onSelection, onReadProgress, onVisiblePages, onError },
+  { url, pageCount, zoom, initialPage, highlights, onPageChange, onSelection, onVisiblePages, onError },
   ref
 ) {
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
@@ -213,22 +211,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
         currentRef.current = lo;
         onPageChange(lo);
       }
-      if (onReadProgress) {
-        const bottomEdge = root.scrollTop + root.clientHeight;
-        const bottomOf = (n: number) => {
-          const top = pageTop(n);
-          const el = pageEl(n);
-          return top !== null && el ? top + el.offsetHeight : Infinity;
-        };
-        let bl = 0;
-        let bh = pageCount;
-        while (bl < bh) {
-          const mid = Math.ceil((bl + bh) / 2);
-          if (bottomOf(mid) <= bottomEdge + 2) bl = mid;
-          else bh = mid - 1;
-        }
-        onReadProgress(bl, pendingJump.current === null);
-      }
       if (onVisiblePages) {
         const viewTop = root.scrollTop;
         const viewBottom = viewTop + root.clientHeight;
@@ -252,7 +234,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
       root.removeEventListener("scroll", onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [root, pageCount, pageTop, pageEl, onPageChange, onReadProgress, onVisiblePages]);
+  }, [root, pageCount, pageTop, pageEl, onPageChange, onVisiblePages]);
 
   // Selecting text: when the reader lets go of the mouse, work out the boxes the selection covers on each page.
   useEffect(() => {
@@ -324,7 +306,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
       className="relative min-w-0 flex-1 overflow-auto bg-line/30 outline-none"
     >
       {pdf && firstPage && scale > 0 ? (
-        <div ref={columnRef} className="relative mx-auto flex w-max min-w-full flex-col items-center gap-4 px-6 py-4">
+        <div ref={columnRef} className="relative mx-auto flex w-max min-w-full flex-col items-center gap-4 px-6 pb-24 pt-16">
           {pages.map((n) => (
             <PdfPage
               key={n}

@@ -39,6 +39,13 @@ export default defineSchema({
     comment: v.optional(v.string()),
   }).index("by_document", ["documentId"]),
 
+  // An image added to a note. Tracked so it's deleted with the book (the note itself only holds its link).
+  noteImages: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    storageId: v.id("_storage"),
+  }).index("by_document", ["documentId"]),
+
   // The reader's note on one chapter. `content` is the editor's saved format (JSON), `plainText` a plain copy for AI.
   // `dismissed` with no text means "not now" was chosen at the end-of-chapter prompt, so it isn't asked again.
   reflections: defineTable({

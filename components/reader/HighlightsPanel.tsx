@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { chapterOf, SectionLike } from "@/convex/chapters";
 import { MAX_COMMENT } from "@/convex/highlightRules";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type Section = SectionLike & { title: string };
 type Highlight = Doc<"highlights">;
@@ -44,6 +45,7 @@ function CommentEditor({ initial, onSave, onCancel }: { initial: string; onSave:
 }
 
 export function HighlightsPanel({ highlights, sections, editingId, onEdit, onSetComment, onRemove, onJump }: Props) {
+  const [confirmId, setConfirmId] = useState<Id<"highlights"> | null>(null);
   // Group by chapter, in book order. With no contents there are no headings.
   const groups = useMemo(() => {
     const sorted = [...highlights].sort(
@@ -64,7 +66,7 @@ export function HighlightsPanel({ highlights, sections, editingId, onEdit, onSet
   }, [highlights, sections]);
 
   return (
-    <div className="h-full w-72 shrink-0 overflow-y-auto border-r border-line bg-card py-3">
+    <div className="py-3">
       <h2 className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">Highlights</h2>
       {highlights.length === 0 ? (
         <p className="px-4 text-sm text-muted">Select text in the book to highlight it. Your highlights and comments show up here.</p>
@@ -99,7 +101,8 @@ export function HighlightsPanel({ highlights, sections, editingId, onEdit, onSet
                     )}
                     <button
                       onClick={() => {
-                        if (!h.comment || window.confirm("Delete this highlight and its comment?")) onRemove(h._id);
+                        if (h.comment) setConfirmId(h._id);
+                        else onRemove(h._id);
                       }}
                       aria-label="Delete highlight"
                       className="hover:text-bad"
@@ -113,6 +116,17 @@ export function HighlightsPanel({ highlights, sections, editingId, onEdit, onSet
           </section>
         ))
       )}
+      <ConfirmDialog
+        open={!!confirmId}
+        title="Delete this highlight?"
+        message="Its comment will be deleted too. This can't be undone."
+        confirmLabel="Delete"
+        onCancel={() => setConfirmId(null)}
+        onConfirm={() => {
+          if (confirmId) onRemove(confirmId);
+          setConfirmId(null);
+        }}
+      />
     </div>
   );
 }

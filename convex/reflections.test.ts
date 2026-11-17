@@ -84,4 +84,20 @@ describe("reflections", () => {
     const { t, documentId } = await setup();
     await expect(t.query(api.reflections.list, { documentId })).rejects.toThrow();
   });
+
+  test("images in notes: owner only, images only, and the file is deleted when refused", async () => {
+    const { t, asA, asB, documentId } = await setup();
+    const png = await t.run((ctx) => ctx.storage.store(new Blob(["png"], { type: "image/png" })));
+    const res = await asA.mutation(api.reflections.attachImage, { documentId, storageId: png });
+    expect(res).toMatchObject({ ok: true, url: expect.stringContaining("http") });
+    expect(await t.run((ctx) => ctx.db.query("noteImages").collect())).toHaveLength(1);
+
+    const pdf = await t.run((ctx) => ctx.storage.store(new Blob(["%PDF-"], { type: "application/pdf" })));
+    expect(await asA.mutation(api.reflections.attachImage, { documentId, storageId: pdf })).toMatchObject({ ok: false });
+    expect(await t.run((ctx) => ctx.db.system.get(pdf))).toBeNull();
+
+    const other = await t.run((ctx) => ctx.storage.store(new Blob(["png"], { type: "image/png" })));
+    expect(await asB.mutation(api.reflections.attachImage, { documentId, storageId: other })).toMatchObject({ ok: false });
+    expect(await t.run((ctx) => ctx.db.query("noteImages").collect())).toHaveLength(1);
+  });
 });

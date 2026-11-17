@@ -3,23 +3,22 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { clampRightWidth, defaultRightWidth, RIGHT_MIN } from "./layout";
 
-export type RightTab = "chat" | "reflections";
+export type StudyTab = "ask" | "notes" | "highlights" | "more";
+export type StudyTabSpec = { key: StudyTab; label: string; icon: ReactNode; count?: number; content: ReactNode };
 const STORAGE_KEY = "ingrain.rightPanelWidth";
 
-// The right panel: a Chat | Reflections switch, and a handle on its left edge to drag it wider.
-// The page area next to it re-fits as the width changes. Width is remembered in this browser only.
+// The study tools drawer on the right: Ask, Notes, Highlights, More as tabs, and a handle on its left edge
+// to drag it wider. The page next to it re-fits as the width changes. Width is remembered in this browser only.
 export function RightPanel({
   tab,
   onTab,
-  chatAvailable,
-  chat,
-  reflections,
+  tabs,
+  onClose,
 }: {
-  tab: RightTab;
-  onTab: (tab: RightTab) => void;
-  chatAvailable: boolean;
-  chat: ReactNode;
-  reflections: ReactNode;
+  tab: StudyTab;
+  onTab: (tab: StudyTab) => void;
+  tabs: StudyTabSpec[];
+  onClose: () => void;
 }) {
   const [width, setWidth] = useState(() => {
     const fallback = defaultRightWidth(window.innerWidth);
@@ -60,7 +59,7 @@ export function RightPanel({
   };
 
   return (
-    <aside ref={panelRef} id="right-panel" style={{ width }} className="relative flex h-full shrink-0 flex-col border-l border-line bg-card">
+    <aside ref={panelRef} id="right-panel" style={{ width }} className="relative flex h-full shrink-0 flex-col border-l border-line bg-panel pt-[60px]">
       <div
         role="separator"
         aria-orientation="vertical"
@@ -83,18 +82,38 @@ export function RightPanel({
         }}
         className={`absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize outline-none hover:bg-accent/40 focus-visible:bg-accent/60 ${dragging ? "bg-accent/60" : ""}`}
       />
-      <div role="tablist" aria-label="Right panel" className="flex shrink-0 gap-1 border-b border-line p-2">
-        {chatAvailable && (
-          <button role="tab" aria-selected={tab === "chat"} onClick={() => onTab("chat")} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === "chat" ? "bg-accent-soft" : "text-muted hover:text-ink"}`}>
-            Chat
-          </button>
-        )}
-        <button role="tab" aria-selected={tab === "reflections"} onClick={() => onTab("reflections")} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === "reflections" ? "bg-accent-soft" : "text-muted hover:text-ink"}`}>
-          Reflections
+      {/* A title row with the close button, then one segmented control: calm and easy to scan. */}
+      <div className="flex shrink-0 items-center justify-between px-4 pb-2 pt-3">
+        <h2 className="font-serif text-[13px] font-bold uppercase tracking-[0.2em] text-accent">Study tools</h2>
+        <button onClick={onClose} aria-label="Close study tools" title="Close (Esc)" className="grid h-8 w-8 place-items-center rounded-lg text-lg text-muted hover:bg-cream hover:text-ink">
+          ✕
         </button>
       </div>
+      <div role="tablist" aria-label="Study tools" className="mx-4 mb-3 grid shrink-0 gap-1 rounded-xl bg-cream p-1" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+        {tabs.map((t) => {
+          const on = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={on}
+              onClick={() => onTab(t.key)}
+              className={`relative flex flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-xs transition ${
+                on ? "bg-card font-semibold text-accent-dark shadow-sm ring-1 ring-line" : "font-medium text-muted hover:text-ink"
+              }`}
+            >
+              <span aria-hidden="true" className="shrink-0">
+                {t.icon}
+              </span>
+              <span className="truncate">{t.label}</span>
+              {!!t.count && <span className="absolute right-1.5 top-1 rounded-full bg-line px-1.5 text-[10px] font-semibold leading-4 text-ink">{t.count}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <div className="h-px shrink-0 bg-line" />
       <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto">
-        {tab === "chat" && chatAvailable ? chat : reflections}
+        {tabs.find((t) => t.key === tab)?.content}
       </div>
       {/* While dragging, keep the page from stealing the pointer. */}
       {dragging && <div className="fixed inset-0 z-50 cursor-col-resize" />}

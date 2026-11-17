@@ -12,6 +12,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { chapterRanges } from "@/convex/chapters";
 import { bookProgress, chapterProgress, resumePage } from "@/convex/readingRules";
+import { chapterBadge } from "@/components/reader/text";
 
 // The chapter path: the main view of one book.
 function PathView({ documentId }: { documentId: Id<"documents"> }) {
@@ -32,14 +33,14 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       currentIndex = next;
     }
     if (currentIndex < 0) currentIndex = progress.findIndex((p) => !p.read);
-    const withNotes = new Set((notes ?? []).filter((n) => n.plainText?.trim()).map((n) => n.sectionKey));
+    const withNotes = new Set((notes ?? []).filter((n) => n.plainText?.trim() || n.content?.includes('"type":"image"')).map((n) => n.sectionKey));
     const stops: Stop[] = ranges.map((r, i) => ({
       ...r,
       pct: progress[i].pct,
       read: progress[i].read,
       hasNote: withNotes.has(r.key),
       current: i === currentIndex && !progress[i].read,
-      label: isParts ? `P${i + 1}` : String(i + 1),
+      label: chapterBadge(r.title, i, isParts),
       openAt: resumePage(r, lastPage, doc.pagesSeen),
     }));
     return { stops, isParts, read: progress.filter((p) => p.read).length, total: ranges.length, pct: bookProgress(doc.pagesSeen, pageCount), started: lastPage !== null };

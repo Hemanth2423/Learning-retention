@@ -61,16 +61,3 @@ export function chapterRanges(sections: (SectionLike & { title: string })[], pag
     };
   });
 }
-
-// Reading past a chapter's last page counts as finishing it, but only for a small natural step.
-// A big jump (a contents link, a restored position) is not reading, so it finishes nothing.
-const MAX_READING_STEP = 3;
-
-export function finishedChapter(previousBottomPage: number, bottomPage: number, ranges: ChapterRange[]): ChapterRange | null {
-  if (bottomPage <= previousBottomPage || bottomPage - previousBottomPage > MAX_READING_STEP) return null;
-  let found: ChapterRange | null = null;
-  for (const r of ranges) {
-    if (previousBottomPage < r.endPage && bottomPage >= r.endPage) found = r;
-  }
-  return found;
-}

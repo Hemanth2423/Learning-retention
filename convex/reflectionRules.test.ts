@@ -20,5 +20,17 @@ describe("isEmptyNote", () => {
   test("blank text counts as empty", () => {
     expect(isEmptyNote("  \n ")).toBe(true);
     expect(isEmptyNote("a")).toBe(false);
+    expect(isEmptyNote("", '{"type":"doc","content":[{"type":"image","attrs":{"src":"x"}}]}')).toBe(false);
+  });
+});
+
+import { MAX_NOTE_IMAGE_BYTES, validateNoteImage } from "./reflectionRules";
+
+describe("validateNoteImage", () => {
+  test("accepts images up to 5 MB and nothing else", () => {
+    expect(validateNoteImage({ size: 1000, contentType: "image/png" })).toBeUndefined();
+    expect(validateNoteImage({ size: MAX_NOTE_IMAGE_BYTES + 1, contentType: "image/jpeg" })).toMatch(/5 MB/);
+    expect(validateNoteImage({ size: 1000, contentType: "application/pdf" })).toMatch(/isn't an image/);
+    expect(validateNoteImage(null)).toMatch(/didn't upload/);
   });
 });

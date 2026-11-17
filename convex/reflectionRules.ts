@@ -1,10 +1,21 @@
 // Pure rules for reflection notes. Tested in reflectionRules.test.ts.
 
 export const MAX_NOTE_JSON = 60000; // the editor's saved format
+export const MAX_NOTE_IMAGE_MB = 5;
+export const MAX_NOTE_IMAGE_BYTES = MAX_NOTE_IMAGE_MB * 1024 * 1024;
+
+// Only real images, up to 5 MB.
+export function validateNoteImage(meta: { size: number; contentType?: string } | null): string | undefined {
+  if (!meta || meta.size === 0) return "That image didn't upload. Try again.";
+  if (!meta.contentType?.startsWith("image/")) return "That file isn't an image.";
+  if (meta.size > MAX_NOTE_IMAGE_BYTES) return `Images can be up to ${MAX_NOTE_IMAGE_MB} MB.`;
+  return undefined;
+}
 export const MAX_NOTE_TEXT = 10000; // the plain-text copy the AI will read
 
-export function isEmptyNote(plainText: string): boolean {
-  return plainText.trim() === "";
+// A note with no words but an image still counts as written.
+export function isEmptyNote(plainText: string, content = ""): boolean {
+  return plainText.trim() === "" && !content.includes('"type":"image"');
 }
 
 export function validateNote(note: { content: string; plainText: string }): string | undefined {

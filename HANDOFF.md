@@ -23,5 +23,5 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 
 ## Next action
 
-1. **Hemanth:** review slices 1–2 (Home at `/read`, then a book's path).
-2. **Then:** slice 3 (reader layout) of `tasks/feature-2-library-and-path.md`.
+1. **Hemanth:** review slices 1–3 (Home, a book's path, the reader).
+2. **Then:** slice 4 (Test yourself) of `tasks/feature-2-library-and-path.md`.

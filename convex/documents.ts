@@ -143,9 +143,13 @@ export const purge = internalMutation({
       ctx.db.query("highlights").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("reflections").withIndex("by_document_section", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("chatMessages").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
+      ctx.db.query("noteImages").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
     ]);
     const rows = batches.flat();
-    for (const r of rows) await ctx.db.delete(r._id);
+    for (const r of rows) {
+      if ("storageId" in r) await ctx.storage.delete(r.storageId).catch(() => {}); // the image file itself
+      await ctx.db.delete(r._id);
+    }
     // Anything left over goes in the next batch.
     if (batches.some((b) => b.length === PURGE_BATCH)) await ctx.scheduler.runAfter(0, internal.documents.purge, { documentId });
   },

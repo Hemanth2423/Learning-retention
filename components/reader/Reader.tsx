@@ -6,19 +6,42 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/FieldError";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
-import { chapterOf, chapterRanges, finishedChapter } from "@/convex/chapters";
+import { ChapterRange, chapterRanges } from "@/convex/chapters";
+import { chapterProgress } from "@/convex/readingRules";
+import { Bulb } from "@/components/icons/Bulb";
 import { ContentsPanel } from "./ContentsPanel";
 import { HighlightsPanel } from "./HighlightsPanel";
 import { PdfViewer, PdfViewerHandle, SelectionInfo } from "./PdfViewer";
 import { ChatPanel, useChat } from "./Chat";
-import { ChapterDock } from "./ChapterDock";
 import { PageNav } from "./PageNav";
 import { NoteWindow, ReflectionsPanel, useReflections } from "./Reflections";
-import { RightPanel, RightTab } from "./RightPanel";
+import { MoreTools } from "./MoreTools";
+import { RightPanel, StudyTab } from "./RightPanel";
+import { chapterBadge, readableTitle } from "./text";
 import { SelectionMenu } from "./SelectionMenu";
+import { Icons } from "./Tooltip";
 
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const NO_HIGHLIGHTS: Doc<"highlights">[] = [];
+const svg16 = (paths: React.ReactNode) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {paths}
+  </svg>
+);
+const NOTE_ICON = svg16(
+  <>
+    <path d="M12 20h9" />
+    <path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </>
+);
+const MORE_ICON = svg16(
+  <>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </>
+);
 
 type ReaderDoc = {
   _id: Id<"documents">;
@@ -29,25 +52,34 @@ type ReaderDoc = {
   lastLocator?: { kind: "pdf"; page: number };
   pagesSeen?: string;
 };
-type Panel = "contents" | "highlights";
 
-function RailButton({ label, badge, dot, active, onClick, controls, children }: { label: string; badge?: number; dot?: boolean; active: boolean; onClick: () => void; controls: string; children: React.ReactNode }) {
+// A closable notification at the bottom of the book when a chapter ends: write a note or test yourself.
+function ChapterEndNotice({ range, number, isPart, onNote, testHref, onClose }: { range: ChapterRange; number: string; isPart: boolean; onNote: () => void; testHref: string; onClose: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      aria-expanded={active}
-      aria-controls={controls}
-      className={`relative flex w-12 flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-medium ${
-        active ? "bg-accent-soft" : "text-muted hover:bg-accent-soft hover:text-ink"
-      }`}
+    <section
+      role="status"
+      aria-label={`End of ${isPart ? "part" : "chapter"} ${number}`}
+      className="absolute bottom-20 left-1/2 z-20 w-[min(560px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border-2 border-ink bg-cream p-5 shadow-[0_5px_0_var(--ink)]"
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        {children}
-      </svg>
-      {label}
-      {dot && <span aria-label="Reflection waiting" className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-accent" />}
-      {!!badge && <span className="absolute right-0.5 top-0.5 min-w-4 rounded-full bg-accent px-1 text-[9px] font-semibold leading-4 text-paper">{badge}</span>}
-    </button>
+      <button onClick={onClose} aria-label="Close" title="Close" className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-lg text-muted hover:bg-panel hover:text-ink">
+        ✕
+      </button>
+      <p className="font-game text-xs text-good">
+        {isPart ? `END OF PART ${number.slice(1)}` : number === "•" ? "END OF THIS SECTION" : `END OF CHAPTER ${number}`}
+      </p>
+      <h2 className="mt-1 pr-8 font-serif text-xl font-bold leading-snug">Lock it in before you move on</h2>
+      <p className="mt-1 line-clamp-2 text-sm text-muted">
+        Two minutes now saves rereading later. <span className="italic">{readableTitle(range.title)}</span>
+      </p>
+      <div className="mt-3.5 flex flex-wrap gap-3">
+        <button onClick={onNote} className="chunky py-2.5">
+          ✏️ Write a note
+        </button>
+        <Link href={testHref} className="chunky chunky-light py-2.5">
+          <Bulb size={20} /> Test yourself
+        </Link>
+      </div>
+    </section>
   );
 }
 
@@ -58,6 +90,9 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
   const canHighlight = doc.hasText !== false;
   const sections = useMemo(() => doc.sections ?? [], [doc.sections]);
   const ranges = useMemo(() => chapterRanges(sections, pageCount), [sections, pageCount]);
+  const isParts = sections.length === 0;
+  const progress = useMemo(() => chapterProgress(ranges, doc.pagesSeen), [ranges, doc.pagesSeen]);
+  const readKeys = useMemo(() => new Set(progress.filter((p) => p.read).map((p) => p.key)), [progress]);
 
   const saveProgress = useMutation(api.documents.saveProgress);
   const addHighlight = useMutation(api.highlights.add);
@@ -68,81 +103,85 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
   const viewer = useRef<PdfViewerHandle>(null);
   const jumpToPage = useCallback((p: number) => viewer.current?.jumpTo(p), []);
   const reflections = useReflections(doc._id, ranges, jumpToPage, canHighlight);
-  // Opened from a chapter's Notes marker on the path: show that note straight away.
-  const openedNotes = useRef(false);
   const { open: openNote } = reflections;
   const chat = useChat(doc._id);
   const [chatDraft, setChatDraft] = useState("");
   const [page, setPage] = useState(initialPage);
   const [zoomIndex, setZoomIndex] = useState(2);
-  const [panel, setPanel] = useState<Panel | null>(null); // the left overlay starts closed
-  const [rightOpen, setRightOpen] = useState(false); // so does the right panel
-  const [rightTab, setRightTab] = useState<RightTab>(canHighlight ? "chat" : "reflections");
+  const [contentsOpen, setContentsOpen] = useState(false);
+  const [studyOpen, setStudyOpen] = useState(false);
+  const [studyTab, setStudyTab] = useState<StudyTab>(canHighlight ? "ask" : "notes");
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [editingId, setEditingId] = useState<Id<"highlights"> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const onError = useCallback(() => setFailed(true), []);
-  const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
-  const toggleRight = (tab: RightTab) => {
-    if (rightOpen && rightTab === tab) setRightOpen(false);
-    else {
-      setRightTab(tab);
-      setRightOpen(true);
-      if (tab === "reflections" && waitingKey) reflectOn(waitingKey); // a finished chapter without a reflection opens its note
-    }
-  };
-
-  // After finishing a chapter by reading (not by jumping), the chapter card opens by itself for 10 seconds.
-  const [finished, setFinished] = useState<{ key: string; token: number } | null>(null);
-  const [dockOpen, setDockOpen] = useState(false);
-  const previousBottom = useRef<number | null>(null);
-  const haveRow = useRef(reflections.byKey);
-  useEffect(() => {
-    haveRow.current = reflections.byKey;
-  }, [reflections.byKey]);
-  const onReadProgress = useCallback(
-    (bottom: number, natural: boolean) => {
-      const previous = previousBottom.current;
-      previousBottom.current = bottom;
-      if (previous === null || !natural) return;
-      const done = finishedChapter(previous, bottom, ranges);
-      if (!done || haveRow.current.has(done.key)) return; // already written, or "not now" was chosen earlier
-      setFinished((cur) => (cur?.key === done.key ? cur : { key: done.key, token: Date.now() }));
-      setDockOpen(true);
-    },
-    [ranges, setFinished, setDockOpen]
-  );
-  const waitingKey = finished && !reflections.byKey.has(finished.key) ? finished.key : null;
-  const currentChapter = chapterOf(sections, page);
-  function reflectOn(key: string | null) {
-    if (key) reflections.open(key);
-    setRightTab("reflections");
-    setRightOpen(true);
-    setDockOpen(false);
-    setFinished(null);
-  }
+  const [menuShown, setMenuShown] = useState(true);
+  const openStudy = useCallback((tab: StudyTab) => {
+    setStudyTab(tab);
+    setStudyOpen(true);
+    setMenuShown(true); // the menu stays while a panel is open
+  }, []);
   const zoomPercent = Math.round(ZOOMS[zoomIndex] * 100);
+  const chapterIndex = ranges.findIndex((r) => page >= r.startPage && page <= r.endPage);
+  const chapter = chapterIndex >= 0 ? ranges[chapterIndex] : null;
+  const noteFor = useCallback(
+    (key: string) => {
+      openNote(key);
+      openStudy("notes");
+    },
+    [openNote, openStudy]
+  );
 
+  // Opened from a chapter's Notes marker on the path: show that note straight away.
+  const openedNotes = useRef(false);
   useEffect(() => {
     if (openedNotes.current || !startNotes || !ranges.some((r) => r.key === startNotes)) return;
     openedNotes.current = true;
-    openNote(startNotes);
-    setRightTab("reflections");
-    setRightOpen(true);
-  }, [startNotes, ranges, openNote]);
+    noteFor(startNotes);
+  }, [startNotes, ranges, noteFor]);
 
-  // Esc closes the left overlay, then the right panel, unless the reader is typing somewhere (that field handles Esc).
+  // The top menu hides while reading and comes back when the mouse moves. It stays while a panel is open.
+  const overMenu = useRef(false);
+  const panelsOpen = useRef(false);
+  const idle = useRef<number | undefined>(undefined);
+  const scheduleHide = useCallback(() => {
+    window.clearTimeout(idle.current);
+    idle.current = window.setTimeout(() => {
+      if (!overMenu.current && !panelsOpen.current) setMenuShown(false);
+    }, 2500);
+  }, []);
+  const wake = useCallback(() => {
+    setMenuShown(true);
+    scheduleHide();
+  }, [scheduleHide]);
+  useEffect(() => {
+    panelsOpen.current = contentsOpen || studyOpen;
+    scheduleHide();
+    return () => window.clearTimeout(idle.current);
+  }, [contentsOpen, studyOpen, scheduleHide]);
+
+  // Esc closes the contents and the study tools, unless the reader is typing somewhere (that field handles Esc).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || reflections.expanded) return; // the larger note handles its own Esc
       if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable='true']")) return;
-      if (panel) setPanel(null);
-      else if (rightOpen) setRightOpen(false);
+      setContentsOpen(false);
+      setStudyOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [panel, rightOpen, reflections.expanded]);
+  }, [reflections.expanded]);
+
+  // When a chapter's last page has been on screen for 2 seconds, a closable notice offers a note or a test.
+  // Shown once per chapter per visit; closing it is enough to say "not now".
+  const endOf = useMemo(() => new Map(ranges.map((r, i) => [r.endPage, i])), [ranges]);
+  const endOfRef = useRef(endOf);
+  useEffect(() => {
+    endOfRef.current = endOf;
+  }, [endOf]);
+  const [endNotice, setEndNotice] = useState<number | null>(null);
+  const noticed = useRef(new Set<number>());
 
   // Remember the page a moment after the reader stops moving, plus any pages read since the last save.
   // A page counts as read once it has been mostly on screen for 2 seconds (ARCHITECTURE.md → Feature 2).
@@ -173,9 +212,15 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
     const timer = window.setInterval(() => {
       const now = Date.now();
       for (const [p, t] of visibleSince.current) {
-        if (now - t >= 2000 && !seenAlready.current.has(p)) {
+        if (now - t < 2000) continue;
+        if (!seenAlready.current.has(p)) {
           seenAlready.current.add(p);
           seenPending.current.add(p);
+        }
+        const chapterEnd = endOfRef.current.get(p);
+        if (chapterEnd !== undefined && !noticed.current.has(chapterEnd)) {
+          noticed.current.add(chapterEnd);
+          setEndNotice(chapterEnd);
         }
       }
     }, 500);
@@ -207,7 +252,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
     try {
       const id = await addHighlight({ documentId: doc._id, text, segments });
       if (withComment) {
-        setPanel("highlights");
+        openStudy("highlights");
         setEditingId(id);
       }
     } catch (err) {
@@ -233,120 +278,115 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
     );
   }
 
+  const chapterPct = chapterIndex >= 0 ? progress[chapterIndex].pct : 0;
+  const tabs = [
+    ...(canHighlight ? [{ key: "ask" as const, label: "Ask", icon: Icons.ask, content: <ChatPanel chat={chat} page={page} draft={chatDraft} onDraft={setChatDraft} onJump={jumpToPage} /> }] : []),
+    { key: "notes" as const, label: "Notes", icon: NOTE_ICON, content: <ReflectionsPanel key={chapter?.key ?? "none"} state={reflections} ranges={ranges} currentKey={chapter?.key ?? null} /> },
+    ...(canHighlight
+      ? [
+          {
+            key: "highlights" as const,
+            label: "Highlights",
+            icon: Icons.highlight,
+            count: highlights.length,
+            content: (
+              <HighlightsPanel
+                highlights={highlights}
+                sections={sections}
+                editingId={editingId}
+                onEdit={setEditingId}
+                onSetComment={saveComment}
+                onRemove={(id) => void removeHighlight({ highlightId: id }).catch((err) => setNotice(errorMessage(err)))}
+                onJump={(h) =>
+                  viewer.current?.jumpTo(h.locator.page, {
+                    y: h.segments.find((s) => s.page === h.locator.page)?.rects[0]?.y,
+                    flashId: h._id,
+                  })
+                }
+              />
+            ),
+          },
+        ]
+      : []),
+    { key: "more" as const, label: "More", icon: MORE_ICON, content: <MoreTools /> },
+  ];
+
   return (
-    <div className="flex h-dvh flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-4 border-b border-line bg-paper px-4">
+    <div className="relative flex h-dvh" onMouseMove={wake} onFocusCapture={wake}>
+      <header
+        onMouseEnter={() => (overMenu.current = true)}
+        onMouseLeave={() => (overMenu.current = false)}
+        className={`absolute inset-x-0 top-0 z-30 flex items-center gap-2.5 border-b border-line bg-card/95 px-4 py-3 backdrop-blur transition duration-300 ${
+          menuShown ? "" : "pointer-events-none -translate-y-full opacity-0"
+        }`}
+      >
         <Link href={`/read/${doc._id}`} className="retro">
           ← Path
         </Link>
-        <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{doc.title}</h1>
-        {!canHighlight && <span className="hidden text-xs text-muted sm:inline">Scanned PDF: highlights and chat are off</span>}
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        <div className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-paper pt-3">
-          <RailButton label="Contents" active={panel === "contents"} onClick={() => togglePanel("contents")} controls="left-panel">
-            <path d="M4 6h16M4 12h10M4 18h13" />
-          </RailButton>
-          {canHighlight && (
-            <RailButton label="Highlights" badge={highlights.length} active={panel === "highlights"} onClick={() => togglePanel("highlights")} controls="left-panel">
-              <path d="m9 11-6 6v3h9l3-3" />
-              <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
-            </RailButton>
-          )}
-        </div>
-
-        <div className="relative flex min-w-0 flex-1">
-          {/* Clicking the book closes the left overlay. */}
-          {/* Clicking the book closes the left overlay. */}
-          <div className="flex min-w-0 flex-1" onPointerDownCapture={() => panel && setPanel(null)}>
-            <PdfViewer
-              ref={viewer}
-              url={url}
-              pageCount={pageCount}
-              zoom={ZOOMS[zoomIndex]}
-              initialPage={initialPage}
-              highlights={highlights}
-              onPageChange={setPage}
-              onSelection={canHighlight ? setSelection : undefined}
-              onReadProgress={onReadProgress}
-              onVisiblePages={onVisiblePages}
-              onError={onError}
-            />
-          </div>
-          <PageNav
-            page={page}
-            pageCount={pageCount}
-            onGo={jumpToPage}
-            zoomPercent={zoomPercent}
-            canZoomOut={zoomIndex > 0}
-            canZoomIn={zoomIndex < ZOOMS.length - 1}
-            onZoomOut={() => setZoomIndex((i) => Math.max(0, i - 1))}
-            onZoomIn={() => setZoomIndex((i) => Math.min(ZOOMS.length - 1, i + 1))}
-          />
-          <ChapterDock
-            open={dockOpen}
-            onOpenChange={setDockOpen}
-            autoToken={finished?.token ?? null}
-            finished={!!waitingKey}
-            chapterTitle={waitingKey ? reflections.titleOf(waitingKey) : (currentChapter?.title ?? null)}
-            canReflect={ranges.length > 0}
-            waiting={!!waitingKey}
-            onReflect={() => reflectOn(waitingKey ?? currentChapter?.key ?? null)}
-            testHref={`/read/${doc._id}/test`}
-          />
-          {panel && (
-            <div id="left-panel" className="absolute inset-y-0 left-0 z-20 shadow-xl">
-              {panel === "contents" ? (
-                <ContentsPanel
-                  sections={sections}
-                  page={page}
-                  onJump={(p) => {
-                    viewer.current?.jumpTo(p);
-                    setPanel(null); // out of the way of the page you just opened
-                  }}
-                />
-              ) : (
-                <HighlightsPanel
-                  highlights={highlights}
-                  sections={sections}
-                  editingId={editingId}
-                  onEdit={setEditingId}
-                  onSetComment={saveComment}
-                  onRemove={(id) => void removeHighlight({ highlightId: id }).catch((err) => setNotice(errorMessage(err)))}
-                  onJump={(h) =>
-                    viewer.current?.jumpTo(h.locator.page, {
-                      y: h.segments.find((s) => s.page === h.locator.page)?.rects[0]?.y,
-                      flashId: h._id,
-                    })
-                  }
-                />
-              )}
+        <button className="retro" aria-expanded={contentsOpen} aria-controls="contents" onClick={() => setContentsOpen((o) => !o)}>
+          ☰ Contents
+        </button>
+        <div className="min-w-0 flex-1 text-center">
+          <p className="truncate font-serif font-semibold" title={chapter ? readableTitle(chapter.title) : doc.title}>
+            {chapter ? readableTitle(chapter.title) : doc.title}
+          </p>
+          {chapter && (
+            <div className="mx-auto mt-1.5 h-1 max-w-[220px] overflow-hidden rounded-full bg-line" aria-label={`${chapterPct}% of this ${isParts ? "part" : "chapter"} read`}>
+              <div className="h-full rounded-full bg-good" style={{ width: `${chapterPct}%` }} />
             </div>
           )}
         </div>
+        {!canHighlight && <span className="hidden text-xs text-muted lg:inline">Scanned PDF: highlights and chat are off</span>}
+        <button className="retro" aria-expanded={studyOpen} aria-controls="right-panel" onClick={() => setStudyOpen((o) => !o)} title="Ask, Notes, Highlights and more">
+          📚 Study tools
+        </button>
+      </header>
 
-        {rightOpen && (
-          <RightPanel
-            tab={rightTab}
-            onTab={setRightTab}
-            chatAvailable={canHighlight}
-            chat={<ChatPanel chat={chat} page={page} draft={chatDraft} onDraft={setChatDraft} onJump={jumpToPage} />}
-            reflections={<ReflectionsPanel state={reflections} ranges={ranges} currentKey={chapterOf(sections, page)?.key ?? null} />}
+      {contentsOpen && (
+        <aside id="contents" className="h-full w-[340px] shrink-0 border-r-[1.5px] border-ink bg-cream pt-[60px]">
+          <ContentsPanel sections={sections} ranges={ranges} readKeys={readKeys} page={page} onJump={jumpToPage} onClose={() => setContentsOpen(false)} />
+        </aside>
+      )}
+
+      <div className="relative flex min-w-0 flex-1">
+        <PdfViewer
+          ref={viewer}
+          url={url}
+          pageCount={pageCount}
+          zoom={ZOOMS[zoomIndex]}
+          initialPage={initialPage}
+          highlights={highlights}
+          onPageChange={setPage}
+          onSelection={canHighlight ? setSelection : undefined}
+          onVisiblePages={onVisiblePages}
+          onError={onError}
+        />
+        <PageNav
+          page={page}
+          pageCount={pageCount}
+          onGo={jumpToPage}
+          zoomPercent={zoomPercent}
+          canZoomOut={zoomIndex > 0}
+          canZoomIn={zoomIndex < ZOOMS.length - 1}
+          onZoomOut={() => setZoomIndex((i) => Math.max(0, i - 1))}
+          onZoomIn={() => setZoomIndex((i) => Math.min(ZOOMS.length - 1, i + 1))}
+        />
+        {endNotice !== null && ranges[endNotice] && (
+          <ChapterEndNotice
+            range={ranges[endNotice]}
+            number={chapterBadge(ranges[endNotice].title, endNotice, isParts)}
+            isPart={isParts}
+            onClose={() => setEndNotice(null)}
+            onNote={() => {
+              noteFor(ranges[endNotice].key);
+              setEndNotice(null);
+            }}
+            testHref={`/read/${doc._id}/test?chapter=${encodeURIComponent(ranges[endNotice].key)}`}
           />
         )}
-        <div className="flex w-14 shrink-0 flex-col items-center gap-1 border-l border-line bg-paper pt-3">
-          {canHighlight && (
-            <RailButton label="Chat" active={rightOpen && rightTab === "chat"} onClick={() => toggleRight("chat")} controls="right-panel">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </RailButton>
-          )}
-          <RailButton label="Reflect" dot={!!waitingKey && !dockOpen} active={rightOpen && rightTab === "reflections"} onClick={() => toggleRight("reflections")} controls="right-panel">
-            <path d="M12 20h9" />
-            <path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-          </RailButton>
-        </div>
       </div>
+
+      {studyOpen && <RightPanel tab={studyTab} onTab={setStudyTab} tabs={tabs} onClose={() => setStudyOpen(false)} />}
 
       {reflections.activeKey && reflections.expanded && <NoteWindow state={reflections} />}
       {selection && (
@@ -357,8 +397,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
           onAsk={() => {
             // Take the selected text to the chat; the reader edits it and sends it.
             setChatDraft(`Explain this: "${selection.text.slice(0, 600)}"`);
-            setRightTab("chat");
-            setRightOpen(true);
+            openStudy("ask");
             setSelection(null);
             window.getSelection()?.removeAllRanges();
           }}

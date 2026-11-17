@@ -57,6 +57,7 @@ describe("library", () => {
         await ctx.db.insert("highlights", { documentId, userId, locator: { kind: "pdf", page: 1 }, text: "x", segments: [{ page: 1, rects: [{ x: 0, y: 0, w: 0.1, h: 0.01 }] }] });
         await ctx.db.insert("reflections", { documentId, userId, sectionKey: "s0", plainText: "note" });
         await ctx.db.insert("chatMessages", { documentId, userId, role: "user", text: "hi" });
+        await ctx.db.insert("noteImages", { documentId, userId, storageId: await ctx.storage.store(new Blob(["img"], { type: "image/png" })) });
       }
     });
     await asB.mutation(api.documents.remove, { documentId: gone });
@@ -70,8 +71,9 @@ describe("library", () => {
       highlights: (await ctx.db.query("highlights").collect()).map((r) => r.documentId),
       reflections: (await ctx.db.query("reflections").collect()).map((r) => r.documentId),
       chat: (await ctx.db.query("chatMessages").collect()).map((r) => r.documentId),
+      images: (await ctx.db.query("noteImages").collect()).map((r) => r.documentId),
     }));
-    expect(left).toEqual({ chunks: [keep], highlights: [keep], reflections: [keep], chat: [keep] });
+    expect(left).toEqual({ chunks: [keep], highlights: [keep], reflections: [keep], chat: [keep], images: [keep] });
     expect((await asA.query(api.documents.list, {})).map((b) => b.title)).toEqual(["Keep"]);
   });
 
