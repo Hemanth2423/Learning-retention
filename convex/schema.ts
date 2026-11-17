@@ -23,6 +23,7 @@ export default defineSchema({
     sections: v.optional(v.array(v.object({ key: v.string(), title: v.string(), level: v.number(), locator }))), // contents
     lastLocator: v.optional(locator), // where the reader left off
     lastReadAt: v.optional(v.number()), // when the reader last moved in this book (orders the library)
+    pagesSeen: v.optional(v.string()), // one character per page: "1" once it was on screen for ~2 s (see readingRules.ts)
   }).index("by_user", ["userId"]),
 
   // A highlight, with an optional comment. `locator` is its first page (where the left panel jumps).

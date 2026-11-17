@@ -40,8 +40,11 @@ function ResumeCard({ book }: { book: LibraryBook }) {
           <span>{pct}%</span>
         </div>
         <div className="mt-4 flex flex-wrap gap-2.5">
-          <Link href={`/read/${book._id}`} className="chunky">
+          <Link href={`/read/${book._id}/book`} className="chunky">
             📖 {book.page ? "Continue reading" : "Start reading"}
+          </Link>
+          <Link href={`/read/${book._id}`} className="chunky chunky-light">
+            View chapter path
           </Link>
         </div>
       </div>

@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/FieldError";
-import { Logo } from "@/components/Logo";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { chapterOf, chapterRanges, finishedChapter } from "@/convex/chapters";
@@ -28,6 +27,7 @@ type ReaderDoc = {
   hasText?: boolean;
   sections?: { key: string; title: string; level: number; locator: { kind: "pdf"; page: number } }[];
   lastLocator?: { kind: "pdf"; page: number };
+  pagesSeen?: string;
 };
 type Panel = "contents" | "highlights";
 
@@ -51,9 +51,10 @@ function RailButton({ label, badge, dot, active, onClick, controls, children }: 
   );
 }
 
-export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
+// `startPage` / `startNotes` come from the chapter path: open at a chapter, or open that chapter's note.
+export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; url: string; startPage?: number; startNotes?: string }) {
   const pageCount = doc.pageCount ?? 1;
-  const initialPage = doc.lastLocator?.page ?? 1;
+  const initialPage = startPage && startPage >= 1 && startPage <= pageCount ? startPage : (doc.lastLocator?.page ?? 1);
   const canHighlight = doc.hasText !== false;
   const sections = useMemo(() => doc.sections ?? [], [doc.sections]);
   const ranges = useMemo(() => chapterRanges(sections, pageCount), [sections, pageCount]);
@@ -67,6 +68,9 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
   const viewer = useRef<PdfViewerHandle>(null);
   const jumpToPage = useCallback((p: number) => viewer.current?.jumpTo(p), []);
   const reflections = useReflections(doc._id, ranges, jumpToPage, canHighlight);
+  // Opened from a chapter's Notes marker on the path: show that note straight away.
+  const openedNotes = useRef(false);
+  const { open: openNote } = reflections;
   const chat = useChat(doc._id);
   const [chatDraft, setChatDraft] = useState("");
   const [page, setPage] = useState(initialPage);
@@ -120,6 +124,14 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
   }
   const zoomPercent = Math.round(ZOOMS[zoomIndex] * 100);
 
+  useEffect(() => {
+    if (openedNotes.current || !startNotes || !ranges.some((r) => r.key === startNotes)) return;
+    openedNotes.current = true;
+    openNote(startNotes);
+    setRightTab("reflections");
+    setRightOpen(true);
+  }, [startNotes, ranges, openNote]);
+
   // Esc closes the left overlay, then the right panel, unless the reader is typing somewhere (that field handles Esc).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -132,16 +144,54 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [panel, rightOpen, reflections.expanded]);
 
-  // Remember the page a moment after the reader stops moving.
+  // Remember the page a moment after the reader stops moving, plus any pages read since the last save.
+  // A page counts as read once it has been mostly on screen for 2 seconds (ARCHITECTURE.md → Feature 2).
   const saved = useRef(initialPage);
+  const pageRef = useRef(initialPage);
+  const visibleSince = useRef(new Map<number, number>());
+  const seenAlready = useRef(new Set<number>());
+  const seenPending = useRef(new Set<number>());
   useEffect(() => {
+    const known = new Set<number>();
+    (doc.pagesSeen ?? "").split("").forEach((c, i) => c === "1" && known.add(i + 1));
+    seenAlready.current = known;
+  }, [doc.pagesSeen]);
+  const onVisiblePages = useCallback((pages: number[]) => {
+    const now = Date.now();
+    const since = visibleSince.current;
+    for (const p of [...since.keys()]) if (!pages.includes(p)) since.delete(p);
+    for (const p of pages) if (!since.has(p)) since.set(p, now);
+  }, []);
+  const flush = useCallback(() => {
+    if (seenPending.current.size === 0 && pageRef.current === saved.current) return;
+    const seen = [...seenPending.current];
+    seenPending.current.clear();
+    saved.current = pageRef.current;
+    void saveProgress({ documentId: doc._id, page: pageRef.current, seen }).catch(() => seen.forEach((p) => seenPending.current.add(p)));
+  }, [doc._id, saveProgress]);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      for (const [p, t] of visibleSince.current) {
+        if (now - t >= 2000 && !seenAlready.current.has(p)) {
+          seenAlready.current.add(p);
+          seenPending.current.add(p);
+        }
+      }
+    }, 500);
+    const saver = window.setInterval(flush, 3000);
+    return () => {
+      window.clearInterval(timer);
+      window.clearInterval(saver);
+      flush(); // leaving the book saves what was read
+    };
+  }, [flush]);
+  useEffect(() => {
+    pageRef.current = page;
     if (page === saved.current) return;
-    const timer = window.setTimeout(() => {
-      saved.current = page;
-      void saveProgress({ documentId: doc._id, page }).catch(() => {});
-    }, 1500);
+    const timer = window.setTimeout(flush, 1500);
     return () => window.clearTimeout(timer);
-  }, [page, doc._id, saveProgress]);
+  }, [page, flush]);
 
   useEffect(() => {
     if (!notice) return;
@@ -186,8 +236,8 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex h-12 shrink-0 items-center gap-4 border-b border-line bg-paper px-4">
-        <Link href="/read" aria-label="Back to upload">
-          <Logo size={24} />
+        <Link href={`/read/${doc._id}`} className="retro">
+          ← Path
         </Link>
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{doc.title}</h1>
         {!canHighlight && <span className="hidden text-xs text-muted sm:inline">Scanned PDF: highlights and chat are off</span>}
@@ -220,6 +270,7 @@ export function Reader({ doc, url }: { doc: ReaderDoc; url: string }) {
               onPageChange={setPage}
               onSelection={canHighlight ? setSelection : undefined}
               onReadProgress={onReadProgress}
+              onVisiblePages={onVisiblePages}
               onError={onError}
             />
           </div>

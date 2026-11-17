@@ -33,9 +33,22 @@ export function chapterOf<T extends SectionLike>(sections: T[], page: number): T
 
 export type ChapterRange = { key: string; title: string; startPage: number; endPage: number };
 
+export const PART_PAGES = 20;
+
+// A book with no contents is split into parts of 20 pages, which then work exactly like chapters (decisions/008).
+export function partRanges(pageCount: number): ChapterRange[] {
+  const parts: ChapterRange[] = [];
+  for (let start = 1, i = 1; start <= pageCount; start += PART_PAGES, i++) {
+    const end = Math.min(pageCount, start + PART_PAGES - 1);
+    parts.push({ key: `part-${i}`, title: `Part ${i} · pages ${start}–${end}`, startPage: start, endPage: end });
+  }
+  return parts;
+}
+
 // Each chapter with the pages it covers: from its own start to the page before the next chapter starts
-// (the last chapter runs to the end of the book).
+// (the last chapter runs to the end of the book). No contents: 20-page parts instead.
 export function chapterRanges(sections: (SectionLike & { title: string })[], pageCount: number): ChapterRange[] {
+  if (sections.length === 0) return partRanges(pageCount);
   const level = chapterLevel(sections);
   const chapters = sections.filter((s) => s.level === level).sort((a, b) => a.locator.page - b.locator.page);
   return chapters.map((c, i) => {

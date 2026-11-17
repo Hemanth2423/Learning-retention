@@ -13,9 +13,10 @@ export function BookCover({ id, title, pageCount, className = "", badge }: { id:
       className={`relative flex flex-col justify-between overflow-hidden rounded-l-[4px] rounded-r-lg py-3.5 pl-[18px] pr-3 font-serif text-[#f6eedf] ${className}`}
       style={{ background: coverColour(id), boxShadow: "0 10px 22px -12px rgba(42,34,27,.55), inset 6px 0 0 rgba(0,0,0,.18)" }}
       aria-hidden="true"
+      title={title}
     >
       {badge && <span className="absolute left-3.5 top-2.5 rounded-full bg-ochre px-2 py-0.5 font-sans text-[11px] font-bold text-ink">{badge}</span>}
-      <b className={`line-clamp-4 font-bold leading-tight ${badge ? "mt-6" : ""}`}>{title}</b>
+      <b className={`line-clamp-3 font-bold leading-tight ${badge ? "mt-6" : ""}`}>{title}</b>
       {!!pageCount && <small className="font-sans text-[11px] opacity-85">{pageCount} pages</small>}
     </div>
   );

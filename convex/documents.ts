@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { chapterRanges } from "./chapters";
+import { bookProgress, markPages, MAX_SEEN_PER_SAVE } from "./readingRules";
 import { libraryOrder, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateTitle } from "./documentRules";
 import { getOwnDocument, requireUser } from "./helpers";
 import { locator } from "./locators";
@@ -64,13 +65,19 @@ export const fileUrl = query({
 
 // Remembers where the reader left off.
 export const saveProgress = mutation({
-  args: { documentId: v.id("documents"), page: v.number() },
-  handler: async (ctx, { documentId, page }) => {
+  // `seen`: pages that were on screen long enough to count as read since the last save.
+  args: { documentId: v.id("documents"), page: v.number(), seen: v.optional(v.array(v.number())) },
+  handler: async (ctx, { documentId, page, seen }) => {
     const userId = await requireUser(ctx);
     const doc = await getOwnDocument(ctx, userId, documentId);
     if (!doc || !doc.pageCount) return;
     if (!Number.isInteger(page) || page < 1 || page > doc.pageCount) return;
-    await ctx.db.patch(documentId, { lastLocator: { kind: "pdf", page }, lastReadAt: Date.now() });
+    const patch: { lastLocator: { kind: "pdf"; page: number }; lastReadAt: number; pagesSeen?: string } = {
+      lastLocator: { kind: "pdf", page },
+      lastReadAt: Date.now(),
+    };
+    if (seen?.length) patch.pagesSeen = markPages(doc.pagesSeen, doc.pageCount, seen.slice(0, MAX_SEEN_PER_SAVE));
+    await ctx.db.patch(documentId, patch);
   },
 });
 
@@ -93,6 +100,7 @@ export const list = query({
         page,
         chapterNumber: at >= 0 ? at + 1 : null,
         chapterTitle: at >= 0 ? ranges[at].title : null,
+        progress: bookProgress(d.pagesSeen, d.pageCount ?? 0),
         lastReadAt: d.lastReadAt ?? null,
       };
     });

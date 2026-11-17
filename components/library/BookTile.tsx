@@ -17,10 +17,11 @@ export type LibraryBook = {
   page: number | null;
   chapterNumber: number | null;
   chapterTitle: string | null;
+  progress: number; // % of pages seen
   lastReadAt: number | null;
 };
 
-export const progressOf = (b: LibraryBook) => (b.page && b.pageCount ? Math.round((b.page / b.pageCount) * 100) : 0);
+export const progressOf = (b: LibraryBook) => b.progress;
 
 function metaLine(b: LibraryBook): string {
   if (b.status === "processing") return "Preparing…";

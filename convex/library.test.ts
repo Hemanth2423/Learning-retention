@@ -74,4 +74,14 @@ describe("library", () => {
     expect(left).toEqual({ chunks: [keep], highlights: [keep], reflections: [keep], chat: [keep] });
     expect((await asA.query(api.documents.list, {})).map((b) => b.title)).toEqual(["Keep"]);
   });
+
+  test("saving progress records pages seen; the library shows % of pages seen", async () => {
+    const { t, asA, asB, book } = await setup();
+    const id = await book("Seen", { pageCount: 10 });
+    await asA.mutation(api.documents.saveProgress, { documentId: id, page: 3, seen: [1, 2, 3, 99] });
+    await asA.mutation(api.documents.saveProgress, { documentId: id, page: 4, seen: [4] });
+    await asB.mutation(api.documents.saveProgress, { documentId: id, page: 9, seen: [5, 6, 7, 8, 9, 10] });
+    expect((await t.run((ctx) => ctx.db.get(id)))?.pagesSeen).toBe("1111000000");
+    expect((await asA.query(api.documents.list, {}))[0]).toMatchObject({ progress: 40, page: 4 });
+  });
 });

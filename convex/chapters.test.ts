@@ -50,7 +50,14 @@ describe("chapterRanges", () => {
       ["c", 20, 30],
     ]);
   });
-  test("no contents, no chapters", () => expect(chapterRanges([], 30)).toEqual([]));
+  test("no contents: 20-page parts instead of chapters", () => {
+    expect(chapterRanges([], 45).map((r) => [r.key, r.title, r.startPage, r.endPage])).toEqual([
+      ["part-1", "Part 1 · pages 1–20", 1, 20],
+      ["part-2", "Part 2 · pages 21–40", 21, 40],
+      ["part-3", "Part 3 · pages 41–45", 41, 45],
+    ]);
+    expect(chapterRanges([], 0)).toEqual([]);
+  });
 });
 
 describe("finishedChapter", () => {

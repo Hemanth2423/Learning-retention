@@ -21,6 +21,8 @@ type Props = {
   onSelection?: (selection: SelectionInfo | null) => void; // leave out to switch selecting off (scanned PDFs)
   // The last page whose bottom edge is on screen. `natural` is false while a jump or restore is settling.
   onReadProgress?: (bottomPage: number, natural: boolean) => void;
+  // Pages mostly on screen right now (at least half the page, or 40% of the view). Used to count pages read.
+  onVisiblePages?: (pages: number[]) => void;
   onError: () => void;
 };
 
@@ -32,7 +34,7 @@ const MAX_LINE_HEIGHT = 0.08; // fraction of the page; taller boxes are containe
 
 // Scrolls the pages of one PDF. Only pages near the screen are drawn, so long books stay fast.
 export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
-  { url, pageCount, zoom, initialPage, highlights, onPageChange, onSelection, onReadProgress, onError },
+  { url, pageCount, zoom, initialPage, highlights, onPageChange, onSelection, onReadProgress, onVisiblePages, onError },
   ref
 ) {
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
@@ -182,6 +184,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
     restored.current = true;
     jumpTo(initialPage);
     lastScale.current = scale;
+    root.dispatchEvent(new Event("scroll")); // report what's on screen even if the restore didn't move
   }, [pdf, scale, root, initialPage, jumpTo]);
 
   // After a zoom, stay on the same page.
@@ -226,6 +229,20 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
         }
         onReadProgress(bl, pendingJump.current === null);
       }
+      if (onVisiblePages) {
+        const viewTop = root.scrollTop;
+        const viewBottom = viewTop + root.clientHeight;
+        const shownPages: number[] = [];
+        for (let n = Math.max(1, lo - 3); n <= Math.min(pageCount, lo + 3); n++) {
+          const top = pageTop(n);
+          const el = pageEl(n);
+          if (top === null || !el) continue;
+          const h = el.offsetHeight;
+          const shown = Math.min(top + h, viewBottom) - Math.max(top, viewTop);
+          if (shown >= h * 0.5 || shown >= root.clientHeight * 0.4) shownPages.push(n);
+        }
+        onVisiblePages(shownPages);
+      }
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
@@ -235,7 +252,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
       root.removeEventListener("scroll", onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [root, pageCount, pageTop, pageEl, onPageChange, onReadProgress]);
+  }, [root, pageCount, pageTop, pageEl, onPageChange, onReadProgress, onVisiblePages]);
 
   // Selecting text: when the reader lets go of the mouse, work out the boxes the selection covers on each page.
   useEffect(() => {
