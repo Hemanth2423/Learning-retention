@@ -35,6 +35,8 @@ import type * as processing from "../processing.js";
 import type * as progress from "../progress.js";
 import type * as questionFlow from "../questionFlow.js";
 import type * as questionRules from "../questionRules.js";
+import type * as quizRules from "../quizRules.js";
+import type * as quizzes from "../quizzes.js";
 import type * as readingRules from "../readingRules.js";
 import type * as reflectionRules from "../reflectionRules.js";
 import type * as reflections from "../reflections.js";
@@ -81,6 +83,8 @@ declare const fullApi: ApiFromModules<{
   progress: typeof progress;
   questionFlow: typeof questionFlow;
   questionRules: typeof questionRules;
+  quizRules: typeof quizRules;
+  quizzes: typeof quizzes;
   readingRules: typeof readingRules;
   reflectionRules: typeof reflectionRules;
   reflections: typeof reflections;

@@ -4,6 +4,16 @@ import { v } from "convex/values";
 import { check, lesson, question, subIdea } from "./lessonTypes";
 import { locator } from "./locators";
 
+// One stored test question (see quizRules.ts). Exported so the save step checks the same shape.
+export const quizQuestion = v.object({
+  question: v.string(),
+  options: v.array(v.string()),
+  answer: v.number(),
+  explanation: v.string(),
+  whyWrong: v.array(v.string()),
+  page: v.optional(v.number()),
+});
+
 export default defineSchema({
   // users (+ sessions/accounts) come from Convex Auth.
   ...authTables,
@@ -58,17 +68,38 @@ export default defineSchema({
   }).index("by_document_section", ["documentId", "sectionKey"]),
 
   // Chat with one book. A user row is one question (it also counts toward the daily limit); an assistant row is
-  // the answer, with the pages it cites. `kind: "validate"` rows are note checks: they count toward the limit but are never shown.
+  // the answer, with the pages it cites. `kind: "validate"` rows are note checks and `kind: "quiz"` rows are test
+  // generations: they count toward the limit but are never shown.
   chatMessages: defineTable({
     userId: v.id("users"),
     documentId: v.id("documents"),
     role: v.union(v.literal("user"), v.literal("assistant")),
-    kind: v.optional(v.union(v.literal("chat"), v.literal("summary"), v.literal("validate"))),
+    kind: v.optional(v.union(v.literal("chat"), v.literal("summary"), v.literal("validate"), v.literal("quiz"))),
     text: v.string(),
     citations: v.optional(v.array(v.object({ n: v.number(), page: v.number() }))),
   })
     .index("by_document", ["documentId"])
     .index("by_user", ["userId"]),
+
+  // "Test yourself": one set of 5 questions per chapter, made once by the AI and reused. Answers stay on the server.
+  quizzes: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    chapterKey: v.string(),
+    questions: v.array(quizQuestion),
+  }).index("by_document_chapter", ["documentId", "chapterKey"]),
+
+  // One go at a chapter's test. `review` rounds re-ask only missed questions and don't count toward the best score.
+  quizAttempts: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    chapterKey: v.string(),
+    quizId: v.id("quizzes"),
+    review: v.boolean(),
+    results: v.array(v.object({ index: v.number(), choice: v.union(v.number(), v.null()), correct: v.union(v.boolean(), v.null()) })),
+    score: v.number(),
+    finished: v.boolean(),
+  }).index("by_document_chapter", ["documentId", "chapterKey"]),
 
   // A readable piece of text with a locator (one page for a PDF). Chat searches these.
   chunks: defineTable({

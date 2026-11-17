@@ -33,7 +33,7 @@ export const history = query({
     if (!(await getOwnDocument(ctx, userId, documentId))) return [];
     const rows = await ctx.db.query("chatMessages").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(300);
     return rows
-      .filter((r) => r.kind !== "validate")
+      .filter((r) => r.kind !== "validate" && r.kind !== "quiz")
       .map((r) => ({ _id: r._id, role: r.role, text: r.text, citations: r.citations ?? [] }));
   },
 });
@@ -57,7 +57,7 @@ export const quota = query({
 type Begin = { ok: true; messageId: Id<"chatMessages">; ranges: ChapterRange[]; pageCount: number } | { ok: false; message: string; resetAt?: number };
 
 export const begin = internalMutation({
-  args: { userId: v.id("users"), documentId: v.id("documents"), text: v.string(), kind: v.union(v.literal("chat"), v.literal("summary"), v.literal("validate")) },
+  args: { userId: v.id("users"), documentId: v.id("documents"), text: v.string(), kind: v.union(v.literal("chat"), v.literal("summary"), v.literal("validate"), v.literal("quiz")) },
   handler: async (ctx, { userId, documentId, text, kind }): Promise<Begin> => {
     const doc = await getOwnDocument(ctx, userId, documentId);
     if (!doc || doc.status !== "ready") return { ok: false, message: "We couldn't find that book." };

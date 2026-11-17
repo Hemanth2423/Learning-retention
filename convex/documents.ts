@@ -144,6 +144,8 @@ export const purge = internalMutation({
       ctx.db.query("reflections").withIndex("by_document_section", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("chatMessages").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("noteImages").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
+      ctx.db.query("quizzes").withIndex("by_document_chapter", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
+      ctx.db.query("quizAttempts").withIndex("by_document_chapter", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
     ]);
     const rows = batches.flat();
     for (const r of rows) {

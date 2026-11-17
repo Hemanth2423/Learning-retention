@@ -46,7 +46,7 @@ function mockAi(reply: unknown) {
 }
 
 beforeEach(() => {
-  process.env.DEEPSEEK_API_KEY = "test";
+  process.env.GROQ_API_KEY = "test";
   delete process.env.LLM_PROVIDER;
 });
 afterEach(() => vi.unstubAllGlobals());

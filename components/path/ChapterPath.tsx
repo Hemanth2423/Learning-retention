@@ -7,7 +7,7 @@ import { ChapterRange } from "@/convex/chapters";
 import { Bulb } from "@/components/icons/Bulb";
 import { readableTitle } from "@/components/reader/text";
 
-export type Stop = ChapterRange & { pct: number; read: boolean; hasNote: boolean; current: boolean; label: string; openAt: number };
+export type Stop = ChapterRange & { pct: number; read: boolean; hasNote: boolean; current: boolean; label: string; openAt: number; best?: string };
 
 const pip = "inline-flex items-center gap-1.5 rounded-full border-[1.5px] px-2.5 py-0.5 pl-1.5 text-xs font-semibold";
 const pipIdle = `${pip} border-line bg-card text-muted hover:border-accent hover:text-ink`;
@@ -104,9 +104,9 @@ export function ChapterPath({ documentId, stops }: { documentId: Id<"documents">
                   <Link href={`${book}?page=${s.openAt}&notes=${encodeURIComponent(s.key)}`} className={s.hasNote ? pipDone : pipIdle} title={s.hasNote ? "Open your note" : "Write a note"}>
                     <span aria-hidden="true">✏️</span>Notes
                   </Link>
-                  <Link href={`/read/${documentId}/test?chapter=${encodeURIComponent(s.key)}`} className={pipIdle} title="Test yourself">
+                  <Link href={`/read/${documentId}/test?chapter=${encodeURIComponent(s.key)}`} className={s.best ? pipDone : pipIdle} title={s.best ? "Your best score · test again" : "Test yourself"}>
                     <Bulb size={16} />
-                    Test
+                    Test{s.best ? ` ${s.best}` : ""}
                   </Link>
                 </div>
               </div>

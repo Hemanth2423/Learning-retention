@@ -43,7 +43,8 @@ npx convex dev            # first run: log in / create a project; writes .env.lo
 ```
 In a second terminal, set the backend secrets once:
 ```bash
-npx convex env set DEEPSEEK_API_KEY sk-...
+npx convex env set GROQ_API_KEY gsk_...   # default AI service
+npx convex env set DEEPSEEK_API_KEY sk-... # optional, with LLM_PROVIDER=deepseek
 npx convex env set FIRECRAWL_API_KEY fc-...
 npx convex env set SITE_URL http://localhost:3000
 node scripts/generateAuthKeys.mjs   # prints JWT_PRIVATE_KEY and JWKS; set both with `npx convex env set`

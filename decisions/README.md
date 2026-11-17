@@ -29,3 +29,4 @@ One file per architectural decision: `NNN-short-name.md`. Read one only when you
 | [008](008-parts-when-no-contents.md) | Books without contents get 20-page parts |
 | [009](009-simple-xp-started-fresh.md) | Simple XP, levels and streaks, started fresh |
 | [010](010-tests-generated-once-per-chapter.md) | A chapter's test is generated once and reused |
+| [011](011-groq-default-provider.md) | Groq (`openai/gpt-oss-120b`) is the default AI service; DeepSeek and Gemini via `LLM_PROVIDER` |

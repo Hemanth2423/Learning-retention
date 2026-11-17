@@ -1,4 +1,4 @@
-// Small wrappers around the DeepSeek (LLM) and Firecrawl (web search) HTTP APIs.
+// Small wrappers around the AI services (Groq, DeepSeek, Gemini; all OpenAI-compatible) and Firecrawl (web search).
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
@@ -10,20 +10,28 @@ export type AskOptions = {
   label?: string; // shown in the token-usage log line
 };
 
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest";
 
 type Env = Record<string, string | undefined>;
 
-// Which AI service answers. DeepSeek is the default. Setting LLM_PROVIDER=gemini (on the dev deployment only,
-// for testing with a free key) sends every call to Gemini instead. See decisions/007.
+// Which AI service answers. Groq is the default (higher free limits for testing). LLM_PROVIDER=deepseek or
+// LLM_PROVIDER=gemini picks the others. GROQ_MODEL / GEMINI_MODEL override the model. See decisions/007 and 011.
 export function pickProvider(env: Env, requestedModel: string) {
-  if (env.LLM_PROVIDER === "gemini") {
+  const provider = env.LLM_PROVIDER || "groq";
+  if (provider === "gemini") {
     if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set in Convex.");
     return { name: "gemini", url: GEMINI_URL, key: env.GEMINI_API_KEY, model: env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL, supportsEffort: false };
   }
-  if (!env.DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY is not set in Convex.");
-  return { name: "deepseek", url: DEEPSEEK_URL, key: env.DEEPSEEK_API_KEY, model: requestedModel, supportsEffort: true };
+  if (provider === "deepseek") {
+    if (!env.DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY is not set in Convex.");
+    return { name: "deepseek", url: DEEPSEEK_URL, key: env.DEEPSEEK_API_KEY, model: requestedModel, supportsEffort: true };
+  }
+  if (provider !== "groq") throw new Error(`Unknown LLM_PROVIDER "${provider}".`);
+  if (!env.GROQ_API_KEY) throw new Error("GROQ_API_KEY is not set in Convex.");
+  return { name: "groq", url: GROQ_URL, key: env.GROQ_API_KEY, model: env.GROQ_MODEL || DEFAULT_GROQ_MODEL, supportsEffort: false };
 }
 
 // Asks the AI for a JSON object and parses it. Logs token usage so we can track cost per document.

@@ -18,6 +18,7 @@ import { chapterBadge } from "@/components/reader/text";
 function PathView({ documentId }: { documentId: Id<"documents"> }) {
   const doc = useQuery(api.documents.get, { documentId });
   const notes = useQuery(api.reflections.list, { documentId });
+  const scores = useQuery(api.quizzes.bestScores, { documentId });
 
   const view = useMemo(() => {
     if (!doc || doc.status !== "ready") return null;
@@ -42,9 +43,10 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       current: i === currentIndex && !progress[i].read,
       label: chapterBadge(r.title, i, isParts),
       openAt: resumePage(r, lastPage, doc.pagesSeen),
+      best: scores?.[r.key] ? `${scores[r.key].best}/${scores[r.key].total}` : undefined,
     }));
     return { stops, isParts, read: progress.filter((p) => p.read).length, total: ranges.length, pct: bookProgress(doc.pagesSeen, pageCount), started: lastPage !== null };
-  }, [doc, notes]);
+  }, [doc, notes, scores]);
 
   if (doc === undefined) return <p className="m-auto text-muted">Loading…</p>;
   if (doc === null) {

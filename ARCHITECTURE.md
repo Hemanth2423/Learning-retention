@@ -43,7 +43,7 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 | `chunks` | page of text | `documentId`, `index`, `text`, `locator` · **search index on `text`**, filtered by `documentId` |
 | `highlights` | highlight | `userId`, `documentId`, `locator` (first page), `text`, `segments` (per page: boxes as fractions of the page), `comment?` |
 | `reflections` | chapter reflection | `userId`, `documentId`, `sectionKey` (the chapter), `content` (Tiptap JSON), `plainText` (for AI), `dismissed?` |
-| `chatMessages` | message | `userId`, `documentId`, `role`, `kind` (chat, summary, validate), `text`, `citations[]` (`{n, page}`) · the `by_user` index also powers the daily limit. `validate` rows count toward the limit but aren't shown |
+| `chatMessages` | message | `userId`, `documentId`, `role`, `kind` (chat, summary, validate, quiz), `text`, `citations[]` (`{n, page}`) · the `by_user` index also powers the daily limit. `validate` and `quiz` rows count toward the limit but aren't shown |
 
 - **Chapter is computed, not stored.** `chapters.ts` maps a page to its chapter from `sections`, so highlights group correctly even if the TOC rule changes.
 - **Ownership:** every row carries `userId`; every public function starts with `requireUser`, and documents load through `getOwnDocument`.
@@ -57,6 +57,7 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 | `convex/chapters.ts` | **Pure** page→chapter rules, chapter page ranges and "finished a chapter" detection (tested) |
 | `convex/highlights.ts`, `highlightRules.ts`, `reflections.ts`, `reflectionRules.ts` | CRUD, owner only; pure rules for checking input, joining boxes and validating notes |
 | `convex/chat.ts`, `chatRules.ts` | Ask and validate actions, history, daily limit; pure rules for the limit, search words, chapter boost, citation and answer checks |
+| `convex/quizzes.ts`, `quizRules.ts` | Test yourself: make a chapter's test once (`prepare`), start a round (full or missed only), grade each answer on the server, best scores for the path; pure rules for a usable question, shuffling and scores |
 | `convex/llm.ts`, `auth.ts`, `helpers.ts` | Every LLM call (DeepSeek, or Gemini when `LLM_PROVIDER=gemini`), sign-in, access |
 | `app/` + `components/reader/` | Upload page, `/read/[id]`, `/read/[id]/test`; viewer, left overlay (Contents, Highlights), resizable right panel (Chat, Reflections), test tab |
 
