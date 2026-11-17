@@ -2,10 +2,126 @@ import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { check, lesson, question, subIdea } from "./lessonTypes";
+import { locator } from "./locators";
+
+// One stored test question (see quizRules.ts). Exported so the save step checks the same shape.
+export const quizQuestion = v.object({
+  question: v.string(),
+  options: v.array(v.string()),
+  answer: v.number(),
+  explanation: v.string(),
+  whyWrong: v.array(v.string()),
+  page: v.optional(v.number()),
+});
 
 export default defineSchema({
   // users (+ sessions/accounts) come from Convex Auth.
   ...authTables,
+
+  // ---- Reading experience (Feature 1). See ARCHITECTURE.md and decisions/004. ----
+
+  // One thing the user is learning from. `sourceType` is "pdf" today; links/video come later.
+  documents: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    sourceType: v.literal("pdf"),
+    fileId: v.id("_storage"),
+    status: v.union(v.literal("processing"), v.literal("ready"), v.literal("failed")),
+    statusMessage: v.optional(v.string()),
+    hasText: v.optional(v.boolean()), // false = scanned/image-only: reading works, highlights and chat are off
+    pageCount: v.optional(v.number()),
+    sections: v.optional(v.array(v.object({ key: v.string(), title: v.string(), level: v.number(), locator }))), // contents
+    lastLocator: v.optional(locator), // where the reader left off
+    lastReadAt: v.optional(v.number()), // when the reader last moved in this book (orders the library)
+    pagesSeen: v.optional(v.string()), // one character per page: "1" once it was on screen for ~2 s (see readingRules.ts)
+  }).index("by_user", ["userId"]),
+
+  // A highlight, with an optional comment. `locator` is its first page (where the left panel jumps).
+  // `segments` are the PDF boxes it covers, one entry per page, as fractions of the page size.
+  highlights: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    locator,
+    text: v.string(),
+    segments: v.array(
+      v.object({ page: v.number(), rects: v.array(v.object({ x: v.number(), y: v.number(), w: v.number(), h: v.number() })) })
+    ),
+    comment: v.optional(v.string()),
+  }).index("by_document", ["documentId"]),
+
+  // An image added to a note. Tracked so it's deleted with the book (the note itself only holds its link).
+  noteImages: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    storageId: v.id("_storage"),
+  }).index("by_document", ["documentId"]),
+
+  // The reader's note on one chapter. `content` is the editor's saved format (JSON), `plainText` a plain copy for AI.
+  // `dismissed` with no text means "not now" was chosen at the end-of-chapter prompt, so it isn't asked again.
+  reflections: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    sectionKey: v.string(), // the chapter, a key from documents.sections
+    content: v.optional(v.string()),
+    plainText: v.optional(v.string()),
+    dismissed: v.optional(v.boolean()),
+  }).index("by_document_section", ["documentId", "sectionKey"]),
+
+  // Chat with one book. A user row is one question (it also counts toward the daily limit); an assistant row is
+  // the answer, with the pages it cites. `kind: "validate"` rows are note checks and `kind: "quiz"` rows are test
+  // generations: they count toward the limit but are never shown.
+  chatMessages: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    kind: v.optional(v.union(v.literal("chat"), v.literal("summary"), v.literal("validate"), v.literal("quiz"))),
+    text: v.string(),
+    citations: v.optional(v.array(v.object({ n: v.number(), page: v.number() }))),
+  })
+    .index("by_document", ["documentId"])
+    .index("by_user", ["userId"]),
+
+  // "Test yourself": one set of 5 questions per chapter, made once by the AI and reused. Answers stay on the server.
+  quizzes: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    chapterKey: v.string(),
+    questions: v.array(quizQuestion),
+  }).index("by_document_chapter", ["documentId", "chapterKey"]),
+
+  // One go at a chapter's test. `review` rounds re-ask only missed questions and don't count toward the best score.
+  quizAttempts: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    chapterKey: v.string(),
+    quizId: v.id("quizzes"),
+    review: v.boolean(),
+    results: v.array(v.object({ index: v.number(), choice: v.union(v.number(), v.null()), correct: v.union(v.boolean(), v.null()) })),
+    score: v.number(),
+    finished: v.boolean(),
+  }).index("by_document_chapter", ["documentId", "chapterKey"]),
+
+  // XP, level and streak (ADR 009): one row per user, started fresh (not the legacy profiles). XP is only added by
+  // server mutations; `awarded` holds the key of every award paid, so each action on a chapter pays once.
+  learnerStats: defineTable({
+    userId: v.id("users"),
+    xp: v.number(),
+    streak: v.number(),
+    lastActiveDay: v.optional(v.string()), // "2026-11-17" in the reader's time zone
+    timeZone: v.optional(v.string()),
+    awarded: v.array(v.string()),
+  }).index("by_user", ["userId"]),
+
+  // A readable piece of text with a locator (one page for a PDF). Chat searches these.
+  chunks: defineTable({
+    documentId: v.id("documents"),
+    userId: v.id("users"),
+    index: v.number(),
+    text: v.string(),
+    locator,
+  })
+    .index("by_document", ["documentId", "index"])
+    .searchIndex("by_text", { searchField: "text", filterFields: ["documentId"] }),
 
   // One uploaded PDF (a chapter or slide deck). One user → many courses.
   courses: defineTable({

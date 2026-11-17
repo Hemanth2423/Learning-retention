@@ -14,3 +14,9 @@ export async function getOwnCourse(ctx: QueryCtx, userId: Id<"users">, courseId:
   const course = await ctx.db.get(courseId);
   return course && course.userId === userId ? course : null;
 }
+
+// Returns the document only if it belongs to this user.
+export async function getOwnDocument(ctx: QueryCtx, userId: Id<"users">, documentId: Id<"documents">) {
+  const doc = await ctx.db.get(documentId);
+  return doc && doc.userId === userId ? doc : null;
+}

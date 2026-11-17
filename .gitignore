@@ -50,3 +50,9 @@ next-env.d.ts
 
 # local test fixtures
 public/_test/
+
+# Competitive research stays local, never in git (see CLAUDE.md)
+/research/
+
+# Throwaway UX prototypes (kept locally, never committed)
+.context/compound-engineering/

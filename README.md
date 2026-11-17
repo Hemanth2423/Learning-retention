@@ -10,7 +10,7 @@ Ingrain (formerly "Recall") turns a chapter or slide deck (PDF) into material bu
 - 🔎 **search / filter / sort** across all your pillars, plus ★ **stars** for a review list
 - 🧭 an **honest progress report** (only answered checks count as "learned") with AI-suggested **next concepts and real resources**
 
-**Live app:** https://recall-psi-five.vercel.app · **Plan:** [PLAN.md](PLAN.md) · **Database:** [schema.md](schema.md)
+**Live app:** https://recall-psi-five.vercel.app · **Product:** [PRODUCT.md](PRODUCT.md) · **Architecture:** [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## How it works
 1. You sign up (email + password) and drop in a PDF with a title (subject optional).
@@ -43,7 +43,8 @@ npx convex dev            # first run: log in / create a project; writes .env.lo
 ```
 In a second terminal, set the backend secrets once:
 ```bash
-npx convex env set DEEPSEEK_API_KEY sk-...
+npx convex env set GROQ_API_KEY gsk_...   # default AI service
+npx convex env set DEEPSEEK_API_KEY sk-... # optional, with LLM_PROVIDER=deepseek
 npx convex env set FIRECRAWL_API_KEY fc-...
 npx convex env set SITE_URL http://localhost:3000
 node scripts/generateAuthKeys.mjs   # prints JWT_PRIVATE_KEY and JWKS; set both with `npx convex env set`
@@ -61,13 +62,14 @@ npm test
 - `convex/dashboard.test.ts` — accuracy and mastery are computed correctly (3 of 5 right → 60%; only scenario questions master a pillar).
 - `convex/lessonRules.test.ts` — the question rules: "according to the source" questions are rejected, answers stay correct after shuffling.
 
-Red/green evidence: [`Assignment/test-evidence/`](Assignment/test-evidence/).
+Red/green evidence: [`docs/archive/Assignment/test-evidence/`](docs/archive/Assignment/test-evidence/).
 
 ## Project layout
 ```
 app/          pages (courses, topics, find, starred, dashboard)
 components/   UI pieces (AuthForm, MindMap, Quiz, StarButton, ScoreChart, ProgressReport…)
 convex/       backend: schema, queries/mutations, AI job, tests
-prompts/      prompt log for every feature
-Assignment/   course deliverables (reflection, screenshots, test evidence)
+decisions/    architectural decisions and why
+tasks/        one spec per feature
+docs/archive/ old plans, prompt logs, course deliverables
 ```

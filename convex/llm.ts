@@ -1,4 +1,4 @@
-// Small wrappers around the DeepSeek (LLM) and Firecrawl (web search) HTTP APIs.
+// Small wrappers around the AI services (Groq, DeepSeek, Gemini; all OpenAI-compatible) and Firecrawl (web search).
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
@@ -10,27 +10,50 @@ export type AskOptions = {
   label?: string; // shown in the token-usage log line
 };
 
-// Asks DeepSeek for a JSON object and parses it. Logs token usage so we can track cost per document.
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest";
+
+type Env = Record<string, string | undefined>;
+
+// Which AI service answers. Groq is the default (higher free limits for testing). LLM_PROVIDER=deepseek or
+// LLM_PROVIDER=gemini picks the others. GROQ_MODEL / GEMINI_MODEL override the model. See decisions/007 and 011.
+export function pickProvider(env: Env, requestedModel: string) {
+  const provider = env.LLM_PROVIDER || "groq";
+  if (provider === "gemini") {
+    if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set in Convex.");
+    return { name: "gemini", url: GEMINI_URL, key: env.GEMINI_API_KEY, model: env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL, supportsEffort: false };
+  }
+  if (provider === "deepseek") {
+    if (!env.DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY is not set in Convex.");
+    return { name: "deepseek", url: DEEPSEEK_URL, key: env.DEEPSEEK_API_KEY, model: requestedModel, supportsEffort: true };
+  }
+  if (provider !== "groq") throw new Error(`Unknown LLM_PROVIDER "${provider}".`);
+  if (!env.GROQ_API_KEY) throw new Error("GROQ_API_KEY is not set in Convex.");
+  return { name: "groq", url: GROQ_URL, key: env.GROQ_API_KEY, model: env.GROQ_MODEL || DEFAULT_GROQ_MODEL, supportsEffort: false };
+}
+
+// Asks the AI for a JSON object and parses it. Logs token usage so we can track cost per document.
 export async function askJson<T>(messages: Message[], opts: AskOptions = {}): Promise<T> {
-  const key = process.env.DEEPSEEK_API_KEY;
-  if (!key) throw new Error("DEEPSEEK_API_KEY is not set in Convex.");
-  const model = opts.model ?? "deepseek-flash";
-  const res = await fetch(DEEPSEEK_URL, {
+  const provider = pickProvider(process.env, opts.model ?? "deepseek-flash");
+  const res = await fetch(provider.url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${provider.key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model,
+      model: provider.model,
       messages,
       response_format: { type: "json_object" },
       temperature: 0.3,
-      ...(opts.effort ? { reasoning_effort: opts.effort } : {}),
+      ...(opts.effort && provider.supportsEffort ? { reasoning_effort: opts.effort } : {}),
     }),
   });
-  const body = await res.json();
-  if (!res.ok) throw new Error(`DeepSeek error: ${body?.error?.message ?? res.status}`);
+  const raw = await res.json();
+  const body = Array.isArray(raw) ? raw[0] : raw; // Gemini wraps some errors in a list
+  if (!res.ok) throw new Error(`${provider.name} error: ${body?.error?.message ?? res.status}`);
   const u = body.usage ?? {};
   console.log(
-    `[tokens] ${opts.label ?? "call"} model=${model} in=${u.prompt_tokens} (cached ${u.prompt_cache_hit_tokens ?? 0}) out=${u.completion_tokens} (reasoning ${u.completion_tokens_details?.reasoning_tokens ?? 0})`
+    `[tokens] ${opts.label ?? "call"} provider=${provider.name} model=${provider.model} in=${u.prompt_tokens} (cached ${u.prompt_cache_hit_tokens ?? 0}) out=${u.completion_tokens} (reasoning ${u.completion_tokens_details?.reasoning_tokens ?? 0})`
   );
   const text: string = body.choices?.[0]?.message?.content ?? "";
   return parseJson<T>(text);

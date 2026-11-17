@@ -1,29 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #faf8f3;
-  --card: #ffffff;
-  --ink: #1e2a3a;
-  --muted: #5f6b7a;
-  --line: #e7e2d8;
-  --accent: #e8a33d;
-  --accent-soft: #fbefd9;
-  --good: #2f8f5b;
-  --bad: #c8463d;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #14181f;
-    --card: #1c222b;
-    --ink: #e9e6df;
-    --muted: #9aa4b1;
-    --line: #2c3440;
-    --accent: #f0b450;
-    --accent-soft: #3a2f1c;
-    --good: #4fb47c;
-    --bad: #e06a60;
-  }
+  /* Earthy reader palette (Feature 2). One light theme for now. */
+  --paper: #ece3d4; /* app background (linen) */
+  --card: #fbf7ef; /* pages, cards, panels */
+  --cream: #f5efe3; /* contents panel, chapter-end card */
+  --panel: #f4ecdf; /* study drawer */
+  --ink: #2a221b;
+  --muted: #5b4e40;
+  --line: #dccfba;
+  --accent: #a8492a; /* terracotta: actions */
+  --accent-dark: #85361c;
+  --accent-soft: #f1dccd;
+  --good: #4c6a47; /* sage: done */
+  --good-soft: #dfe8d6;
+  --good-line: #b7cbaa;
+  --ochre: #f3d27f; /* highlights */
+  --bad: #a8352a;
 }
 
 @theme inline {
@@ -36,8 +29,15 @@
   --color-accent-soft: var(--accent-soft);
   --color-good: var(--good);
   --color-bad: var(--bad);
-  --font-sans: var(--font-inter);
-  --font-serif: var(--font-fraunces);
+  --color-cream: var(--cream);
+  --color-panel: var(--panel);
+  --color-accent-dark: var(--accent-dark);
+  --color-good-soft: var(--good-soft);
+  --color-good-line: var(--good-line);
+  --color-ochre: var(--ochre);
+  --font-sans: var(--font-ui);
+  --font-serif: var(--font-read);
+  --font-game: var(--font-game-px);
 }
 
 body {
@@ -48,7 +48,7 @@ body {
 /* In a layer so utility classes on an element (e.g. p-8, border-accent) can override these. */
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-ink text-paper hover:opacity-90;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-accent text-white hover:bg-accent-dark;
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed border border-line bg-card hover:bg-accent-soft;
@@ -64,5 +64,118 @@ body {
   }
   .label {
     @apply mb-1 block text-sm font-medium;
+  }
+  /* Retro buttons for reader navigation (← PATH, ☰ CONTENTS, 📚 STUDY TOOLS) */
+  .retro {
+    @apply inline-flex items-center gap-2 whitespace-nowrap rounded border-[1.5px] border-ink bg-cream px-3 py-1.5 font-serif text-[13px] font-bold uppercase tracking-[0.14em] hover:bg-card;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .retro:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  .retro[aria-expanded="true"] { @apply bg-accent-soft; }
+  /* Chunky game buttons (Continue reading, tests) */
+  .chunky {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-ink bg-accent px-[18px] py-3 font-sans text-base font-bold text-white hover:bg-accent-dark;
+    box-shadow: 0 4px 0 var(--ink);
+  }
+  .chunky:active { transform: translateY(4px); box-shadow: 0 0 0 var(--ink); }
+  .chunky-light { @apply bg-card text-ink hover:bg-panel; }
+  /* Small game counters (XP, level, streak) */
+  .stat {
+    @apply inline-flex items-center gap-1.5 rounded-lg border-2 border-ink bg-card px-2 py-0.5 font-game text-[13px];
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+}
+
+/* A highlight pulses once when the reader jumps to it from the left panel. */
+@keyframes hl-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
+  }
+  30% {
+    box-shadow: 0 0 0 5px rgba(250, 204, 21, 0.9);
+  }
+}
+.hl-flash {
+  animation: hl-flash 1.6s ease-out 1;
+}
+
+/* The reflection note editor (Tiptap). Tailwind resets lists, so they are styled here. */
+.note-editor {
+  min-height: 100%;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  outline: none;
+}
+.note-editor p {
+  margin: 0 0 0.6em;
+}
+.note-editor {
+  font-family: var(--font-read), Georgia, serif;
+  font-size: 1rem;
+}
+.note-editor h2 {
+  font-size: 1.3em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.4em 0 0.4em;
+}
+.note-editor h3 {
+  font-size: 1.1em;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0.3em 0 0.3em;
+  color: var(--muted);
+}
+.note-editor s {
+  color: var(--muted);
+}
+.note-editor img {
+  display: block;
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 0.5em 0;
+  border: 1px solid var(--line);
+}
+.note-editor img.ProseMirror-selectednode {
+  outline: 3px solid var(--accent);
+}
+.note-editor ul {
+  list-style: disc;
+  padding-left: 1.4em;
+  margin: 0 0 0.6em;
+}
+.note-editor ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+  margin: 0 0 0.6em;
+}
+.note-editor li > p {
+  margin: 0;
+}
+.note-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* The chapter card's 10-second countdown bar (paused while the pointer is over the card). */
+@keyframes dock-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.dock-countdown {
+  transform-origin: left;
+  animation: dock-countdown 10s linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock-countdown {
+    animation: none;
   }
 }
