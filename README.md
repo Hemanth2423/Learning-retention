@@ -73,3 +73,8 @@ decisions/    architectural decisions and why
 tasks/        one spec per feature
 docs/archive/ old plans, prompt logs, course deliverables
 ```
+
+## Team
+```
+@EEBarr14
+@abbystern
