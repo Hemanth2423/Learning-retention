@@ -75,6 +75,6 @@ docs/archive/ old plans, prompt logs, course deliverables
 ```
 
 ## Team
-```
-@EEBarr14
-@abbystern
+
+- [@EEBarr14](https://github.com/EEBarr14)
+- [@abbystern](https://github.com/abbystern)
