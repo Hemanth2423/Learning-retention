@@ -35,7 +35,7 @@ Ingrain (formerly "Recall") turns a chapter or slide deck (PDF) into material bu
 | Hosting | Vercel (frontend) + Convex cloud (backend) |
 
 ## Run it locally
-Requirements: Node 20+, a DeepSeek API key, a Firecrawl API key.
+Requirements: Node 22+, a Groq API key (default AI), a Firecrawl API key.
 
 ```bash
 npm install
