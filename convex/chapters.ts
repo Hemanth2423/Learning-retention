@@ -1,6 +1,6 @@
 import { Locator } from "./locators";
 
-export type SectionLike = { key: string; level: number; locator: Locator };
+export type SectionLike = { key: string; level: number; locator: Locator; title?: string };
 
 // The contents entry the reader is currently in: the last entry (in book order) that starts on or before this page.
 // Pure so it can be tested; the reader and later features (highlight grouping, reflections) share it.
@@ -21,12 +21,29 @@ export function chapterLevel(sections: SectionLike[]): number {
   return 1;
 }
 
+const PART_TITLE = /^\s*part\s+([ivxlc]+|\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b/i;
+
+// The entries that count as chapters, in book order. Usually every entry at the chapter level. But books like
+// "Designing Data-Intensive Applications" group chapters into a few "Part I / Part II" entries: a Part with chapters
+// under it is replaced by those chapters, so the path shows chapters, not three huge parts.
+export function chapterEntries<T extends SectionLike>(sections: T[]): T[] {
+  const level = chapterLevel(sections);
+  const out: T[] = [];
+  sections.forEach((s, i) => {
+    if (s.level !== level) return;
+    const children: T[] = [];
+    for (let j = i + 1; j < sections.length && sections[j].level > level; j++) if (sections[j].level === level + 1) children.push(sections[j]);
+    if (PART_TITLE.test(s.title ?? "") && children.length > 0) out.push(...children);
+    else out.push(s);
+  });
+  return out;
+}
+
 // The chapter a page belongs to, or null before the first chapter (or when there are no contents).
 export function chapterOf<T extends SectionLike>(sections: T[], page: number): T | null {
-  const level = chapterLevel(sections);
   let found: T | null = null;
-  for (const s of sections) {
-    if (s.level === level && s.locator.page <= page) found = s;
+  for (const s of chapterEntries(sections)) {
+    if (s.locator.page <= page) found = s;
   }
   return found;
 }
@@ -49,8 +66,7 @@ export function partRanges(pageCount: number): ChapterRange[] {
 // (the last chapter runs to the end of the book). No contents: 20-page parts instead.
 export function chapterRanges(sections: (SectionLike & { title: string })[], pageCount: number): ChapterRange[] {
   if (sections.length === 0) return partRanges(pageCount);
-  const level = chapterLevel(sections);
-  const chapters = sections.filter((s) => s.level === level).sort((a, b) => a.locator.page - b.locator.page);
+  const chapters = chapterEntries(sections).sort((a, b) => a.locator.page - b.locator.page);
   return chapters.map((c, i) => {
     const next = chapters[i + 1];
     return {

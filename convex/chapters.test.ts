@@ -19,7 +19,7 @@ describe("currentSectionKey", () => {
   });
 });
 
-import { chapterLevel, chapterOf } from "./chapters";
+import { chapterEntries, chapterLevel, chapterOf, chapterRanges } from "./chapters";
 
 describe("chapterOf", () => {
   test("uses top-level entries as chapters when there are at least 3", () => {
@@ -35,9 +35,28 @@ describe("chapterOf", () => {
     expect(chapterOf(book, 2)).toBeNull(); // before the first chapter
   });
   test("no contents means no chapters", () => expect(chapterOf([], 5)).toBeNull());
+  test("a Part with chapters under it is replaced by those chapters (e.g. Designing Data-Intensive Applications)", () => {
+    const t = (key: string, title: string, page: number, level = 1) => ({ key, title, level, locator: { kind: "pdf" as const, page } });
+    const ddia = [
+      t("pre", "Preface", 5),
+      t("p1", "Part I. Foundations of Data Systems", 20),
+      t("c1", "1. Reliable, Scalable, and Maintainable Applications", 22, 2),
+      t("c1s", "Thinking About Data Systems", 23, 3),
+      t("c2", "2. Data Models and Query Languages", 50, 2),
+      t("p2", "Part II. Distributed Data", 140),
+      t("c5", "5. Replication", 145, 2),
+      t("p3", "PART THREE: Derived Data", 380),
+      t("c10", "10. Batch Processing", 385, 2),
+      t("gl", "Glossary", 540),
+    ];
+    expect(chapterEntries(ddia).map((c) => c.key)).toEqual(["pre", "c1", "c2", "c5", "c10", "gl"]);
+    expect(chapterOf(ddia, 60)?.key).toBe("c2");
+    expect(chapterRanges(ddia, 600).find((r) => r.key === "c2")).toMatchObject({ startPage: 50, endPage: 144 });
+    // A "Part" with nothing under it, or a chapter that merely mentions a part, stays as it is.
+    expect(chapterEntries([t("a", "Part 1", 1), t("b", "Spare parts", 5), t("c", "Three", 9)]).map((c) => c.key)).toEqual(["a", "b", "c"]);
+  });
 });
 
-import { chapterRanges } from "./chapters";
 
 const named = (key: string, page: number, level = 1) => ({ key, level, title: key.toUpperCase(), locator: { kind: "pdf" as const, page } });
 
