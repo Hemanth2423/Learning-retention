@@ -24,11 +24,22 @@ Read this every session. Product and system context live in [PRODUCT.md](PRODUCT
 
 Test accounts are in `.env.example`. Backend secrets are set with `npx convex env set` (see README).
 
+## Team assignment rules (temporary, until the Dec 2 demo)
+
+This repo is shared by the CodeMates team. Until the demo, these rules override anything below that conflicts with them. Revert this section and the two lines marked "temporary" after the assignment.
+
+- **Start every session** with: "Read docs/archive/PLAN.md and TEAM-PLAN.md. Today I'm building ___." (`docs/archive/PLAN.md` is the app's original PLAN.md.)
+- **Issue → branch → PR.** Open an Issue with your user story from TEAM-PLAN.md, assigned to yourself. Branch from the latest `main` (`api/<feature>` for API features, `docs/…` for docs). The PR says what changed, includes `closes #N`, a screenshot, a plain-English explanation of your test and one sentence on what would break it.
+- **Review and merge.** At least one teammate approves (you can't approve your own). CI (`npm test`, `npm run lint`) must be green. Then **the author merges**. `main` is protected; never push to it.
+- **Approved scope.** The APIs, tables and libraries listed in TEAM-PLAN.md are approved. Still update ARCHITECTURE.md when you add a table.
+- **APIs are called from the server only** (Convex actions or HTTP routes). Keys live in Convex env (`npx convex env set`), never in the browser or in git.
+- **Save your key prompts** in `prompts/<feature>.md`. Pull `main` often; resolve conflicts with your agent and mention them in the PR.
+
 ## How a feature gets built
 
 1. **Spec first.** A feature starts with `tasks/<feature>.md` (copy `tasks/_TEMPLATE.md`). No acceptance criteria means no code: ask for them.
 2. **One branch per feature**, named `feat/…`, `fix/…` or `docs/…`. Build and verify it **locally** first.
-3. **Never merge a PR** until Hemanth explicitly says so. Nothing ships until the first feature experience is right.
+3. **Merging (team assignment, temporary):** the PR's author merges once **one teammate has approved it and CI is green**. Never push to `main`.
 4. **Flag deviations.** If the build differs from the task file, say so in the task file and the PR.
 5. **Finish with HANDOFF.md:** the last verified state, open problems and the next action.
 
@@ -49,7 +60,7 @@ Test accounts are in `.env.example`. Backend secrets are set with `npx convex en
 ## Prohibited without asking first
 
 - Changing `convex/schema.ts` (also update ARCHITECTURE.md and add a `decisions/` entry)
-- Adding a dependency, an AI model or an external API
+- Adding a dependency, an AI model or an external API **that isn't listed in [TEAM-PLAN.md](TEAM-PLAN.md)** (team assignment, temporary: APIs, tables and libraries approved there don't need a separate ask)
 - Sending the whole book to the model in one call (use retrieved passages or the current chapter)
 - Editing `convex/_generated/` or the Next.js block at the top of this file
 - Deleting user data or running destructive commands against the Convex deployment
