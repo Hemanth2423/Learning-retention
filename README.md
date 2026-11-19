@@ -58,6 +58,8 @@ npm run dev               # http://localhost:3000
 ```bash
 npm test
 ```
+CI runs `npm test` and `npm run lint` on every pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). A PR merges into `main` only when that check passes and a teammate has approved it.
+
 - `convex/dataIsolation.test.ts` — User B can't see, open, search, edit, or delete User A's data.
 - `convex/dashboard.test.ts` — accuracy and mastery are computed correctly (3 of 5 right → 60%; only scenario questions master a pillar).
 - `convex/lessonRules.test.ts` — the question rules: "according to the source" questions are rejected, answers stay correct after shuffling.
