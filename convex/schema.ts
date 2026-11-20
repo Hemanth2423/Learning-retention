@@ -20,12 +20,16 @@ export default defineSchema({
 
   // ---- Reading experience (Feature 1). See ARCHITECTURE.md and decisions/004. ----
 
-  // One thing the user is learning from. `sourceType` is "pdf" today; links/video come later.
+  // One thing the user is learning from: an uploaded PDF, or an article / YouTube video added by link.
   documents: defineTable({
     userId: v.id("users"),
     title: v.string(),
-    sourceType: v.literal("pdf"),
-    fileId: v.id("_storage"),
+    sourceType: v.union(v.literal("pdf"), v.literal("article"), v.literal("video")),
+    fileId: v.optional(v.id("_storage")), // PDFs only
+    sourceUrl: v.optional(v.string()), // articles and videos: the canonical link (linkRules.parseLink), used to spot duplicates
+    siteName: v.optional(v.string()), // article site or YouTube channel
+    imageUrl: v.optional(v.string()), // article preview image or YouTube thumbnail
+    videoId: v.optional(v.string()),
     status: v.union(v.literal("processing"), v.literal("ready"), v.literal("failed")),
     statusMessage: v.optional(v.string()),
     hasText: v.optional(v.boolean()), // false = scanned/image-only: reading works, highlights and chat are off
@@ -34,7 +38,9 @@ export default defineSchema({
     lastLocator: v.optional(locator), // where the reader left off
     lastReadAt: v.optional(v.number()), // when the reader last moved in this book (orders the library)
     pagesSeen: v.optional(v.string()), // one character per page: "1" once it was on screen for ~2 s (see readingRules.ts)
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_source", ["userId", "sourceUrl"]),
 
   // A highlight, with an optional comment. `locator` is its first page (where the left panel jumps).
   // `segments` are the PDF boxes it covers, one entry per page, as fractions of the page size.

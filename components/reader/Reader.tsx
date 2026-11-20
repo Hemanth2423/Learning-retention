@@ -1,6 +1,7 @@
 "use client";
 
 import { XP } from "@/convex/xpRules";
+import type { Locator } from "@/convex/locators";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -49,8 +50,8 @@ type ReaderDoc = {
   title: string;
   pageCount?: number;
   hasText?: boolean;
-  sections?: { key: string; title: string; level: number; locator: { kind: "pdf"; page: number } }[];
-  lastLocator?: { kind: "pdf"; page: number };
+  sections?: { key: string; title: string; level: number; locator: Locator }[];
+  lastLocator?: Locator;
   pagesSeen?: string;
 };
 

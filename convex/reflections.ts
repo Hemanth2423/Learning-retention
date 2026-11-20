@@ -35,6 +35,8 @@ export const save = mutation({
     if (existing) await ctx.db.patch(existing._id, { content, plainText, dismissed: undefined });
     else await ctx.db.insert("reflections", { userId, documentId, sectionKey, content, plainText });
     // 20 XP for the chapter's first note (paid once, even if it's rewritten).
+    // Books only: articles and videos don't earn XP (Feature 3 spec).
+    if (doc.sourceType !== "pdf") return { xp: 0 };
     return { xp: await awardXp(ctx, userId, [{ key: awardKey.note(documentId, sectionKey), xp: XP.note }]) };
   },
 });

@@ -2,7 +2,7 @@
 
 Update at the end of every session. Keep only the latest state, since git keeps the history.
 
-**Last updated:** 2026-11-17 · **Branch:** `feat/library-and-path` (from `feat/reading-experience`; that branch is deleted once this reaches main; no merges until Hemanth says so)
+**Last updated:** 2026-11-19 · **Branch:** `main` (protected: PR + 1 teammate approval + CI `test`) · CodeMates team assignment until Dec 2
 
 ## Last verified state
 
@@ -22,7 +22,15 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 - **Legacy code (courses, lessons, reviews, gamification) is untouched** until a feature replaces it.
 - **Research lives only where it was created** (gitignored). Master copy is in the main checkout. 5 ambiguities are listed in companion §11.
 
+## Team setup (CodeMates assignment, demo Dec 2)
+
+- **Team:** @Hemanth2423 (owner; articles via Firecrawl + YouTube), @abbystern (Notion export), @EEBarr14 (Google Docs export). Plan: [TEAM-PLAN.md](TEAM-PLAN.md).
+- **CI:** `.github/workflows/ci.yml` (from #71) runs `npm test` + `npm run lint` on every PR. `main` requires a PR, 1 approval and the `test` check, for admins too.
+- **Open:** the repo is still **public** (the assignment wants private; branch protection on a private repo needs GitHub Pro / Education). AGENTS.md temporary team rules are #73 (approved, needs "Update branch", then merge). Revert #73 after the demo.
+- **Deploys:** Vercel isn't connected to GitHub; production is deployed by hand (`npx convex deploy`, then `vercel deploy --prod` from a clean export of `main`). Teammates' features must be live by Dec 2.
+
 ## Next action
 
-1. **Hemanth:** review slices 4–5 (Test yourself, XP), then commit slice 5.
-2. **Then:** Feature 2 is complete: a full pass with a real book, then a PR (never merged without Hemanth's OK).
+1. **Merge PR #82** (Feature 3 spec + slice 1: articles and YouTube by link) after a teammate approves, then deploy production (`npx convex deploy`, then `vercel deploy --prod` from a clean export of `main`).
+2. **Slices 2–6 on one branch, one PR** (`feat/feature-3-rest`, from `main` after #82 merges): polish, tiles and covers, export downloads, Notebook (after the Notion/Docs PRs merge), EPUB/Word/PowerPoint + bulk add. Spec: `tasks/feature-3-sources-and-notebook.md`; design: prototype 005 (local, `.context/…/02-sources-notebook-export/screens/005-clickable-app.html`). Small fixes queued for polish: "Summarize this chapter / Ask about this book / Remove this book?" wording for articles and videos.
+3. Merge #73 (temporary AGENTS.md team rules); make the repo private; revert #73 after Dec 2.

@@ -14,7 +14,9 @@ export function RightPanel({
   onTab,
   tabs,
   onClose,
+  underMenu = true,
 }: {
+  underMenu?: boolean; // the PDF reader's menu floats over the drawer's top
   tab: StudyTab;
   onTab: (tab: StudyTab) => void;
   tabs: StudyTabSpec[];
@@ -59,7 +61,7 @@ export function RightPanel({
   };
 
   return (
-    <aside ref={panelRef} id="right-panel" style={{ width }} className="relative flex h-full shrink-0 flex-col border-l border-line bg-panel pt-[60px]">
+    <aside ref={panelRef} id="right-panel" style={{ width }} className={`relative flex h-full shrink-0 flex-col border-l border-line bg-panel ${underMenu ? "pt-[60px]" : ""}`}>
       <div
         role="separator"
         aria-orientation="vertical"
