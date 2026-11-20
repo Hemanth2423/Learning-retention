@@ -102,4 +102,5 @@ See [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebo
 |---|---|---|
 | ⚠ **Covers** | `documents.coverId` + `coverChecked`; page 1 drawn in the browser, checked by `documents.setCover` (ADR 013) | Free, no server rendering; text-page PDFs keep the colour cover |
 | **Add sheet + queue** | `components/upload/`: Files and Links tabs, one item at a time, each with its state and reason | Bulk add without hitting Firecrawl or storage all at once |
+| ⚠ **Notebook** | `notes` (many per book, optional chapter, video `seconds`), `savedQuestions`, `highlights.range` for text; `convex/notebook.ts` + `notebookRules.ts`; old `reflections` moved by `notebook.migrateReflections` (ADR 014) | One list for review and export; nothing deleted |
 

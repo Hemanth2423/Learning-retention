@@ -55,6 +55,9 @@ export default defineSchema({
       v.object({ page: v.number(), rects: v.array(v.object({ x: v.number(), y: v.number(), w: v.number(), h: v.number() })) })
     ),
     comment: v.optional(v.string()),
+    // Text sources (articles, EPUB, Word): where the highlight starts and ends, as character offsets inside blocks.
+    // `segments` is empty for these. The locator's page is the start block.
+    range: v.optional(v.object({ startBlock: v.number(), startOffset: v.number(), endBlock: v.number(), endOffset: v.number() })),
   }).index("by_document", ["documentId"]),
 
   // An image added to a note. Tracked so it's deleted with the book (the note itself only holds its link).
@@ -64,8 +67,32 @@ export default defineSchema({
     storageId: v.id("_storage"),
   }).index("by_document", ["documentId"]),
 
-  // The reader's note on one chapter. `content` is the editor's saved format (JSON), `plainText` a plain copy for AI.
-  // `dismissed` with no text means "not now" was chosen at the end-of-chapter prompt, so it isn't asked again.
+  // The Notebook's notes (Feature 3): any number per book, about one chapter (`sectionKey`) or none (General notes).
+  // `content` is the editor's saved format (JSON), `plainText` a plain copy for AI, search and export.
+  // `seconds`: a video note's place in the video.
+  notes: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    sectionKey: v.optional(v.string()),
+    content: v.string(),
+    plainText: v.string(),
+    seconds: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_document", ["documentId"]),
+
+  // A test question the reader chose to keep after answering it wrong: the question, their answer and the right one.
+  savedQuestions: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    chapterKey: v.string(),
+    question: v.string(),
+    yourAnswer: v.string(),
+    rightAnswer: v.string(),
+    page: v.optional(v.number()),
+  }).index("by_document", ["documentId"]),
+
+  // Before Feature 3: one note per chapter. Their text was moved into `notes` (notebook.migrateReflections); the
+  // rows stay (no data is deleted) but nothing reads them any more.
   reflections: defineTable({
     userId: v.id("users"),
     documentId: v.id("documents"),

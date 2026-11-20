@@ -101,7 +101,7 @@ export function ChapterPath({ documentId, stops }: { documentId: Id<"documents">
                   <Link href={`${book}?page=${s.openAt}`} className={s.read ? pipDone : pipIdle} title={s.pct > 0 && !s.read ? "Continue where you left off" : "Open this chapter"}>
                     <span aria-hidden="true">📖</span>Read {s.pct}%
                   </Link>
-                  <Link href={`${book}?page=${s.openAt}&notes=${encodeURIComponent(s.key)}`} className={s.hasNote ? pipDone : pipIdle} title={s.hasNote ? "Open your note" : "Write a note"}>
+                  <Link href={`${book}?page=${s.openAt}&notes=${encodeURIComponent(s.key)}`} className={s.hasNote ? pipDone : pipIdle} title={s.hasNote ? "Open your notes" : "Write a note"}>
                     <span aria-hidden="true">✏️</span>Notes
                   </Link>
                   <Link href={`/read/${documentId}/test?chapter=${encodeURIComponent(s.key)}`} className={s.best ? pipDone : pipIdle} title={s.best ? "Your best score · test again" : "Test yourself"}>

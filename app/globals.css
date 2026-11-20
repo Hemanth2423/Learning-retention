@@ -133,6 +133,8 @@ body {
   .kind {
     @apply inline-flex items-center rounded border border-line bg-panel px-1.5 text-label font-bold uppercase tracking-[0.06em] text-muted;
   }
+  /* A small "go there" chip: p. 12 ↗, §3 ↗, ▶ 4:05 */
+  .go { @apply rounded bg-ochre/40 px-1.5 text-label font-semibold text-accent-dark hover:bg-ochre/70; }
   .spin {
     @apply inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-accent;
   }
@@ -144,6 +146,10 @@ body {
     box-shadow: 2px 2px 0 var(--ink);
   }
 }
+
+/* Highlights in text sources (articles, EPUB, Word): painted with the CSS Custom Highlight API. */
+::highlight(ingrain-hl) { background-color: rgba(243, 210, 127, 0.7); }
+::highlight(ingrain-flash) { background-color: rgba(250, 204, 21, 1); }
 
 /* A highlight pulses once when the reader jumps to it from the left panel. */
 @keyframes hl-flash {

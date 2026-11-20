@@ -32,6 +32,8 @@ import type * as links from "../links.js";
 import type * as llm from "../llm.js";
 import type * as locators from "../locators.js";
 import type * as nextSteps from "../nextSteps.js";
+import type * as notebook from "../notebook.js";
+import type * as notebookRules from "../notebookRules.js";
 import type * as placement from "../placement.js";
 import type * as processing from "../processing.js";
 import type * as progress from "../progress.js";
@@ -84,6 +86,8 @@ declare const fullApi: ApiFromModules<{
   llm: typeof llm;
   locators: typeof locators;
   nextSteps: typeof nextSteps;
+  notebook: typeof notebook;
+  notebookRules: typeof notebookRules;
   placement: typeof placement;
   processing: typeof processing;
   progress: typeof progress;

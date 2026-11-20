@@ -60,3 +60,18 @@ export function mergeRects(rects: Rect[]): Rect[] {
   }
   return out;
 }
+
+// A highlight in a text source (article, EPUB, Word): from (startBlock, startOffset) to (endBlock, endOffset),
+// offsets counted in each block's plain text. Blocks are numbered from 1.
+export type TextRange = { startBlock: number; startOffset: number; endBlock: number; endOffset: number };
+
+export function validateTextHighlight(input: { text: string; range: TextRange; blockCount: number }): string | undefined {
+  const { text, range: r, blockCount } = input;
+  if (!normalizeText(text)) return "Select some text to highlight.";
+  if (text.length > MAX_HIGHLIGHT_TEXT) return "That selection is too long to highlight.";
+  const ints = [r.startBlock, r.startOffset, r.endBlock, r.endOffset].every((n) => Number.isInteger(n) && n >= 0);
+  if (!ints || r.startBlock < 1 || r.endBlock > blockCount) return "That highlight isn't in this text.";
+  if (r.endBlock < r.startBlock || (r.endBlock === r.startBlock && r.endOffset <= r.startOffset)) return "That highlight isn't in this text.";
+  return undefined;
+}
+

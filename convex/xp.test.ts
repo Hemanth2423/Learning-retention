@@ -55,11 +55,12 @@ describe("xp", () => {
 
   test("a chapter's note pays 20 XP once, even if rewritten or deleted and written again", async () => {
     const { as, documentId } = await setup();
-    expect(await as.mutation(api.reflections.save, { documentId, sectionKey: "s0", ...note("Habits loop.") })).toEqual({ xp: 20 });
-    expect(await as.mutation(api.reflections.save, { documentId, sectionKey: "s0", ...note("Habits loop, better.") })).toEqual({ xp: 0 });
-    await as.mutation(api.reflections.save, { documentId, sectionKey: "s0", ...note("") });
-    await as.mutation(api.reflections.save, { documentId, sectionKey: "s0", ...note("Again.") });
-    await as.mutation(api.reflections.save, { documentId, sectionKey: "s1", ...note("Second chapter.") });
+    const first = await as.mutation(api.notebook.saveNote, { documentId, sectionKey: "s0", ...note("Habits loop.") });
+    expect(first.xp).toBe(20);
+    expect((await as.mutation(api.notebook.saveNote, { documentId, noteId: first.noteId!, sectionKey: "s0", ...note("Habits loop, better.") })).xp).toBe(0);
+    await as.mutation(api.notebook.saveNote, { documentId, noteId: first.noteId!, sectionKey: "s0", ...note("") });
+    await as.mutation(api.notebook.saveNote, { documentId, sectionKey: "s0", ...note("Again.") });
+    await as.mutation(api.notebook.saveNote, { documentId, sectionKey: "s1", ...note("Second chapter.") });
     expect((await as.query(api.xp.stats, {})).xp).toBe(40);
   });
 
@@ -84,9 +85,9 @@ describe("xp", () => {
 
   test("streak grows on consecutive days, shows until the next day ends, then restarts", async () => {
     const { as, documentId } = await setup();
-    await as.mutation(api.reflections.save, { documentId, sectionKey: "s0", ...note("Day one.") });
+    await as.mutation(api.notebook.saveNote, { documentId, sectionKey: "s0", ...note("Day one.") });
     vi.setSystemTime(Date.now() + DAY);
-    await as.mutation(api.reflections.save, { documentId, sectionKey: "s1", ...note("Day two.") });
+    await as.mutation(api.notebook.saveNote, { documentId, sectionKey: "s1", ...note("Day two.") });
     expect((await as.query(api.xp.stats, {})).streak).toBe(2);
     vi.setSystemTime(Date.now() + DAY);
     expect((await as.query(api.xp.stats, {})).streak).toBe(2); // still today to keep it going
@@ -101,7 +102,7 @@ describe("xp", () => {
     await as.mutation(api.xp.setTimeZone, { timeZone: "Not/AZone" });
     expect(await t.run((ctx) => ctx.db.query("learnerStats").collect())).toEqual([]);
     await as.mutation(api.xp.setTimeZone, { timeZone: "America/Los_Angeles" });
-    await as.mutation(api.reflections.save, { documentId, sectionKey: "s0", ...note("Note.") });
+    await as.mutation(api.notebook.saveNote, { documentId, sectionKey: "s0", ...note("Note.") });
     const row = (await t.run((ctx) => ctx.db.query("learnerStats").first()))!;
     expect(row).toMatchObject({ timeZone: "America/Los_Angeles", lastActiveDay: "2026-11-17", xp: 20 });
   });

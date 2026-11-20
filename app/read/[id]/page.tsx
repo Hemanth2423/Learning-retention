@@ -18,7 +18,8 @@ import { chapterBadge } from "@/components/reader/text";
 // The chapter path: the main view of one book.
 function PathView({ documentId }: { documentId: Id<"documents"> }) {
   const doc = useQuery(api.documents.get, { documentId });
-  const notes = useQuery(api.reflections.list, { documentId });
+  const notebook = useQuery(api.notebook.list, { documentId });
+  const notes = notebook?.notes;
   const scores = useQuery(api.quizzes.bestScores, { documentId });
   const router = useRouter();
   const notABook = !!doc && doc.sourceType !== "pdf";
@@ -40,7 +41,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       currentIndex = next;
     }
     if (currentIndex < 0) currentIndex = progress.findIndex((p) => !p.read);
-    const withNotes = new Set((notes ?? []).filter((n) => n.plainText?.trim() || n.content?.includes('"type":"image"')).map((n) => n.sectionKey));
+    const withNotes = new Set((notes ?? []).map((n) => n.sectionKey));
     const stops: Stop[] = ranges.map((r, i) => ({
       ...r,
       pct: progress[i].pct,

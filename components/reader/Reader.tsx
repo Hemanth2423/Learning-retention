@@ -12,11 +12,11 @@ import { ChapterRange, chapterRanges } from "@/convex/chapters";
 import { chapterProgress } from "@/convex/readingRules";
 import { Bulb } from "@/components/icons/Bulb";
 import { ContentsPanel } from "./ContentsPanel";
-import { HighlightsPanel } from "./HighlightsPanel";
 import { PdfViewer, PdfViewerHandle, SelectionInfo } from "./PdfViewer";
 import { ChatPanel, useChat } from "./Chat";
 import { PageNav } from "./PageNav";
-import { NoteWindow, ReflectionsPanel, useReflections } from "./Reflections";
+import { NotebookPanel } from "@/components/notebook/NotebookPanel";
+import { useNotebook } from "@/components/notebook/useNotebook";
 import { MoreTools } from "./MoreTools";
 import { RightPanel, StudyTab } from "./RightPanel";
 import { chapterBadge, readableTitle } from "./text";
@@ -25,7 +25,7 @@ import { Icons } from "./Tooltip";
 
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const NO_HIGHLIGHTS: Doc<"highlights">[] = [];
-const NOTE_ICON = <span aria-hidden="true">✏️</span>;
+const NOTEBOOK_ICON = <span aria-hidden="true">📓</span>;
 const MORE_ICON = <span aria-hidden="true">🧰</span>;
 
 type ReaderDoc = {
@@ -104,15 +104,17 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
 
   const viewer = useRef<PdfViewerHandle>(null);
   const jumpToPage = useCallback((p: number) => viewer.current?.jumpTo(p), []);
-  const reflections = useReflections(doc._id, ranges, jumpToPage, canHighlight);
-  const { open: openNote } = reflections;
+  const notebook = useNotebook(doc._id);
+  const { write: writeNote } = notebook;
+  const [wide, setWide] = useState(false);
   const chat = useChat(doc._id);
   const [chatDraft, setChatDraft] = useState("");
   const [page, setPage] = useState(initialPage);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [contentsOpen, setContentsOpen] = useState(false);
-  const [studyOpen, setStudyOpen] = useState(false);
-  const [studyTab, setStudyTab] = useState<StudyTab>(canHighlight ? "ask" : "notes");
+  // Opened from a chapter's Notes marker on the path: the drawer starts open on the Notebook.
+  const [studyOpen, setStudyOpen] = useState(!!startNotes);
+  const [studyTab, setStudyTab] = useState<StudyTab>(canHighlight && !startNotes ? "ask" : "notebook");
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [editingId, setEditingId] = useState<Id<"highlights"> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -129,19 +131,19 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
   const chapter = chapterIndex >= 0 ? ranges[chapterIndex] : null;
   const noteFor = useCallback(
     (key: string) => {
-      openNote(key);
-      openStudy("notes");
+      writeNote(key);
+      openStudy("notebook");
     },
-    [openNote, openStudy]
+    [writeNote, openStudy]
   );
 
-  // Opened from a chapter's Notes marker on the path: show that note straight away.
+  // ...on that chapter, and a new note opens if the chapter has none yet.
   const openedNotes = useRef(false);
   useEffect(() => {
-    if (openedNotes.current || !startNotes || !ranges.some((r) => r.key === startNotes)) return;
+    if (openedNotes.current || !startNotes || !notebook.loaded || !ranges.some((r) => r.key === startNotes)) return;
     openedNotes.current = true;
-    noteFor(startNotes);
-  }, [startNotes, ranges, noteFor]);
+    if (!notebook.notes.some((n) => n.sectionKey === startNotes)) writeNote(startNotes);
+  }, [startNotes, ranges, writeNote, notebook.loaded, notebook.notes]);
 
   // The top menu hides while reading and comes back when the mouse moves. It stays while a panel is open.
   const overMenu = useRef(false);
@@ -166,14 +168,14 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
   // Esc closes the contents and the study tools, unless the reader is typing somewhere (that field handles Esc).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || reflections.expanded) return; // the larger note handles its own Esc
+      if (e.key !== "Escape") return; // an open note window handles its own Esc first
       if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable='true']")) return;
       setContentsOpen(false);
       setStudyOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [reflections.expanded]);
+  }, []);
 
   // When a chapter's last page has been on screen for 2 seconds, a closable notice offers a note or a test.
   // Shown once per chapter per visit; closing it is enough to say "not now".
@@ -254,7 +256,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
     try {
       const id = await addHighlight({ documentId: doc._id, text, segments });
       if (withComment) {
-        openStudy("highlights");
+        openStudy("notebook");
         setEditingId(id);
       }
     } catch (err) {
@@ -283,33 +285,38 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
   const chapterPct = chapterIndex >= 0 ? progress[chapterIndex].pct : 0;
   const tabs = [
     ...(canHighlight ? [{ key: "ask" as const, label: "Ask", icon: Icons.ask, content: <ChatPanel chat={chat} page={page} draft={chatDraft} onDraft={setChatDraft} onJump={jumpToPage} /> }] : []),
-    { key: "notes" as const, label: "Notes", icon: NOTE_ICON, content: <ReflectionsPanel key={chapter?.key ?? "none"} state={reflections} ranges={ranges} currentKey={chapter?.key ?? null} /> },
-    ...(canHighlight
-      ? [
-          {
-            key: "highlights" as const,
-            label: "Highlights",
-            icon: Icons.highlight,
-            count: highlights.length,
-            content: (
-              <HighlightsPanel
-                highlights={highlights}
-                sections={sections}
-                editingId={editingId}
-                onEdit={setEditingId}
-                onSetComment={saveComment}
-                onRemove={(id) => void removeHighlight({ highlightId: id }).catch((err) => setNotice(errorMessage(err)))}
-                onJump={(h) =>
-                  viewer.current?.jumpTo(h.locator.page, {
-                    y: h.segments.find((s) => s.page === h.locator.page)?.rects[0]?.y,
-                    flashId: h._id,
-                  })
-                }
-              />
-            ),
-          },
-        ]
-      : []),
+    {
+      key: "notebook" as const,
+      label: "Notebook",
+      icon: NOTEBOOK_ICON,
+      count: notebook.notes.length + highlights.length + notebook.saved.length,
+      content: (
+        <NotebookPanel
+          state={notebook}
+          highlights={highlights}
+          ranges={ranges}
+          sections={sections}
+          currentKey={chapter?.key ?? null}
+          single={false}
+          unit={isParts ? "part" : "chapter"}
+          canValidate={canHighlight}
+          wide={wide}
+          editingId={editingId}
+          onEditComment={setEditingId}
+          onSetComment={saveComment}
+          onRemoveHighlight={(id) => void removeHighlight({ highlightId: id }).catch((err) => setNotice(errorMessage(err)))}
+          onJumpHighlight={(h) =>
+            viewer.current?.jumpTo(h.locator.page, {
+              y: h.segments.find((s) => s.page === h.locator.page)?.rects[0]?.y,
+              flashId: h._id,
+            })
+          }
+          onJumpPage={jumpToPage}
+          onNotice={setNotice}
+          emptyHint={canHighlight ? "Nothing here yet. Select text in the book to highlight it, or write a note." : "Nothing here yet. Write a note about what you read."}
+        />
+      ),
+    },
     { key: "more" as const, label: "More", icon: MORE_ICON, content: <MoreTools /> },
   ];
 
@@ -339,7 +346,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
           )}
         </div>
         {!canHighlight && <span className="hidden text-label text-muted lg:inline">Scanned PDF: highlights and chat are off</span>}
-        <button className="retro" aria-expanded={studyOpen} aria-controls="right-panel" onClick={() => setStudyOpen((o) => !o)} title="Ask, Notes, Highlights and more">
+        <button className="retro" aria-expanded={studyOpen} aria-controls="right-panel" onClick={() => setStudyOpen((o) => !o)} title="Ask, Notebook and more">
           📚 Study tools
         </button>
       </header>
@@ -389,9 +396,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
         )}
       </div>
 
-      {studyOpen && <RightPanel tab={studyTab} onTab={setStudyTab} tabs={tabs} onClose={() => setStudyOpen(false)} />}
-
-      {reflections.activeKey && reflections.expanded && <NoteWindow state={reflections} />}
+      {studyOpen && <RightPanel tab={studyTab} onTab={setStudyTab} tabs={tabs} onClose={() => setStudyOpen(false)} wide={wide && studyTab === "notebook"} onWide={studyTab === "notebook" ? setWide : undefined} />}
       {selection && (
         <SelectionMenu
           selection={selection}

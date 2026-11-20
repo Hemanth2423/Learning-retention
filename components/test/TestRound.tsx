@@ -29,6 +29,9 @@ export function TestRound({
   pageHref: (page: number) => string;
 }) {
   const answer = useMutation(api.quizzes.answer);
+  const saveQuestion = useMutation(api.notebook.saveQuestion);
+  const [savedAt, setSavedAt] = useState<number | null>(null); // the position saved to notes, if any
+  const [saving, setSaving] = useState(false);
   const [pos, setPos] = useState(0);
   const [chosen, setChosen] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -153,6 +156,27 @@ export function TestRound({
             </p>
             <div className="mt-3 flex items-center justify-between gap-3">
               <span className="font-game text-ui text-[#2f4a2b]">{feedback.xp > 0 ? `+${feedback.xp} XP` : ""}</span>
+              {!feedback.correct && (
+                // Results never go in by themselves: the reader chooses which questions to keep.
+                <button
+                  className="quiet ml-auto"
+                  disabled={saving || savedAt === pos}
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      await saveQuestion({ attemptId, position: pos });
+                      setSavedAt(pos);
+                    } catch {
+                      setError("We couldn't save that question. Try again.");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  title="Keeps the question, your answer and the right one in this chapter's Notebook"
+                >
+                  {savedAt === pos ? "✓ Saved to notes" : "📓 Save to notes"}
+                </button>
+              )}
               <button onClick={next} className="chunky" autoFocus>
                 {last ? "Finish ›" : "Next ›"}
               </button>

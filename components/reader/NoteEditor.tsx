@@ -15,7 +15,9 @@ export function NoteEditor({
   autoFocus,
   actions,
   onAddImage,
+  placeholder = "What did you take away? A few sentences is enough.",
 }: {
+  placeholder?: string;
   initial: string | null;
   onChange: (value: NoteValue) => void;
   autoFocus?: boolean;
@@ -32,7 +34,7 @@ export function NoteEditor({
         horizontalRule: false,
         link: false,
       }),
-      Placeholder.configure({ placeholder: "What did you take away? A few sentences is enough." }),
+      Placeholder.configure({ placeholder }),
       Image.configure({ allowBase64: false }),
     ],
     content: initial ? JSON.parse(initial) : "",

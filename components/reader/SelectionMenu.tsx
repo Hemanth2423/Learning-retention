@@ -1,10 +1,9 @@
 "use client";
 
-import type { SelectionInfo } from "./PdfViewer";
 import { IconButton, Icons } from "./Tooltip";
 
 type Props = {
-  selection: SelectionInfo;
+  selection: { x: number; y: number }; // where the selection is, in window coordinates
   onHighlight: () => void;
   onComment: () => void;
   onAsk?: () => void; // only when chat is available
