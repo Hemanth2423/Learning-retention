@@ -2,7 +2,7 @@
 
 Update at the end of every session. Keep only the latest state, since git keeps the history.
 
-**Last updated:** 2026-11-19 · **Working branch:** `feat/feature-3-rest` (slices 2–6, stacked on #82's `api/article-youtube-links`) · **Default:** `main` (protected: PR + 1 teammate approval + CI `test`) · CodeMates team assignment until Dec 2
+**Last updated:** 2026-11-20 · **Working branch:** `feat/feature-3-rest` (slices 2–6, stacked on #82's `api/article-youtube-links`) · **Default:** `main` (protected: PR + 1 teammate approval + CI `test`) · CodeMates team assignment until Dec 2
 
 ## Last verified state
 
@@ -31,7 +31,10 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 
 ## Next action
 
-1. **Merge PR #82** (Feature 3 spec + slice 1) after a teammate approves, then deploy production (`npx convex deploy`, then `vercel deploy --prod` from a clean export of `main`). Then rebase `feat/feature-3-rest` onto `main`.
-2. **Slice 2 (polish) is built, not committed** on `feat/feature-3-rest`: tests 178 pass, lint 0 errors, build passes, browser-checked. Hemanth reviews it, then commit.
-3. **Next: slice 3** (library tiles and covers) on the same branch. Then 4 (export downloads), 5 (Notebook, after the Notion/Docs PRs merge), 6 (EPUB/Word/PowerPoint + bulk add). Spec: `tasks/feature-3-sources-and-notebook.md`. Prototype 005 + `decisions.md` live only in the worktree `.claude/worktrees/learning-retention-d5b089/.context/…`; copy them to the main checkout before that worktree is cleaned up.
-4. Merge #73 (temporary AGENTS.md team rules); make the repo private; revert #73 after Dec 2.
+1. **Merge PR #82** (Feature 3 spec + slice 1) after a teammate approves, deploy production, then rebase `feat/feature-3-rest` onto `main` and open its PR (slices 2–6, all committed locally, not pushed).
+2. **After deploying slice 5 anywhere:** run `npx convex run notebook:migrateReflections` until it returns 0 (moves old chapter notes into the Notebook; done on dev: 7 notes).
+3. **Tell @abbystern and @EEBarr14:** `convex/exportRules.ts` (buildExport + toMarkdown) is the shared builder; their Send buttons go in the Export sheet ("Soon" rows today).
+4. **Hemanth to review in the browser:** Notebook compose flow, EPUB with a real book (only generated samples were tried), PDF covers on real books. Download and Print in the Export sheet weren't clicked (builder is tested).
+5. Merge #73; make the repo private; revert #73 after Dec 2. Copy prototype 005 + `decisions.md` from worktree `learning-retention-d5b089/.context/` to the main checkout.
+
+**State (2026-11-20):** `feat/feature-3-rest` @ slice 6; 224 tests pass, lint 0 errors / 22 warnings, build passes. New deps: `fflate`, `mammoth`. Schema: covers, notes, savedQuestions, highlight ranges, new source types (ADRs 013–015).
