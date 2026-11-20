@@ -39,7 +39,7 @@ type ReaderDoc = {
 };
 
 // A closable notification at the bottom of the book when a chapter ends: write a note or test yourself.
-function ChapterEndNotice({
+export function ChapterEndNotice({
   range,
   number,
   isPart,

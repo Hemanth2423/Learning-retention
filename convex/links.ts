@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { MAX_TEXT_BLOCKS } from "./textSourceRules";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -157,14 +158,14 @@ export const add = action({
   },
 });
 
-// The article's text for the reader, in order. Owner only.
+// The text of an article, EPUB, Word or PowerPoint file for the reader, in order. Owner only.
 export const blocks = query({
   args: { documentId: v.id("documents") },
   handler: async (ctx, { documentId }) => {
     const userId = await requireUser(ctx);
     const doc = await getOwnDocument(ctx, userId, documentId);
-    if (!doc || doc.sourceType !== "article") return [];
-    const rows = await ctx.db.query("chunks").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(500);
+    if (!doc || doc.sourceType === "pdf" || doc.sourceType === "video") return [];
+    const rows = await ctx.db.query("chunks").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(MAX_TEXT_BLOCKS);
     return rows.map((r) => ({ page: r.locator.page, text: r.text }));
   },
 });

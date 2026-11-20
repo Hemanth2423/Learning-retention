@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formatTime, notebookGroups, NotebookItem, partOf, validateSeconds } from "./notebookRules";
+import { chapterParts, formatTime, notebookGroups, NotebookItem, partOf, validateSeconds } from "./notebookRules";
 
 const sections = [
   { key: "p1", title: "Part I. Foundations", level: 1, locator: { kind: "pdf" as const, page: 1 } },
@@ -56,6 +56,18 @@ describe("partOf", () => {
     expect(partOf(sections, "c2")).toBe("Part I. Foundations");
     expect(partOf(sections, "p1")).toBeUndefined();
     expect(partOf([{ key: "a", title: "A", level: 1, locator: { kind: "pdf", page: 1 } }], "a")).toBeUndefined();
+  });
+});
+
+describe("chapterParts", () => {
+  test("two or more Parts are kept; a single top-level title entry is not a Part", () => {
+    expect([...chapterParts(sections, ["c1", "c2", "c3"]).values()]).toEqual(["Part I. Foundations", "Part I. Foundations", "Part II. Practice"]);
+    const titled = [
+      { key: "t", title: "Designing Data-Intensive Applications", level: 1, locator: { kind: "pdf" as const, page: 1 } },
+      { key: "a", title: "Chapter 1", level: 2, locator: { kind: "pdf" as const, page: 2 } },
+      { key: "b", title: "Chapter 2", level: 2, locator: { kind: "pdf" as const, page: 9 } },
+    ];
+    expect(chapterParts(titled, ["a", "b"]).size).toBe(0);
   });
 });
 

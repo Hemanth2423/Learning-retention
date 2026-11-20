@@ -74,7 +74,7 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
   };
 
   if (round && !done) {
-    return <TestRound key={round.attemptId} attemptId={round.attemptId} questions={round.questions} onLeave={() => router.push(pathHref)} onDone={setDone} pageHref={(page) => `/read/${documentId}/book?page=${page}`} />;
+    return <TestRound key={round.attemptId} attemptId={round.attemptId} questions={round.questions} onLeave={() => router.push(pathHref)} onDone={setDone} pageHref={(page) => `/read/${documentId}/book?page=${page}`} pageLabel={doc.sourceType === "pdf" ? "p." : "§"} />;
   }
 
   const header = (

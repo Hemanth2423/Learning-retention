@@ -21,6 +21,7 @@ export function resolveItem(item: QueueItem, books: LibraryBook[] | undefined): 
 
 const STATUS: Record<QueueItem["state"], string> = {
   waiting: "Waiting",
+  reading: "Reading the file…",
   uploading: "Uploading",
   adding: "Reading the page…",
   preparing: "Preparing…",

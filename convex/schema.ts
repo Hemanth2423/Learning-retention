@@ -24,8 +24,9 @@ export default defineSchema({
   documents: defineTable({
     userId: v.id("users"),
     title: v.string(),
-    sourceType: v.union(v.literal("pdf"), v.literal("article"), v.literal("video")),
-    fileId: v.optional(v.id("_storage")), // PDFs only
+    // epub / word / powerpoint: read in the browser at upload and stored as text blocks (chunks), like articles.
+    sourceType: v.union(v.literal("pdf"), v.literal("article"), v.literal("video"), v.literal("epub"), v.literal("word"), v.literal("powerpoint")),
+    fileId: v.optional(v.id("_storage")), // uploaded files (PDF, EPUB, Word, PowerPoint)
     sourceUrl: v.optional(v.string()), // articles and videos: the canonical link (linkRules.parseLink), used to spot duplicates
     siteName: v.optional(v.string()), // article site or YouTube channel
     imageUrl: v.optional(v.string()), // article preview image or YouTube thumbnail

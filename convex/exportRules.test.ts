@@ -9,10 +9,13 @@ const sections = [
   { key: "p1", title: "Part I. Foundations", level: 1, locator: { kind: "pdf" as const, page: 1 } },
   { key: "c1", title: "Chapter 1", level: 2, locator: { kind: "pdf" as const, page: 2 } },
   { key: "c2", title: "Chapter 2", level: 2, locator: { kind: "pdf" as const, page: 10 } },
+  { key: "p2", title: "Part II. Practice", level: 1, locator: { kind: "pdf" as const, page: 20 } },
+  { key: "c3", title: "Chapter 3", level: 2, locator: { kind: "pdf" as const, page: 21 } },
 ];
 const ranges = [
   { key: "c1", title: "Chapter 1", startPage: 2, endPage: 9 },
-  { key: "c2", title: "Chapter 2", startPage: 10, endPage: 30 },
+  { key: "c2", title: "Chapter 2", startPage: 10, endPage: 20 },
+  { key: "c3", title: "Chapter 3", startPage: 21, endPage: 30 },
 ];
 
 describe("buildExport", () => {

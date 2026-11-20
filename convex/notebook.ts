@@ -9,8 +9,8 @@ import { awardXp } from "./xp";
 import { awardKey, XP } from "./xpRules";
 import { Doc } from "./_generated/dataModel";
 
-// Books earn XP for notes; articles, videos and documents don't (Feature 3 spec).
-export const earnsXp = (doc: Doc<"documents">) => doc.sourceType === "pdf";
+// Books (PDF, EPUB) earn XP for notes; articles, videos, Word and PowerPoint don't (Feature 3 spec).
+export const earnsXp = (doc: Doc<"documents">) => doc.sourceType === "pdf" || doc.sourceType === "epub";
 
 // Everything in a book's Notebook except highlights (the reader already loads those to draw them).
 export const list = query({

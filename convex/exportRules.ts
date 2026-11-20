@@ -2,7 +2,7 @@
 // comments) and saved questions. Markdown download, Copy all and Print use it; Notion and Google Docs can too.
 // Pure, so it runs in the browser or in a Convex action, and is tested in exportRules.test.ts.
 import { ChapterRange, SectionLike } from "./chapters";
-import { partOf } from "./notebookRules";
+import { chapterParts } from "./notebookRules";
 
 export type ExportOptions = { notes: boolean; highlights: boolean; saved: boolean };
 export const ALL_PARTS: ExportOptions = { notes: true, highlights: true, saved: true };
@@ -106,6 +106,7 @@ export function buildExport(input: {
   const noteOut = (n: ExportNote) => ({ markdown: noteToMarkdown(n.content, n.plainText), ...(n.seconds != null ? { seconds: n.seconds } : {}) });
 
   const sections: ExportSection[] = [];
+  const parts = chapterParts(input.sections, input.ranges.map((r) => r.key));
   const general = o.notes ? input.notes.filter((n) => n.sectionKey === null || !known.has(n.sectionKey)) : [];
   if (general.length) sections.push({ key: "general", title: "General notes", notes: sortNotes(general).map(noteOut), highlights: [], saved: [] });
 
@@ -113,7 +114,7 @@ export function buildExport(input: {
     const s: ExportSection = {
       key: r.key,
       title: r.title,
-      part: partOf(input.sections, r.key),
+      part: parts.get(r.key),
       notes: o.notes ? sortNotes(input.notes.filter((n) => n.sectionKey === r.key)).map(noteOut) : [],
       highlights: o.highlights
         ? input.highlights

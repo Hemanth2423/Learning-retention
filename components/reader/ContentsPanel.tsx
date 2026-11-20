@@ -15,7 +15,9 @@ export function ContentsPanel({
   page,
   onJump,
   onClose,
+  showPages = true,
 }: {
+  showPages?: boolean; // text sources (EPUB, Word) have no page numbers
   sections: Section[];
   ranges: ChapterRange[];
   readKeys: Set<string>;
@@ -66,7 +68,7 @@ export function ContentsPanel({
                   {read && <span className="sr-only">Read: </span>}
                   {number ? `${number} · ${title}` : title}
                 </span>
-                <span className={`shrink-0 text-label leading-5 ${current ? "font-semibold text-accent-dark" : "text-muted"}`}>{e.page}</span>
+                {showPages && <span className={`shrink-0 text-label leading-5 ${current ? "font-semibold text-accent-dark" : "text-muted"}`}>{e.page}</span>}
               </button>
             </li>
           );

@@ -21,7 +21,9 @@ export function TestRound({
   onLeave,
   onDone,
   pageHref,
+  pageLabel = "p.",
 }: {
+  pageLabel?: "p." | "§"; // EPUBs have no page numbers: § = the part of the text
   attemptId: Id<"quizAttempts">;
   questions: PublicQuizQuestion[]; // in the order asked
   onLeave: () => void;
@@ -149,7 +151,8 @@ export function TestRound({
                     className="whitespace-nowrap rounded bg-ochre/25 px-1.5 py-0.5 text-ui font-semibold underline-offset-2 hover:bg-ochre/45 hover:underline"
                     title="Open this page in the book (new tab, so your test stays here)"
                   >
-                    p.{feedback.page} ↗
+                    {pageLabel}
+                    {feedback.page} ↗
                   </a>
                 </>
               )}

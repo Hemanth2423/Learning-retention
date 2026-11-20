@@ -6,7 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { ReadingShell } from "@/components/ReadingShell";
 import { Reader } from "@/components/reader/Reader";
-import { ArticleReader } from "@/components/source/ArticleReader";
+import { TextReader } from "@/components/source/TextReader";
 import { VideoView } from "@/components/source/VideoView";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -26,7 +26,11 @@ function ReaderRoute() {
   if (doc && doc.status === "ready" && doc.sourceType !== "pdf") {
     return (
       <ReadingShell chrome={false}>
-        {doc.sourceType === "video" ? <VideoView key={doc._id} doc={doc} /> : <ArticleReader key={doc._id} doc={doc} />}
+        {doc.sourceType === "video" ? (
+          <VideoView key={doc._id} doc={doc} />
+        ) : (
+          <TextReader key={doc._id} doc={doc} startPage={startPage} startNotes={startNotes} startNotebook={startNotebook} />
+        )}
       </ReadingShell>
     );
   }

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { ChapterRange } from "@/convex/chapters";
 import { Bulb } from "@/components/icons/Bulb";
 import { readableTitle } from "@/components/reader/text";
 
-export type Stop = ChapterRange & { pct: number; read: boolean; hasNote: boolean; current: boolean; label: string; openAt: number; best?: string };
+export type Stop = ChapterRange & { pct: number; read: boolean; hasNote: boolean; current: boolean; label: string; openAt: number; best?: string; part?: string };
 
 const pip = "inline-flex items-center gap-1.5 rounded-full border-[1.5px] px-2.5 py-0.5 pl-1.5 text-label font-semibold";
 const pipIdle = `${pip} border-line bg-card text-muted hover:border-accent hover:text-ink`;
@@ -63,7 +63,7 @@ export function ChapterPath({ documentId, stops }: { documentId: Id<"documents">
   const scrolled = useRef(false);
   useEffect(() => {
     if (scrolled.current || !wrapRef.current) return;
-    const items = [...wrapRef.current.querySelectorAll<HTMLElement>("li")];
+    const items = [...wrapRef.current.querySelectorAll<HTMLElement>("li:not([data-divider])")];
     const at = stops.findIndex((s) => s.current);
     if (at <= 0 || !items[at - 1]) return;
     scrolled.current = true;
@@ -85,8 +85,16 @@ export function ChapterPath({ documentId, stops }: { documentId: Id<"documents">
               : s.pct > 0
                 ? "bg-card shadow-[0_5px_0_var(--ink)]"
                 : "border-dashed bg-panel text-muted";
+          const divider = s.part && s.part !== stops[i - 1]?.part;
           return (
-            <li key={s.key} className={`relative z-[1] mb-7 flex items-start gap-4 ${i % 2 ? "md:ml-[38%]" : "md:ml-[4%]"}`}>
+            <Fragment key={s.key}>
+            {divider && (
+              <li data-divider className="relative z-[1] mb-5 mt-2 flex items-center gap-3 font-game text-label uppercase text-accent-dark md:ml-[4%]">
+                <span className="rounded-md border-[1.5px] border-ink bg-cream px-2 py-1">{s.part}</span>
+                <span aria-hidden="true" className="h-px flex-1 bg-line" />
+              </li>
+            )}
+            <li className={`relative z-[1] mb-7 flex items-start gap-4 ${i % 2 ? "md:ml-[38%]" : "md:ml-[4%]"}`}>
               <span data-node className={`relative grid h-[66px] w-[66px] shrink-0 place-items-center rounded-full border-[3px] border-ink font-game text-ui ${node}`}>
                 <Ring pct={s.pct} />
                 {s.label}
@@ -111,6 +119,7 @@ export function ChapterPath({ documentId, stops }: { documentId: Id<"documents">
                 </div>
               </div>
             </li>
+            </Fragment>
           );
         })}
       </ol>

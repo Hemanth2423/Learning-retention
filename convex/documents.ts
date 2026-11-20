@@ -7,6 +7,7 @@ import { bookProgress, chapterProgress, markPages, MAX_SEEN_PER_SAVE } from "./r
 import { libraryOrder, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateCover, validateTitle } from "./documentRules";
 import { getOwnDocument, requireUser } from "./helpers";
 import { locator } from "./locators";
+import { kindOfFile } from "./textSourceRules";
 import { awardXp } from "./xp";
 import { awardKey, XP } from "./xpRules";
 
@@ -25,6 +26,11 @@ export const create = mutation({
   handler: async (ctx, { fileId, fileName }) => {
     const userId = await requireUser(ctx);
     const meta = await ctx.db.system.get(fileId); // size of the uploaded file
+    if (kindOfFile(fileName) !== "pdf") {
+      // EPUB, Word and PowerPoint go through textSources.ts.
+      await ctx.storage.delete(fileId);
+      return { ok: false as const, message: "That file isn't a PDF." };
+    }
     if (!meta || meta.size === 0 || meta.size > MAX_UPLOAD_BYTES) {
       // Return (don't throw): a thrown error would roll back this delete and leave the file in storage.
       await ctx.storage.delete(fileId);
@@ -74,14 +80,14 @@ export const saveProgress = mutation({
     const doc = await getOwnDocument(ctx, userId, documentId);
     if (!doc || !doc.pageCount) return;
     if (!Number.isInteger(page) || page < 1 || page > doc.pageCount) return;
-    const patch: { lastLocator: { kind: "pdf"; page: number }; lastReadAt: number; pagesSeen?: string } = {
-      lastLocator: { kind: "pdf", page },
+    const patch: { lastLocator: { kind: "pdf" | "text"; page: number }; lastReadAt: number; pagesSeen?: string } = {
+      lastLocator: { kind: doc.sourceType === "pdf" ? "pdf" : "text", page },
       lastReadAt: Date.now(),
     };
     if (seen?.length) patch.pagesSeen = markPages(doc.pagesSeen, doc.pageCount, seen.slice(0, MAX_SEEN_PER_SAVE));
     await ctx.db.patch(documentId, patch);
-    // 10 XP for each chapter read in full (paid once per chapter).
-    if (patch.pagesSeen && patch.pagesSeen !== doc.pagesSeen) {
+    // 10 XP for each chapter read in full (paid once per chapter). Books only (PDF, EPUB).
+    if (patch.pagesSeen && patch.pagesSeen !== doc.pagesSeen && (doc.sourceType === "pdf" || doc.sourceType === "epub")) {
       const read = chapterProgress(chapterRanges(doc.sections ?? [], doc.pageCount), patch.pagesSeen).filter((c) => c.read);
       await awardXp(ctx, userId, read.map((c) => ({ key: awardKey.read(documentId, c.key), xp: XP.read })));
     }
@@ -107,7 +113,7 @@ export const list = query({
         page,
         chapterNumber: at >= 0 ? at + 1 : null,
         chapterTitle: at >= 0 ? ranges[at].title : null,
-        progress: d.sourceType === "pdf" ? bookProgress(d.pagesSeen, d.pageCount ?? 0) : 0,
+        progress: d.sourceType === "pdf" || d.sourceType === "epub" ? bookProgress(d.pagesSeen, d.pageCount ?? 0) : 0,
         sourceType: d.sourceType,
         siteName: d.siteName ?? null,
         imageUrl: d.imageUrl ?? null,

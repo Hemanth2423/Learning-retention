@@ -5,8 +5,10 @@ import { useCallback, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { renderPdfCover, uploadImage } from "@/components/library/covers";
+import { BLOCK_BATCH, kindOfFile } from "@/convex/textSourceRules";
+import { readTextFile, ReadError } from "./readFile";
 
-export type QueueState = "waiting" | "uploading" | "adding" | "preparing" | "ready" | "failed";
+export type QueueState = "waiting" | "reading" | "uploading" | "adding" | "preparing" | "ready" | "failed";
 export type QueueItem = {
   id: string;
   name: string;
@@ -41,6 +43,10 @@ export function useAddQueue() {
   const setCover = useMutation(api.documents.setCover);
   const skipCover = useMutation(api.documents.skipCover);
   const addLink = useAction(api.links.add);
+  const beginText = useMutation(api.textSources.begin);
+  const addBlocks = useMutation(api.textSources.addBlocks);
+  const finishText = useMutation(api.textSources.finish);
+  const failText = useMutation(api.textSources.fail);
   const [items, setItems] = useState<QueueItem[]>([]);
   const jobs = useRef<Job[]>([]);
   const running = useRef(false);
@@ -69,6 +75,44 @@ export function useAddQueue() {
     [generateUploadUrl, setCover, skipCover],
   );
 
+  // EPUB / Word / PowerPoint: read in the browser first (a file that can't be read fails here, nothing saved),
+  // then upload the original, send the text in batches, and finish with the contents (and an EPUB's cover).
+  const addTextFile = useCallback(
+    async (id: string, file: File, kind: "epub" | "word" | "powerpoint") => {
+      update(id, { state: "reading" });
+      let read;
+      try {
+        read = await readTextFile(file, kind);
+      } catch (err) {
+        console.warn("[add] couldn't read", file.name, err);
+        return update(id, { state: "failed", message: err instanceof ReadError ? err.message : "We couldn't read this file. It may be damaged." });
+      }
+      let documentId: Id<"documents"> | null = null;
+      try {
+        update(id, { state: "uploading", pct: 0 });
+        const fileId = await putFile(await generateUploadUrl(), file, (pct) => update(id, { pct }));
+        const started = await beginText({ fileId, fileName: file.name, kind, title: read.title.slice(0, 120) });
+        if (!started.ok) return update(id, { state: "failed", message: started.message });
+        documentId = started.documentId;
+        update(id, { state: "preparing", documentId });
+        for (let i = 0; i < read.blocks.length; i += BLOCK_BATCH) {
+          const res = await addBlocks({ documentId, startIndex: i, blocks: read.blocks.slice(i, i + BLOCK_BATCH) });
+          if (!res.ok) throw new ReadError(res.message);
+        }
+        let coverId: Id<"_storage"> | undefined;
+        if (read.cover) coverId = (await uploadImage(await generateUploadUrl(), read.cover).catch(() => undefined)) as Id<"_storage"> | undefined;
+        const done = await finishText({ documentId, sections: read.sections, coverId });
+        if (!done.ok) throw new ReadError(done.message);
+        update(id, { state: "ready", message: read.note });
+      } catch (err) {
+        const message = err instanceof ReadError ? err.message : "The upload didn't go through. Check your connection and try again.";
+        if (documentId) await failText({ documentId, message }).catch(() => {});
+        update(id, { state: "failed", message, documentId: documentId ?? undefined });
+      }
+    },
+    [update, generateUploadUrl, beginText, addBlocks, finishText, failText],
+  );
+
   const addFiles = useCallback(
     (files: File[]) => {
       for (const file of files) {
@@ -77,6 +121,8 @@ export function useAddQueue() {
         jobs.current.push({
           id,
           run: async () => {
+            const kind = kindOfFile(file.name);
+            if (kind && kind !== "pdf") return addTextFile(id, file, kind);
             try {
               update(id, { state: "uploading", pct: 0 });
               const fileId = await putFile(await generateUploadUrl(), file, (pct) => update(id, { pct }));
@@ -95,7 +141,7 @@ export function useAddQueue() {
       }
       void pump();
     },
-    [createDocument, generateUploadUrl, makeCover, pump, update],
+    [addTextFile, createDocument, generateUploadUrl, makeCover, pump, update],
   );
 
   const addLinks = useCallback(

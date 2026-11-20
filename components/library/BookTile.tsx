@@ -19,7 +19,7 @@ export type LibraryBook = {
   chapterTitle: string | null;
   progress: number; // % of pages seen
   lastReadAt: number | null;
-  sourceType: "pdf" | "article" | "video";
+  sourceType: "pdf" | "article" | "video" | "epub" | "word" | "powerpoint";
   siteName: string | null;
   imageUrl: string | null;
   coverUrl: string | null;
@@ -27,13 +27,17 @@ export type LibraryBook = {
 };
 
 // Where a library item opens: a book's chapter path, or straight into an article or video.
-export const openHref = (b: LibraryBook) => (b.sourceType === "pdf" ? `/read/${b._id}` : `/read/${b._id}/book`);
+export const isBook = (b: { sourceType: LibraryBook["sourceType"] }) => b.sourceType === "pdf" || b.sourceType === "epub";
+export const openHref = (b: LibraryBook) => (isBook(b) ? `/read/${b._id}` : `/read/${b._id}/book`);
 
 export const progressOf = (b: LibraryBook) => b.progress;
 
 function metaLine(b: LibraryBook): string {
   if (b.status === "processing") return b.sourceType === "pdf" ? "Preparing…" : "Adding…";
-  if (b.status === "failed") return "Couldn't read this PDF";
+  if (b.status === "failed") return b.sourceType === "pdf" ? "Couldn't read this PDF" : "Couldn't read this file";
+  if (b.sourceType === "word") return "Word";
+  if (b.sourceType === "powerpoint") return `PowerPoint · ${b.pageCount} slide${b.pageCount === 1 ? "" : "s"}`;
+  if (b.sourceType === "epub") return !b.page ? "EPUB · not started" : `EPUB${b.chapterNumber ? ` · Ch ${b.chapterNumber}` : ""} · ${b.progress}%`;
   if (b.sourceType === "article") return b.status === "ready" && b.statusMessage ? "Article · saved as a link" : "Article";
   if (b.sourceType === "video") return "Video";
   if (!b.page) return "Not started";
@@ -78,7 +82,7 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
       <BookCover
         id={book._id}
         title={book.title}
-        meta={book.sourceType === "pdf" && book.pageCount ? `${book.pageCount} pages` : undefined}
+        meta={book.sourceType === "pdf" && book.pageCount ? `${book.pageCount} pages` : book.sourceType === "word" ? "Word" : book.sourceType === "powerpoint" ? "PowerPoint" : book.sourceType === "epub" ? "EPUB" : undefined}
         coverUrl={book.coverUrl}
         imageUrl={book.imageUrl}
         kind={book.sourceType}
@@ -109,7 +113,7 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
         </div>
       )}
       <div className={`mt-0.5 text-meta ${book.status === "failed" ? "text-bad" : "text-muted"}`}>{metaLine(book)}</div>
-      {book.sourceType === "pdf" && (
+      {isBook(book) && (
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-line">
           <div className="h-full rounded-full bg-good" style={{ width: `${pct}%` }} />
         </div>

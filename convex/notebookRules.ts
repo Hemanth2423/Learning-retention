@@ -33,6 +33,17 @@ export function partOf(sections: (SectionLike & { title: string })[], chapterKey
   return undefined;
 }
 
+// Each chapter's Part, but only when the book really has Parts (two or more): a lone top-level entry is usually
+// just the book's own title, not a Part.
+export function chapterParts(sections: (SectionLike & { title: string })[], keys: string[]): Map<string, string> {
+  const parts = new Map<string, string>();
+  for (const k of keys) {
+    const p = partOf(sections, k);
+    if (p) parts.set(k, p);
+  }
+  return new Set(parts.values()).size >= 2 ? parts : new Map();
+}
+
 // Whole book: General notes first, then each chapter in book order (with its Part). Groups with nothing that
 // matches are left out. General notes show only under All and Notes. Inside a group, items keep book order
 // (highlights by position, notes and saved questions by time).
@@ -45,13 +56,14 @@ export function notebookGroups<T extends NotebookItem>(
 ): NotebookGroup<T>[] {
   const shown = items.filter((i) => matchesFilter(i, filter) && matchesSearch(i, query));
   const groups: NotebookGroup<T>[] = [];
+  const parts = chapterParts(sections, ranges.map((r) => r.key));
   if (filter === "all" || filter === "notes") {
     const general = shown.filter((i) => i.chapterKey === null || !ranges.some((r) => r.key === i.chapterKey));
     if (general.length) groups.push({ key: GENERAL, title: "General notes", items: sortItems(general) });
   }
   for (const r of ranges) {
     const inChapter = shown.filter((i) => i.chapterKey === r.key);
-    if (inChapter.length) groups.push({ key: r.key, title: r.title, part: partOf(sections, r.key), items: sortItems(inChapter) });
+    if (inChapter.length) groups.push({ key: r.key, title: r.title, part: parts.get(r.key), items: sortItems(inChapter) });
   }
   return groups;
 }

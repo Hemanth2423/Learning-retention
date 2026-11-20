@@ -48,7 +48,7 @@ export function ChatPanel({
   onJump,
   noun = "book",
 }: {
-  noun?: "book" | "article"; // wording only: articles have no chapters or pages
+  noun?: "book" | "article" | "document"; // wording only: articles have no chapters; Word / PowerPoint have sections
   chat: ChatState;
   page: number;
   draft: string;
@@ -83,15 +83,15 @@ export function ChatPanel({
         {messages.length === 0 && !pending && (
           <p className="empty-note">
             {noun === "book"
-              ? "Ask a question below, or summarize this chapter. Answers come from the book's pages, with page links."
-              : "Ask a question below, or summarize this article. Answers link to the part they come from."}
+              ? "Ask a question below, or summarize this chapter. Answers come from the book, with links to the spot."
+              : `Ask a question below, or summarize this ${noun === "article" ? "article" : "section"}. Answers link to the part they come from.`}
           </p>
         )}
         {messages.map((m) =>
           m.role === "user" ? (
             <p key={m._id} className="ml-auto w-fit max-w-[85%] whitespace-pre-line rounded-xl rounded-br-sm bg-accent-soft px-3 py-2 text-ui">
               {/* The server saves summaries as "Summarize this chapter"; articles have no chapters. */}
-              {noun === "article" && m.text === "Summarize this chapter" ? "Summarize this article" : m.text}
+              {m.text === "Summarize this chapter" && noun !== "book" ? `Summarize this ${noun === "article" ? "article" : "section"}` : m.text}
             </p>
           ) : (
             <p key={m._id} className="whitespace-pre-line rounded-xl rounded-bl-sm border border-line bg-card px-3 py-2 text-ui leading-relaxed">
@@ -115,7 +115,7 @@ export function ChatPanel({
             disabled={pending || noneLeft}
             className="quiet"
           >
-            ✨ Summarize this {noun === "book" ? "chapter" : "article"}
+            ✨ Summarize this {noun === "book" ? "chapter" : noun === "article" ? "article" : "section"}
           </button>
         </div>
         <textarea

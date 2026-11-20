@@ -13,6 +13,7 @@ import { LevelBar, XpStats } from "@/components/XpStats";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { chapterRanges } from "@/convex/chapters";
+import { chapterParts } from "@/convex/notebookRules";
 import { bookProgress, chapterProgress, resumePage } from "@/convex/readingRules";
 import { chapterBadge } from "@/components/reader/text";
 
@@ -24,7 +25,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
   const scores = useQuery(api.quizzes.bestScores, { documentId });
   const [exporting, setExporting] = useState(false);
   const router = useRouter();
-  const notABook = !!doc && doc.sourceType !== "pdf";
+  const notABook = !!doc && doc.sourceType !== "pdf" && doc.sourceType !== "epub"; // EPUBs get a path too
   useEffect(() => {
     if (notABook) router.replace(`/read/${documentId}/book`);
   }, [notABook, router, documentId]);
@@ -44,6 +45,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
     }
     if (currentIndex < 0) currentIndex = progress.findIndex((p) => !p.read);
     const withNotes = new Set((notes ?? []).map((n) => n.sectionKey));
+    const parts = chapterParts(doc.sections ?? [], ranges.map((r) => r.key));
     const stops: Stop[] = ranges.map((r, i) => ({
       ...r,
       pct: progress[i].pct,
@@ -53,6 +55,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       label: chapterBadge(r.title, i, isParts),
       openAt: resumePage(r, lastPage, doc.pagesSeen),
       best: scores?.[r.key] ? `${scores[r.key].best}/${scores[r.key].total}` : undefined,
+      part: parts.get(r.key),
     }));
     return { stops, isParts, read: progress.filter((p) => p.read).length, total: ranges.length, pct: bookProgress(doc.pagesSeen, pageCount), started: lastPage !== null };
   }, [doc, notes, scores]);
@@ -89,7 +92,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       </header>
       <div className="mx-auto grid max-w-[1060px] items-start gap-10 px-4 pb-20 pt-7 md:grid-cols-[300px_1fr] md:px-7">
         <aside className="rounded-2xl border border-line bg-card p-5 md:sticky md:top-[84px]">
-          <BookCover id={doc._id} title={doc.title} meta={doc.pageCount ? `${doc.pageCount} pages` : undefined} coverUrl={doc.coverUrl} className="mx-auto w-[170px] text-h3" />
+          <BookCover id={doc._id} title={doc.title} meta={doc.sourceType === "epub" ? "EPUB" : doc.pageCount ? `${doc.pageCount} pages` : undefined} coverUrl={doc.coverUrl} className="mx-auto w-[170px] text-h3" />
           <div className="mb-1.5 mt-3.5 flex justify-between text-meta text-muted">
             <span>Your path</span>
             <span>

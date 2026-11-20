@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { validateUpload } from "@/convex/documentRules";
 import { parseLink } from "@/convex/linkRules";
 import { coverColour } from "@/components/library/BookCover";
-import { FILE_HINT, FILE_ACCEPT, MAX_FILES_AT_ONCE, fileKindLabel } from "./sources";
+import { FILE_HINT, FILE_ACCEPT, MAX_FILES_AT_ONCE, fileKindLabel, fileNote } from "./sources";
 
 type Tab = "files" | "links";
 
@@ -134,6 +134,7 @@ export function AddSheet({ initialFiles, onClose, onAdd }: { initialFiles?: File
                       ✕
                     </button>
                     {r.problem && <span className="col-start-2 col-end-4 -mt-0.5 text-label text-accent-dark">{r.problem}</span>}
+                    {!r.problem && fileNote(r.file.name) && <span className="col-start-2 col-end-4 -mt-0.5 text-label text-muted">{fileNote(r.file.name)}</span>}
                   </li>
                 ))}
               </ul>

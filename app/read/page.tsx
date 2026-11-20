@@ -105,17 +105,17 @@ function chapterLabel(b: LibraryBook): string {
 function ResumeCard({ book }: { book: LibraryBook }) {
   const pct = progressOf(book);
   const [now] = useState(() => Date.now());
-  const isBook = book.sourceType === "pdf";
+  const isBook = book.sourceType === "pdf" || book.sourceType === "epub";
   return (
     <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-6 rounded-[18px] border border-line bg-card p-5 md:grid-cols-[130px_minmax(0,1fr)]">
       <BookCover
         id={book._id}
         title={book.title}
-        meta={isBook ? `${book.pageCount} pages` : undefined}
+        meta={book.sourceType === "pdf" ? `${book.pageCount} pages` : book.sourceType === "epub" ? "EPUB" : undefined}
         coverUrl={book.coverUrl}
         imageUrl={book.imageUrl}
         kind={book.sourceType}
-        label={isBook ? undefined : (book.siteName ?? undefined)}
+        label={book.sourceType === "article" || book.sourceType === "video" ? (book.siteName ?? undefined) : undefined}
         pad="sm"
         className="w-[110px] text-meta md:w-[130px]"
       />
@@ -123,7 +123,19 @@ function ResumeCard({ book }: { book: LibraryBook }) {
         <p className="text-meta font-semibold text-accent">{book.lastReadAt ? `Last read ${timeAgo(book.lastReadAt, now)}` : book.page ? "Pick up where you left off" : "Ready to start"}</p>
         <h3 className="mt-1 font-serif text-h2 font-bold leading-tight">{book.title}</h3>
         <p className="mt-1 text-muted">
-          {!isBook ? `${book.sourceType === "video" ? "Video" : "Article"} · ${book.siteName ?? ""}` : book.page ? `${chapterLabel(book)}page ${book.page}` : `${book.pageCount} pages`}
+          {!isBook
+            ? book.sourceType === "video" || book.sourceType === "article"
+              ? `${book.sourceType === "video" ? "Video" : "Article"} · ${book.siteName ?? ""}`
+              : book.sourceType === "word"
+                ? "Word document"
+                : `PowerPoint · ${book.pageCount} slides`
+            : book.sourceType === "epub"
+              ? book.chapterTitle
+                ? chapterLabel(book).replace(/ · $/, "")
+                : "EPUB"
+              : book.page
+                ? `${chapterLabel(book)}page ${book.page}`
+                : `${book.pageCount} pages`}
         </p>
         {isBook && (
           <div className="mt-3 flex max-w-md items-center gap-3 text-meta text-muted">
