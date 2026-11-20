@@ -35,7 +35,7 @@ function ReaderRoute() {
     body = (
       <div className="m-auto text-center">
         <p>We couldn&apos;t find that book.</p>
-        <Link href="/read" className="btn-ghost mt-4">
+        <Link href="/read" className="quiet mt-4">
           Back
         </Link>
       </div>
@@ -46,7 +46,7 @@ function ReaderRoute() {
     body = (
       <div className="m-auto text-center">
         <p className="text-bad">{doc.statusMessage ?? "This book couldn't be opened."}</p>
-        <Link href="/read" className="btn-ghost mt-4">
+        <Link href="/read" className="quiet mt-4">
           Back
         </Link>
       </div>

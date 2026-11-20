@@ -25,25 +25,8 @@ import { Icons } from "./Tooltip";
 
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const NO_HIGHLIGHTS: Doc<"highlights">[] = [];
-const svg16 = (paths: React.ReactNode) => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {paths}
-  </svg>
-);
-const NOTE_ICON = svg16(
-  <>
-    <path d="M12 20h9" />
-    <path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-  </>
-);
-const MORE_ICON = svg16(
-  <>
-    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-    <rect x="14" y="14" width="7" height="7" rx="1.5" />
-  </>
-);
+const NOTE_ICON = <span aria-hidden="true">✏️</span>;
+const MORE_ICON = <span aria-hidden="true">🧰</span>;
 
 type ReaderDoc = {
   _id: Id<"documents">;
@@ -79,15 +62,15 @@ function ChapterEndNotice({
       aria-label={`End of ${isPart ? "part" : "chapter"} ${number}`}
       className="absolute bottom-20 left-1/2 z-20 w-[min(560px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border-2 border-ink bg-cream p-5 shadow-[0_5px_0_var(--ink)]"
     >
-      <button onClick={onClose} aria-label="Close" title="Close" className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-lg text-muted hover:bg-panel hover:text-ink">
+      <button onClick={onClose} aria-label="Close" title="Close" className="icon-btn absolute right-3 top-3">
         ✕
       </button>
-      <p className="font-game text-xs text-good">
+      <p className="font-game text-label text-good">
         {isPart ? `END OF PART ${number.slice(1)}` : number === "•" ? "END OF THIS SECTION" : `END OF CHAPTER ${number}`}
         {read && ` · +${XP.read} XP FOR READING`}
       </p>
-      <h2 className="mt-1 pr-8 font-serif text-xl font-bold leading-snug">Lock it in before you move on</h2>
-      <p className="mt-1 line-clamp-2 text-sm text-muted">
+      <h2 className="mt-1 pr-8 font-serif text-h2 font-bold leading-snug">Lock it in before you move on</h2>
+      <p className="mt-1 line-clamp-2 text-meta text-muted">
         A note earns {XP.note} XP; each right answer earns {XP.answer}. <span className="italic">{readableTitle(range.title)}</span>
       </p>
       <div className="mt-3.5 flex flex-wrap gap-3">
@@ -290,7 +273,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
         <p className="font-medium text-bad">We couldn&apos;t open this PDF.</p>
-        <Link href="/read" className="btn-ghost">
+        <Link href="/read" className="quiet">
           Back
         </Link>
       </div>
@@ -355,7 +338,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
             </div>
           )}
         </div>
-        {!canHighlight && <span className="hidden text-xs text-muted lg:inline">Scanned PDF: highlights and chat are off</span>}
+        {!canHighlight && <span className="hidden text-label text-muted lg:inline">Scanned PDF: highlights and chat are off</span>}
         <button className="retro" aria-expanded={studyOpen} aria-controls="right-panel" onClick={() => setStudyOpen((o) => !o)} title="Ask, Notes, Highlights and more">
           📚 Study tools
         </button>
@@ -424,7 +407,7 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
         />
       )}
       {notice && (
-        <p role="alert" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-sm text-paper shadow-lg">
+        <p role="alert" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-ui text-paper shadow-lg">
           {notice}
         </p>
       )}

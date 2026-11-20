@@ -77,7 +77,7 @@ export function UploadCard() {
     return (
       <div className={`${box} border-bad/40 bg-card`} role="alert">
         <p className="font-medium text-bad">{errorMessage}</p>
-        <button onClick={() => void tryAgain()} className="btn-primary mt-2">
+        <button onClick={() => void tryAgain()} className="chunky sm mt-2">
           Try again
         </button>
       </div>
@@ -87,7 +87,7 @@ export function UploadCard() {
   if (phase.name === "uploading") {
     return (
       <div className={`${box} border-line bg-card`} aria-live="polite">
-        <p className="w-full truncate text-sm font-medium">{phase.fileName}</p>
+        <p className="w-full truncate text-ui font-medium">{phase.fileName}</p>
         <div
           role="progressbar"
           aria-valuenow={phase.pct}
@@ -98,7 +98,7 @@ export function UploadCard() {
         >
           <div className="h-full bg-accent transition-[width]" style={{ width: `${phase.pct}%` }} />
         </div>
-        <p className="text-sm text-muted">Uploading… {phase.pct}%</p>
+        <p className="text-meta text-muted">Uploading… {phase.pct}%</p>
       </div>
     );
   }
@@ -110,7 +110,7 @@ export function UploadCard() {
           <div className="h-full w-1/3 animate-pulse rounded-full bg-accent" />
         </div>
         <p className="mt-1 font-serif font-semibold">Preparing your book…</p>
-        <p className="text-sm text-muted">Getting the pages and contents ready. A large book can take a minute.</p>
+        <p className="text-meta text-muted">Getting the pages and contents ready. A large book can take a minute.</p>
       </div>
     );
   }
@@ -131,12 +131,12 @@ export function UploadCard() {
       }}
       className={`${box} w-full border-dashed transition ${dragging ? "border-accent bg-card" : "border-[#b9a88f] bg-card/50 hover:border-accent hover:bg-card"}`}
     >
-      <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-full bg-accent text-3xl leading-none text-white">
+      <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-full bg-accent text-h1 leading-none text-white">
         +
       </span>
-      <span className="font-serif text-lg font-semibold">Add a new book</span>
-      <span className="text-sm text-muted">Drop a PDF here, or click to choose one</span>
-      <span className="text-sm text-muted">{source.hint}</span>
+      <span className="font-serif text-h3 font-semibold">Add a new book</span>
+      <span className="text-meta text-muted">Drop a PDF here, or click to choose one</span>
+      <span className="text-meta text-muted">{source.hint}</span>
       <input
         ref={inputRef}
         type="file"

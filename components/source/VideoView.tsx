@@ -36,7 +36,7 @@ export function VideoView({ doc }: { doc: VideoDoc }) {
           <p className="truncate font-serif font-semibold" title={doc.title}>
             {doc.title}
           </p>
-          <p className="truncate text-xs text-muted">YouTube · {doc.siteName}</p>
+          <p className="truncate text-label text-muted">YouTube · {doc.siteName}</p>
         </div>
         <button className="retro" aria-expanded={studyOpen} onClick={() => setStudyOpen((o) => !o)}>
           ✏️ Notes
@@ -57,8 +57,8 @@ export function VideoView({ doc }: { doc: VideoDoc }) {
                 />
               )}
             </div>
-            <h1 className="mt-4 font-serif text-2xl font-bold leading-snug">{doc.title}</h1>
-            <p className="mt-1 text-[13px] text-muted">
+            <h1 className="mt-4 font-serif text-h2 font-bold leading-snug">{doc.title}</h1>
+            <p className="mt-1 text-meta text-muted">
               {doc.siteName} ·{" "}
               {doc.sourceUrl && (
                 <a href={doc.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-accent-dark underline">
@@ -66,7 +66,7 @@ export function VideoView({ doc }: { doc: VideoDoc }) {
                 </a>
               )}
             </p>
-            <p className="mt-3 text-[13px] text-muted">Watch and write what you took away in Notes. Timed notes and Ask for videos come later.</p>
+            <p className="mt-3 text-meta text-muted">Watch and write what you took away in Notes. Timed notes and Ask for videos come later.</p>
           </div>
         </main>
         {studyOpen && <RightPanel underMenu={false} tab={tab} onTab={setTab} tabs={tabs} onClose={() => setStudyOpen(false)} />}

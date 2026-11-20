@@ -9,7 +9,7 @@ import { readableTitle } from "@/components/reader/text";
 
 export type Stop = ChapterRange & { pct: number; read: boolean; hasNote: boolean; current: boolean; label: string; openAt: number; best?: string };
 
-const pip = "inline-flex items-center gap-1.5 rounded-full border-[1.5px] px-2.5 py-0.5 pl-1.5 text-xs font-semibold";
+const pip = "inline-flex items-center gap-1.5 rounded-full border-[1.5px] px-2.5 py-0.5 pl-1.5 text-label font-semibold";
 const pipIdle = `${pip} border-line bg-card text-muted hover:border-accent hover:text-ink`;
 const pipDone = `${pip} border-good-line bg-good-soft text-[#2f4a2b] after:font-bold after:text-good after:content-['✓']`;
 
@@ -87,16 +87,16 @@ export function ChapterPath({ documentId, stops }: { documentId: Id<"documents">
                 : "border-dashed bg-panel text-muted";
           return (
             <li key={s.key} className={`relative z-[1] mb-7 flex items-start gap-4 ${i % 2 ? "md:ml-[38%]" : "md:ml-[4%]"}`}>
-              <span data-node className={`relative grid h-[66px] w-[66px] shrink-0 place-items-center rounded-full border-[3px] border-ink font-game text-base ${node}`}>
+              <span data-node className={`relative grid h-[66px] w-[66px] shrink-0 place-items-center rounded-full border-[3px] border-ink font-game text-ui ${node}`}>
                 <Ring pct={s.pct} />
                 {s.label}
               </span>
               <div className="min-w-0 max-w-[380px] pt-0.5">
-                <p className="text-xs font-semibold text-muted">
+                <p className="text-label font-semibold text-muted">
                   {s.current ? "You're here · " : ""}
                   {s.pct}% read
                 </p>
-                <p className="font-serif text-[17px] font-semibold leading-snug">{readableTitle(s.title)}</p>
+                <p className="font-serif text-h3 font-semibold leading-snug">{readableTitle(s.title)}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <Link href={`${book}?page=${s.openAt}`} className={s.read ? pipDone : pipIdle} title={s.pct > 0 && !s.read ? "Continue where you left off" : "Open this chapter"}>
                     <span aria-hidden="true">📖</span>Read {s.pct}%

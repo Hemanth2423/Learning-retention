@@ -30,7 +30,7 @@ export function AddLinkForm() {
 
   return (
     <form onSubmit={submit} className="rounded-2xl border border-line bg-card p-3">
-      <label htmlFor="add-link" className="text-[13px] font-semibold">
+      <label htmlFor="add-link" className="text-meta font-semibold">
         🔗 Or add a link
       </label>
       <div className="mt-1.5 flex gap-2">
@@ -41,16 +41,16 @@ export function AddLinkForm() {
           placeholder="Article or YouTube link"
           inputMode="url"
           autoComplete="off"
-          className="min-w-0 flex-1 rounded-lg border border-line bg-cream px-2.5 py-1.5 text-sm outline-none focus:border-ink"
+          className="input min-w-0 flex-1 py-1.5"
           disabled={busy}
         />
-        <button type="submit" disabled={busy || !url.trim()} className="chunky px-3 py-1.5 text-sm disabled:opacity-50">
+        <button type="submit" disabled={busy || !url.trim()} className="chunky sm">
           {busy ? "Adding…" : "Add"}
         </button>
       </div>
-      {busy && <p className="mt-1.5 text-[13px] text-muted">Reading the page… this can take a few seconds.</p>}
+      {busy && <p className="mt-1.5 text-meta text-muted">Reading the page… this can take a few seconds.</p>}
       {error && (
-        <p role="alert" className="mt-1.5 text-[13px] text-accent-dark">
+        <p role="alert" className="mt-1.5 text-meta text-accent-dark">
           {error.message}{" "}
           {error.documentId && (
             <Link href={`/read/${error.documentId}/book`} className="font-semibold underline">

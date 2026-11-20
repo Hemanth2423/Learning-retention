@@ -38,7 +38,7 @@ export function CitedText({ text, pages, onJump }: { text: string; pages: { n: n
             onClick={() => onJump(p.page)}
             title={`Go to ${unit} ${p.page}`}
             aria-label={`Go to ${unit} ${p.page}`}
-            className="mx-0.5 inline-flex items-center rounded-md bg-ochre px-1.5 align-[1px] text-[11px] font-bold leading-5 text-ink hover:bg-accent hover:text-white"
+            className="mx-0.5 inline-flex items-center rounded-md bg-ochre px-1.5 align-[1px] text-label font-bold leading-5 text-ink hover:bg-accent hover:text-white"
           >
             {unit === "page" ? "p." : "§"}
             {p.page}

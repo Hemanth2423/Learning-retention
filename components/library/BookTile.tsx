@@ -105,7 +105,7 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
           {book.title}
         </div>
       )}
-      <div className={`mt-0.5 text-[13px] ${book.status === "failed" ? "text-bad" : "text-muted"}`}>{metaLine(book)}</div>
+      <div className={`mt-0.5 text-meta ${book.status === "failed" ? "text-bad" : "text-muted"}`}>{metaLine(book)}</div>
       {book.sourceType === "pdf" && (
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-line">
           <div className="h-full rounded-full bg-good" style={{ width: `${pct}%` }} />
@@ -128,7 +128,7 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
         aria-haspopup="menu"
         aria-expanded={menu}
         onClick={() => setMenu((m) => !m)}
-        className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg bg-card/95 text-lg leading-none text-ink shadow-sm transition-opacity focus-visible:opacity-100 ${
+        className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg bg-card/95 text-h3 leading-none text-ink shadow-sm transition-opacity focus-visible:opacity-100 ${
           menu ? "opacity-100" : "opacity-0 group-hover:opacity-100"
         }`}
       >
@@ -144,7 +144,7 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
               setDraft(book.title);
               setEditing(true);
             }}
-            className="w-full rounded-lg px-2.5 py-2 text-left text-sm hover:bg-panel"
+            className="w-full rounded-lg px-2.5 py-2 text-left text-ui hover:bg-panel"
           >
             Rename
           </button>
@@ -154,7 +154,7 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
               setMenu(false);
               onRemove(book);
             }}
-            className="w-full rounded-lg px-2.5 py-2 text-left text-sm text-accent-dark hover:bg-panel"
+            className="w-full rounded-lg px-2.5 py-2 text-left text-ui text-accent-dark hover:bg-panel"
           >
             Remove from library
           </button>

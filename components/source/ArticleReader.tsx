@@ -57,7 +57,7 @@ export function ArticleReader({ doc }: { doc: ArticleDoc }) {
   }, [touch, doc._id]);
 
   const tabs: StudyTabSpec[] = [
-    ...(readable ? [{ key: "ask" as const, label: "Ask", icon: Icons.ask, content: <ChatPanel chat={chat} page={1} draft={draft} onDraft={setDraft} onJump={jumpTo} /> }] : []),
+    ...(readable ? [{ key: "ask" as const, label: "Ask", icon: Icons.ask, content: <ChatPanel noun="article" chat={chat} page={1} draft={draft} onDraft={setDraft} onJump={jumpTo} /> }] : []),
     { key: "notes" as const, label: "Notes", icon: <span aria-hidden="true">✏️</span>, content: <ReflectionsPanel state={reflections} ranges={ranges} currentKey="article" /> },
   ];
 
@@ -72,7 +72,7 @@ export function ArticleReader({ doc }: { doc: ArticleDoc }) {
             <p className="truncate font-serif font-semibold" title={doc.title}>
               {doc.title}
             </p>
-            <p className="truncate text-xs text-muted">{doc.siteName}</p>
+            <p className="truncate text-label text-muted">{doc.siteName}</p>
           </div>
           {doc.sourceUrl && (
             <a href={doc.sourceUrl} target="_blank" rel="noopener noreferrer" className="retro" title="Open the original page in a new tab">
@@ -86,15 +86,15 @@ export function ArticleReader({ doc }: { doc: ArticleDoc }) {
         <div className="flex min-h-0 flex-1">
           <main className="min-w-0 flex-1 overflow-y-auto px-4 py-8">
             <article className="mx-auto max-w-[700px] rounded-md border border-line bg-card px-6 py-10 shadow-[0_12px_30px_-24px_rgba(42,34,27,.6)] md:px-14">
-              <p className="mb-2 flex items-center gap-2 text-[13px] text-muted">
-                <span className="rounded border border-line bg-panel px-1.5 text-[11px] font-bold uppercase tracking-wide">Article</span>
+              <p className="mb-2 flex items-center gap-2 text-meta text-muted">
+                <span className="rounded border border-line bg-panel px-1.5 text-label font-bold uppercase tracking-wide">Article</span>
                 {doc.siteName} · reader mode
               </p>
-              <h1 className="font-serif text-3xl font-bold leading-tight">{doc.title}</h1>
+              <h1 className="font-serif text-h1 font-bold leading-tight">{doc.title}</h1>
               {!readable ? (
                 <div className="mt-6 rounded-xl border-2 border-dashed border-line bg-cream p-5">
                   <p className="font-semibold">We couldn&apos;t read this page here.</p>
-                  <p className="mt-1 text-sm text-muted">It may need a login or a subscription. It&apos;s saved as a link: open the original to read it, and keep your notes here.</p>
+                  <p className="mt-1 text-meta text-muted">It may need a login or a subscription. It&apos;s saved as a link: open the original to read it, and keep your notes here.</p>
                   {doc.sourceUrl && (
                     <a href={doc.sourceUrl} target="_blank" rel="noopener noreferrer" className="chunky mt-4">
                       Open original ↗
@@ -104,7 +104,7 @@ export function ArticleReader({ doc }: { doc: ArticleDoc }) {
               ) : blocks === undefined ? (
                 <p className="mt-6 text-muted">Loading…</p>
               ) : (
-                <div className="article-body mt-4 font-serif text-[18px] leading-[1.75]">
+                <div className="article-body mt-4 font-serif text-read leading-[1.75]">
                   {blocks.map((b) => (
                     <section key={b.page} id={`part-${b.page}`} className="scroll-mt-6 rounded">
                       <Markdown components={mdComponents}>{b.text}</Markdown>

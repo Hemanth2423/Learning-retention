@@ -36,7 +36,7 @@ export function PageNav({
   return (
     <nav
       aria-label="Pages and zoom"
-      className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/75 px-1.5 py-1 text-sm text-white shadow-lg backdrop-blur transition-opacity hover:opacity-100 focus-within:opacity-100 opacity-80"
+      className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/75 px-1.5 py-1 text-ui text-white shadow-lg backdrop-blur transition-opacity hover:opacity-100 focus-within:opacity-100 opacity-80"
     >
       <IconButton label="Previous page" onClick={() => onGo(page - 1)} disabled={page <= 1} className={button}>
         {Icons.prev}

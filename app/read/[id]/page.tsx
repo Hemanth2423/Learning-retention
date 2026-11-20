@@ -59,7 +59,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
     return (
       <div className="m-auto text-center">
         <p>We couldn&apos;t find that book.</p>
-        <Link href="/read" className="btn-ghost mt-4">
+        <Link href="/read" className="quiet mt-4">
           Back to your books
         </Link>
       </div>
@@ -77,7 +77,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
         <Link href="/read" className="retro">
           ← Library
         </Link>
-        <h1 className="min-w-0 truncate font-serif text-[17px] font-bold" title={doc.title}>
+        <h1 className="min-w-0 truncate font-serif text-h3 font-bold" title={doc.title}>
           {doc.title}
         </h1>
         <div className="ml-auto shrink-0">
@@ -86,8 +86,8 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       </header>
       <div className="mx-auto grid max-w-[1060px] items-start gap-10 px-4 pb-20 pt-7 md:grid-cols-[300px_1fr] md:px-7">
         <aside className="rounded-2xl border border-line bg-card p-5 md:sticky md:top-[84px]">
-          <BookCover id={doc._id} title={doc.title} pageCount={doc.pageCount} className="h-40 w-full text-[19px]" />
-          <div className="mb-1.5 mt-3.5 flex justify-between text-[13px] text-muted">
+          <BookCover id={doc._id} title={doc.title} pageCount={doc.pageCount} className="h-40 w-full text-h3" />
+          <div className="mb-1.5 mt-3.5 flex justify-between text-meta text-muted">
             <span>Your path</span>
             <span>
               {view.read} of {view.total} {unit} read
@@ -100,7 +100,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
           <Link href={`/read/${doc._id}/book`} className="chunky mt-4 w-full">
             📖 {view.started ? "Continue reading" : "Start reading"}
           </Link>
-          <p className="mt-4 text-xs leading-relaxed text-muted">
+          <p className="mt-4 text-label leading-relaxed text-muted">
             📖 Read · ✏️ Notes · <Bulb size={14} /> Test
             <br />
             Green means done. Click any of them to open it.

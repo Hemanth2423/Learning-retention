@@ -66,34 +66,34 @@ export function HighlightsPanel({ highlights, sections, editingId, onEdit, onSet
   }, [highlights, sections]);
 
   return (
-    <div className="py-3">
-      <h2 className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">Highlights</h2>
+    <div className="py-4">
+      <h2 className="px-4 pb-2 text-label font-semibold uppercase tracking-wide text-muted">Highlights</h2>
       {highlights.length === 0 ? (
-        <p className="px-4 text-sm text-muted">Select text in the book to highlight it. Your highlights and comments show up here.</p>
+        <p className="empty-note">No highlights yet. Select text in the book, then press 🖍 to highlight it.</p>
       ) : (
         groups.map((g) => (
           <section key={g.key} className="mb-3">
             {g.title && (
-              <h3 className="flex items-baseline justify-between gap-2 px-4 py-1 text-sm font-semibold">
+              <h3 className="flex items-baseline justify-between gap-2 px-4 py-1 text-ui font-semibold">
                 <span className="min-w-0 truncate">{g.title}</span>
-                <span className="shrink-0 text-xs font-normal text-muted">{g.items.length}</span>
+                <span className="shrink-0 text-label font-normal text-muted">{g.items.length}</span>
               </h3>
             )}
             <ul>
               {g.items.map((h) => (
                 <li key={h._id} className="group border-b border-line/60 px-4 py-2.5 last:border-b-0">
                   <button onClick={() => onJump(h)} className="block w-full text-left">
-                    <span className="line-clamp-3 border-l-4 border-yellow-300 pl-2 text-sm">{h.text}</span>
-                    <span className="mt-1 block text-xs text-muted">p. {h.locator.page}</span>
+                    <span className="line-clamp-3 border-l-4 border-ochre pl-2 text-ui">{h.text}</span>
+                    <span className="mt-1 block text-label text-muted">p. {h.locator.page}</span>
                   </button>
                   {editingId === h._id ? (
                     <CommentEditor initial={h.comment ?? ""} onSave={(text) => onSetComment(h._id, text)} onCancel={() => onEdit(null)} />
                   ) : h.comment ? (
-                    <button onClick={() => onEdit(h._id)} className="mt-1.5 block w-full text-left text-sm text-muted hover:text-ink">
+                    <button onClick={() => onEdit(h._id)} className="mt-1.5 block w-full text-left text-meta text-muted hover:text-ink">
                       {h.comment}
                     </button>
                   ) : null}
-                  <div className="mt-1 flex gap-3 text-xs text-muted">
+                  <div className="mt-1 flex gap-3 text-label text-muted">
                     {!h.comment && editingId !== h._id && (
                       <button onClick={() => onEdit(h._id)} className="hover:text-ink">
                         Add comment

@@ -94,15 +94,15 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
       <div className="flex-1">
         {header}
         <div className="mx-auto max-w-[640px] px-4 pb-20 pt-8 text-center">
-          <div className="inline-block rounded-md bg-ink px-5 py-3 font-game text-[22px] text-ochre" style={{ boxShadow: "4px 4px 0 var(--accent)" }}>
+          <div className="inline-block rounded-md bg-ink px-5 py-3 font-game text-h2 text-ochre" style={{ boxShadow: "4px 4px 0 var(--accent)" }}>
             {round?.review ? "REVIEW COMPLETE" : "TEST COMPLETE"}
           </div>
-          <p className="mt-6 font-game text-[56px] leading-none">
+          <p className="mt-6 font-game text-display leading-none">
             {done.score}/{done.total}
           </p>
-          <p className="mt-3 text-lg font-bold">
+          <p className="mt-3 text-h3 font-bold">
             {done.score} of {done.total} right{perfect ? " 🎉" : ""}
-            <span className="ml-2 font-game text-base text-good" title={done.xp === 0 && done.score > 0 ? "You earned XP for these answers on an earlier try" : undefined}>
+            <span className="ml-2 font-game text-ui text-good" title={done.xp === 0 && done.score > 0 ? "You earned XP for these answers on an earlier try" : undefined}>
               +{done.xp} XP
             </span>
           </p>
@@ -120,11 +120,11 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
             </Link>
           </div>
           {perfect && (
-            <button className="mt-5 text-sm text-muted underline hover:text-ink" onClick={() => begin(false)} disabled={busy}>
+            <button className="quiet mt-5" onClick={() => begin(false)} disabled={busy}>
               Take the full test again
             </button>
           )}
-          {error && <p className="mt-4 text-sm text-bad">{error}</p>}
+          {error && <p className="mt-4 text-ui text-bad">{error}</p>}
         </div>
       </div>
     );
@@ -138,8 +138,8 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
       {header}
       <div className="mx-auto max-w-[560px] px-4 pb-20 pt-10 text-center">
         <Bulb size={64} rays />
-        <p className="mt-4 font-game text-xs tracking-wider text-accent-dark">{eyebrow}</p>
-        <h1 className="mt-1 font-serif text-[28px] font-bold leading-tight">{title}</h1>
+        <p className="mt-4 font-game text-label tracking-wider text-accent-dark">{eyebrow}</p>
+        <h1 className="mt-1 font-serif text-h1 font-bold leading-tight">{title}</h1>
         <p className="mt-3 text-muted">
           5 questions · about 4 minutes
           {quiz?.best != null && (
@@ -161,7 +161,7 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
               <button className="chunky" onClick={make} disabled={busy || outOfQuestions} autoFocus>
                 <Bulb size={20} /> {busy ? "Writing your questions…" : "Make my test"}
               </button>
-              <p className="mt-3 text-sm text-muted">
+              <p className="mt-3 text-meta text-muted">
                 {outOfQuestions
                   ? "You've used today's 5 AI questions. Come back tomorrow to make this test."
                   : `Making it uses 1 of today's AI questions${quota ? ` (${quota.left} left)` : ""}. Taking it again is free.`}
@@ -169,7 +169,7 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
             </>
           )}
           {error && (
-            <p role="alert" className="mt-4 text-sm text-bad">
+            <p role="alert" className="mt-4 text-ui text-bad">
               {error}
             </p>
           )}

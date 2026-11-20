@@ -35,16 +35,16 @@ function ResumeCard({ book }: { book: LibraryBook }) {
         pageCount={isBook ? book.pageCount : undefined}
         imageUrl={book.imageUrl}
         kind={book.sourceType}
-        className="h-[155px] w-[110px] text-[15px] md:h-[180px] md:w-[130px] md:text-[17px]"
+        className="h-[155px] w-[110px] text-ui md:h-[180px] md:w-[130px] md:text-h3"
       />
       <div className="min-w-0">
-        <p className="text-[13px] font-semibold text-accent">{book.lastReadAt ? `Last read ${timeAgo(book.lastReadAt, now)}` : book.page ? "Pick up where you left off" : "Ready to start"}</p>
-        <h3 className="mt-1 font-serif text-2xl font-bold leading-tight">{book.title}</h3>
+        <p className="text-meta font-semibold text-accent">{book.lastReadAt ? `Last read ${timeAgo(book.lastReadAt, now)}` : book.page ? "Pick up where you left off" : "Ready to start"}</p>
+        <h3 className="mt-1 font-serif text-h2 font-bold leading-tight">{book.title}</h3>
         <p className="mt-1 text-muted">
           {!isBook ? `${book.sourceType === "video" ? "Video" : "Article"} · ${book.siteName ?? ""}` : book.page ? `${chapterLabel(book)}page ${book.page}` : `${book.pageCount} pages`}
         </p>
         {isBook && (
-          <div className="mt-3 flex max-w-md items-center gap-3 text-[13px] text-muted">
+          <div className="mt-3 flex max-w-md items-center gap-3 text-meta text-muted">
             <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
               <span className="block h-full rounded-full bg-good" style={{ width: `${pct}%` }} />
             </span>
@@ -88,7 +88,7 @@ function Library() {
   return (
     <div className="flex-1">
       <header className="sticky top-0 z-10 flex items-center gap-4 bg-paper/90 px-4 py-3.5 backdrop-blur md:px-8">
-        <span className="font-serif text-[22px] font-bold">
+        <span className="font-serif text-h2 font-bold">
           Ingrain<span className="text-accent">.</span>
         </span>
         <label className="flex max-w-sm flex-1 items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted">
@@ -98,13 +98,13 @@ function Library() {
         <div className="ml-auto">
           <XpStats />
         </div>
-        <button onClick={() => void signOut().then(() => router.replace("/"))} className="text-sm text-muted hover:text-ink">
+        <button onClick={() => void signOut().then(() => router.replace("/"))} className="quiet">
           Sign out
         </button>
       </header>
 
       <main className="mx-auto max-w-[1120px] px-4 pb-20 md:px-8">
-        <h2 className="mb-3.5 mt-6 font-serif text-[22px] font-bold">{books === undefined ? " " : latest ? "Continue reading" : "Start your library"}</h2>
+        <h2 className="mb-3.5 mt-6 font-serif text-h2 font-bold">{books === undefined ? " " : latest ? "Continue reading" : "Start your library"}</h2>
         <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_280px]">
           {books === undefined ? (
             <div className="h-[230px] animate-pulse rounded-[18px] bg-card/60" />
@@ -112,7 +112,7 @@ function Library() {
             <ResumeCard book={latest} />
           ) : (
             <div className="flex flex-col justify-center rounded-[18px] border border-line bg-card p-6">
-              <p className="font-serif text-2xl font-bold">Your library is empty</p>
+              <p className="font-serif text-h2 font-bold">Your library is empty</p>
               <p className="mt-2 max-w-md text-muted">Add a PDF of a non-fiction book you want to learn from. Each chapter becomes a stop on your path, with notes and quick tests along the way.</p>
             </div>
           )}
@@ -125,17 +125,17 @@ function Library() {
         {!!books?.length && (
           <>
             <div className="mt-8 flex flex-wrap items-baseline gap-3.5">
-              <h2 className="font-serif text-[22px] font-bold">Your library</h2>
-              <span className="text-sm text-muted">
+              <h2 className="font-serif text-h2 font-bold">Your library</h2>
+              <span className="text-meta text-muted">
                 {books.length} item{books.length === 1 ? "" : "s"}
               </span>
-              <div role="group" aria-label="Sort books" className="ml-auto flex gap-1 text-[13px]">
+              <div role="group" aria-label="Sort books" className="seg ml-auto">
                 {(["recent", "title", "progress"] as const).map((s) => (
                   <button
                     key={s}
                     aria-pressed={sort === s}
                     onClick={() => setSort(s)}
-                    className={`rounded-full px-2.5 py-1 font-medium capitalize ${sort === s ? "bg-card text-ink ring-1 ring-line" : "text-muted hover:text-ink"}`}
+                    className="px-3 py-1 capitalize"
                   >
                     {s}
                   </button>
@@ -146,7 +146,7 @@ function Library() {
               {shown.map((b) => (
                 <BookTile key={b._id} book={b} onRemove={setRemoving} onError={setNotice} />
               ))}
-              {shown.length === 0 && <p className="text-muted">Nothing matches “{search}”.</p>}
+              {shown.length === 0 && <p className="empty-note col-span-full">Nothing matches “{search}”. Try a shorter word, or clear the search.</p>}
             </div>
           </>
         )}
@@ -154,7 +154,7 @@ function Library() {
 
       <ConfirmDialog
         open={!!removing}
-        title="Remove this book?"
+        title={`Remove this ${removing?.sourceType === "article" ? "article" : removing?.sourceType === "video" ? "video" : "book"}?`}
         message={removing ? `“${removing.title}” and your highlights, notes and chat for it will be deleted. This can't be undone.` : ""}
         confirmLabel="Remove"
         onCancel={() => setRemoving(null)}
@@ -165,7 +165,7 @@ function Library() {
         }}
       />
       {notice && (
-        <p role="alert" onClick={() => setNotice(null)} className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-sm text-white shadow-lg">
+        <p role="alert" onClick={() => setNotice(null)} className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-ui text-white shadow-lg">
           {notice}
         </p>
       )}

@@ -89,7 +89,7 @@ export function NoteEditor({
   const chain = () => editor?.chain().focus();
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-card shadow-[0_1px_0_var(--line)]">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-[1.5px] border-line bg-card transition focus-within:border-ink focus-within:shadow-[0_3px_0_var(--ink)]">
       <div role="toolbar" aria-label="Formatting" className="flex shrink-0 flex-wrap items-center gap-0.5 border-b border-line bg-cream/60 px-2 py-1.5">
         <select
           aria-label="Text style"
@@ -101,7 +101,7 @@ export function NoteEditor({
             else if (v === "subheading") chain()?.setHeading({ level: 3 }).run();
             else chain()?.setParagraph().run();
           }}
-          className="h-8 rounded-md border border-transparent bg-transparent px-1.5 text-sm text-ink hover:border-line focus:border-accent focus:outline-none"
+          className="h-8 rounded-md border border-transparent bg-transparent px-1.5 text-ui text-ink hover:border-line focus:border-accent focus:outline-none"
         >
           <option value="normal">Normal text</option>
           <option value="heading">Heading</option>

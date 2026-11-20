@@ -74,7 +74,7 @@ function ValidationCard({ result, onJump, onClose }: { result: CheckResult; onJu
   const { verdict, summary, checks } = result.result;
   const title = verdict === "accurate" ? "Looks accurate" : verdict === "has_issues" ? "A few things to check" : "Couldn't check this";
   return (
-    <section aria-label="Validation" className="max-h-[45%] shrink-0 overflow-y-auto border-t border-line bg-paper p-4 text-sm">
+    <section aria-label="Validation" className="max-h-[45%] shrink-0 overflow-y-auto border-t border-line bg-paper p-4 text-ui">
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold">{title}</h3>
         <button onClick={onClose} aria-label="Close validation" className="text-muted hover:text-ink">
@@ -94,7 +94,7 @@ function ValidationCard({ result, onJump, onClose }: { result: CheckResult; onJu
             </span>
             <div className="min-w-0">
               <p>
-                {c.claim} <span className="text-xs text-muted">· {statusLabel[c.status]}</span>
+                {c.claim} <span className="text-label text-muted">· {statusLabel[c.status]}</span>
               </p>
               {c.correction && (
                 <p className="mt-0.5 text-muted">
@@ -162,7 +162,7 @@ function NoteSession({ state, chapterKey, header }: { state: ReflectionsState; c
                 onClick={() => void validate()}
                 disabled={checking || !plain.trim()}
                 title="Checks your note against the book. Uses one of your 5 questions today."
-                className="inline-flex items-center gap-1.5 rounded-lg border border-good-line bg-card px-3 py-1.5 text-[13px] font-semibold text-good hover:bg-good-soft disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-good-line bg-card px-3 py-1.5 text-meta font-semibold text-good hover:bg-good-soft disabled:opacity-50"
               >
                 ✓ {checking ? "Checking…" : result ? "Check again" : "Check against the book"}
               </button>
@@ -171,7 +171,7 @@ function NoteSession({ state, chapterKey, header }: { state: ReflectionsState; c
         />
       </div>
       {problem && (
-        <p role="alert" className="shrink-0 border-t border-line px-4 py-2 text-sm text-bad">
+        <p role="alert" className="shrink-0 border-t border-line px-4 py-2 text-ui text-bad">
           {problem}
         </p>
       )}
@@ -180,7 +180,7 @@ function NoteSession({ state, chapterKey, header }: { state: ReflectionsState; c
   );
 }
 
-const iconButton = "flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-accent-soft hover:text-ink";
+const iconButton = "icon-btn";
 
 // The right panel's Reflections tab.
 export function ReflectionsPanel({ state, ranges, currentKey }: { state: ReflectionsState; ranges: ChapterRange[]; currentKey: string | null }) {
@@ -188,7 +188,7 @@ export function ReflectionsPanel({ state, ranges, currentKey }: { state: Reflect
   const choice = pick ?? currentKey ?? ranges[0]?.key ?? "";
 
   if (ranges.length === 0) {
-    return <p className="p-4 text-sm text-muted">This PDF has no contents, so chapter reflections aren&apos;t available.</p>;
+    return <p className="empty-note">This PDF has no contents, so notes by chapter aren&apos;t available here yet.</p>;
   }
 
   if (state.activeKey) {
@@ -196,8 +196,8 @@ export function ReflectionsPanel({ state, ranges, currentKey }: { state: Reflect
     if (state.expanded) {
       return (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-          <p className="text-sm text-muted">Writing about “{state.titleOf(key)}” in the larger window.</p>
-          <button onClick={() => state.setExpanded(false)} className="btn-ghost">
+          <p className="text-meta text-muted">Writing about “{state.titleOf(key)}” in the larger window.</p>
+          <button onClick={() => state.setExpanded(false)} className="quiet">
             Minimize
           </button>
         </div>
@@ -211,20 +211,18 @@ export function ReflectionsPanel({ state, ranges, currentKey }: { state: Reflect
         header={(status) => (
           <div className="shrink-0 px-4 pb-3 pt-3">
             <div className="flex items-center gap-2">
-              <button onClick={state.close} className="text-[13px] font-semibold text-accent hover:text-accent-dark" aria-label="Back to all notes">
+              <button onClick={state.close} className="text-meta font-semibold text-accent hover:text-accent-dark" aria-label="Back to all notes">
                 ‹ All notes
               </button>
-              <span className="ml-auto text-xs text-muted" aria-live="polite">
+              <span className="ml-auto text-label text-muted" aria-live="polite">
                 {statusText[status]}
               </span>
               <button onClick={() => state.setExpanded(true)} aria-label="Expand note" title="Open larger" className={iconButton}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-              </svg>
+                ⤢
               </button>
             </div>
-            <h2 className="mt-1.5 font-serif text-lg font-bold leading-snug">{state.titleOf(key)}</h2>
-            <p className="mt-0.5 text-[13px] text-muted">Write what you took away, in your own words. A few lines is enough.</p>
+            <h2 className="mt-1.5 font-serif text-h3 font-bold leading-snug">{state.titleOf(key)}</h2>
+            <p className="mt-0.5 text-meta text-muted">Write what you took away, in your own words. A few lines is enough.</p>
           </div>
         )}
       />
@@ -234,7 +232,7 @@ export function ReflectionsPanel({ state, ranges, currentKey }: { state: Reflect
   const written = ranges.filter((r) => { const row = state.byKey.get(r.key); return !!row?.plainText?.trim() || !!row?.content?.includes('"type":"image"'); });
   // One text size (14 px) across the panel; weight and colour do the work instead.
   return (
-    <div className="space-y-5 p-4 text-sm">
+    <div className="space-y-5 p-4 text-ui">
       <div className="rounded-xl border border-line bg-card p-3.5">
         <label htmlFor="reflect-on" className="block font-serif font-bold">
           Write a note
@@ -246,7 +244,7 @@ export function ReflectionsPanel({ state, ranges, currentKey }: { state: Reflect
               id="reflect-on"
               value={choice}
               onChange={(e) => setPick(e.target.value)}
-              className="h-10 w-full appearance-none truncate rounded-lg border border-line bg-cream py-2 pl-3 pr-9 text-sm text-ink focus:border-accent focus:outline-none"
+              className="h-10 w-full appearance-none truncate rounded-xl border-[1.5px] border-line bg-card py-2 pl-3 pr-9 text-ui text-ink focus:border-ink focus:outline-none"
             >
               {ranges.map((r) => (
                 <option key={r.key} value={r.key}>
@@ -255,11 +253,9 @@ export function ReflectionsPanel({ state, ranges, currentKey }: { state: Reflect
                 </option>
               ))}
             </select>
-            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+            <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">▾</span>
           </div>
-          <button onClick={() => state.open(choice)} className="btn-primary h-10 shrink-0 text-sm">
+          <button onClick={() => state.open(choice)} className="chunky sm h-10 shrink-0">
             ✏️ Write
           </button>
         </div>
@@ -270,7 +266,7 @@ export function ReflectionsPanel({ state, ranges, currentKey }: { state: Reflect
           Your notes <span className="font-sans font-normal text-muted">· {written.length}</span>
         </h2>
         {written.length === 0 ? (
-          <p className="text-muted">Nothing yet. At the end of a chapter, write what you took away.</p>
+          <p className="empty-note">No notes yet. Pick a chapter above and press Write.</p>
         ) : (
           <ul className="space-y-2.5">
             {written.map((r) => (
@@ -322,14 +318,12 @@ export function NoteWindow({ state }: { state: ReflectionsState }) {
           chapterKey={key}
           header={(status) => (
             <div className="flex shrink-0 items-center gap-2 border-b border-line px-4 py-2.5">
-              <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{state.titleOf(key)}</h2>
-              <span className="text-xs text-muted" aria-live="polite">
+              <h2 className="min-w-0 flex-1 truncate text-ui font-semibold">{state.titleOf(key)}</h2>
+              <span className="text-label text-muted" aria-live="polite">
                 {statusText[status]}
               </span>
               <button onClick={() => setExpanded(false)} aria-label="Minimize note" title="Minimize" className={iconButton}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
-                </svg>
+                ⤡
               </button>
             </div>
           )}

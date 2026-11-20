@@ -2,7 +2,7 @@
 
 Update at the end of every session. Keep only the latest state, since git keeps the history.
 
-**Last updated:** 2026-11-19 · **Branch:** `main` (protected: PR + 1 teammate approval + CI `test`) · CodeMates team assignment until Dec 2
+**Last updated:** 2026-11-19 · **Working branch:** `feat/feature-3-rest` (slices 2–6, stacked on #82's `api/article-youtube-links`) · **Default:** `main` (protected: PR + 1 teammate approval + CI `test`) · CodeMates team assignment until Dec 2
 
 ## Last verified state
 
@@ -31,6 +31,7 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 
 ## Next action
 
-1. **Merge PR #82** (Feature 3 spec + slice 1: articles and YouTube by link) after a teammate approves, then deploy production (`npx convex deploy`, then `vercel deploy --prod` from a clean export of `main`).
-2. **Slices 2–6 on one branch, one PR** (`feat/feature-3-rest`, from `main` after #82 merges): polish, tiles and covers, export downloads, Notebook (after the Notion/Docs PRs merge), EPUB/Word/PowerPoint + bulk add. Spec: `tasks/feature-3-sources-and-notebook.md`; design: prototype 005 (local, `.context/…/02-sources-notebook-export/screens/005-clickable-app.html`). Small fixes queued for polish: "Summarize this chapter / Ask about this book / Remove this book?" wording for articles and videos.
-3. Merge #73 (temporary AGENTS.md team rules); make the repo private; revert #73 after Dec 2.
+1. **Merge PR #82** (Feature 3 spec + slice 1) after a teammate approves, then deploy production (`npx convex deploy`, then `vercel deploy --prod` from a clean export of `main`). Then rebase `feat/feature-3-rest` onto `main`.
+2. **Slice 2 (polish) is built, not committed** on `feat/feature-3-rest`: tests 178 pass, lint 0 errors, build passes, browser-checked. Hemanth reviews it, then commit.
+3. **Next: slice 3** (library tiles and covers) on the same branch. Then 4 (export downloads), 5 (Notebook, after the Notion/Docs PRs merge), 6 (EPUB/Word/PowerPoint + bulk add). Spec: `tasks/feature-3-sources-and-notebook.md`. Prototype 005 + `decisions.md` live only in the worktree `.claude/worktrees/learning-retention-d5b089/.context/…`; copy them to the main checkout before that worktree is cleaned up.
+4. Merge #73 (temporary AGENTS.md team rules); make the repo private; revert #73 after Dec 2.
