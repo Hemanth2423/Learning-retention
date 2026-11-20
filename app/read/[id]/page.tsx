@@ -2,8 +2,8 @@
 
 import { useQuery } from "convex/react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import { Bulb } from "@/components/icons/Bulb";
 import { BookCover } from "@/components/library/BookCover";
 import { ChapterPath, Stop } from "@/components/path/ChapterPath";
@@ -20,6 +20,11 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
   const doc = useQuery(api.documents.get, { documentId });
   const notes = useQuery(api.reflections.list, { documentId });
   const scores = useQuery(api.quizzes.bestScores, { documentId });
+  const router = useRouter();
+  const notABook = !!doc && doc.sourceType !== "pdf";
+  useEffect(() => {
+    if (notABook) router.replace(`/read/${documentId}/book`);
+  }, [notABook, router, documentId]);
 
   const view = useMemo(() => {
     if (!doc || doc.status !== "ready") return null;
@@ -60,6 +65,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       </div>
     );
   }
+  if (notABook) return <p className="m-auto text-muted">Opening…</p>;
   if (doc.status !== "ready" || !view) {
     return <p className="m-auto text-muted">{doc.status === "failed" ? (doc.statusMessage ?? "This book couldn't be opened.") : "Preparing your book…"}</p>;
   }

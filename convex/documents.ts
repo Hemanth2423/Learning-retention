@@ -60,7 +60,7 @@ export const fileUrl = query({
   handler: async (ctx, { documentId }) => {
     const userId = await requireUser(ctx);
     const doc = await getOwnDocument(ctx, userId, documentId);
-    if (!doc || doc.status !== "ready") return null;
+    if (!doc || doc.status !== "ready" || !doc.fileId) return null;
     return await ctx.storage.getUrl(doc.fileId);
   },
 });
@@ -107,7 +107,10 @@ export const list = query({
         page,
         chapterNumber: at >= 0 ? at + 1 : null,
         chapterTitle: at >= 0 ? ranges[at].title : null,
-        progress: bookProgress(d.pagesSeen, d.pageCount ?? 0),
+        progress: d.sourceType === "pdf" ? bookProgress(d.pagesSeen, d.pageCount ?? 0) : 0,
+        sourceType: d.sourceType,
+        siteName: d.siteName ?? null,
+        imageUrl: d.imageUrl ?? null,
         lastReadAt: d.lastReadAt ?? null,
       };
     });
@@ -233,7 +236,7 @@ export const markFailed = internalMutation({
     if (!doc) return;
     const chunks = await ctx.db.query("chunks").withIndex("by_document", (q) => q.eq("documentId", documentId)).collect();
     for (const c of chunks) await ctx.db.delete(c._id);
-    await ctx.storage.delete(doc.fileId).catch(() => {});
+    if (doc.fileId) await ctx.storage.delete(doc.fileId).catch(() => {});
     await ctx.db.patch(documentId, { status: "failed", statusMessage: message });
   },
 });

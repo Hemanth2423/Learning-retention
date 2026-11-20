@@ -11,6 +11,7 @@ import { BookCover } from "@/components/library/BookCover";
 import { BookTile, LibraryBook, progressOf } from "@/components/library/BookTile";
 import { timeAgo } from "@/components/library/time";
 import { ReadingShell } from "@/components/ReadingShell";
+import { AddLinkForm } from "@/components/upload/AddLinkForm";
 import { UploadCard } from "@/components/upload/UploadCard";
 import { api } from "@/convex/_generated/api";
 
@@ -25,28 +26,40 @@ function chapterLabel(b: LibraryBook): string {
 function ResumeCard({ book }: { book: LibraryBook }) {
   const pct = progressOf(book);
   const [now] = useState(() => Date.now());
+  const isBook = book.sourceType === "pdf";
   return (
     <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-6 rounded-[18px] border border-line bg-card p-6 md:grid-cols-[130px_minmax(0,1fr)]">
-      <BookCover id={book._id} title={book.title} pageCount={book.pageCount} className="h-[155px] w-[110px] text-[15px] md:h-[180px] md:w-[130px] md:text-[17px]" />
+      <BookCover
+        id={book._id}
+        title={book.title}
+        pageCount={isBook ? book.pageCount : undefined}
+        imageUrl={book.imageUrl}
+        kind={book.sourceType}
+        className="h-[155px] w-[110px] text-[15px] md:h-[180px] md:w-[130px] md:text-[17px]"
+      />
       <div className="min-w-0">
         <p className="text-[13px] font-semibold text-accent">{book.lastReadAt ? `Last read ${timeAgo(book.lastReadAt, now)}` : book.page ? "Pick up where you left off" : "Ready to start"}</p>
         <h3 className="mt-1 font-serif text-2xl font-bold leading-tight">{book.title}</h3>
         <p className="mt-1 text-muted">
-          {book.page ? `${chapterLabel(book)}page ${book.page}` : `${book.pageCount} pages`}
+          {!isBook ? `${book.sourceType === "video" ? "Video" : "Article"} · ${book.siteName ?? ""}` : book.page ? `${chapterLabel(book)}page ${book.page}` : `${book.pageCount} pages`}
         </p>
-        <div className="mt-3 flex max-w-md items-center gap-3 text-[13px] text-muted">
-          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-            <span className="block h-full rounded-full bg-good" style={{ width: `${pct}%` }} />
-          </span>
-          <span>{pct}%</span>
-        </div>
+        {isBook && (
+          <div className="mt-3 flex max-w-md items-center gap-3 text-[13px] text-muted">
+            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
+              <span className="block h-full rounded-full bg-good" style={{ width: `${pct}%` }} />
+            </span>
+            <span>{pct}%</span>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap gap-2.5">
           <Link href={`/read/${book._id}/book`} className="chunky">
-            📖 {book.page ? "Continue reading" : "Start reading"}
+            {book.sourceType === "video" ? "▶ Watch" : `📖 ${book.page ? "Continue reading" : "Start reading"}`}
           </Link>
-          <Link href={`/read/${book._id}`} className="chunky chunky-light">
-            View chapter path
-          </Link>
+          {isBook && (
+            <Link href={`/read/${book._id}`} className="chunky chunky-light">
+              View chapter path
+            </Link>
+          )}
         </div>
       </div>
     </div>
@@ -80,7 +93,7 @@ function Library() {
         </span>
         <label className="flex max-w-sm flex-1 items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted">
           <span aria-hidden="true">⌕</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your books" aria-label="Search your books" className="flex-1 bg-transparent text-ink outline-none" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your library" aria-label="Search your library" className="flex-1 bg-transparent text-ink outline-none" />
         </label>
         <div className="ml-auto">
           <XpStats />
@@ -103,15 +116,18 @@ function Library() {
               <p className="mt-2 max-w-md text-muted">Add a PDF of a non-fiction book you want to learn from. Each chapter becomes a stop on your path, with notes and quick tests along the way.</p>
             </div>
           )}
-          <UploadCard />
+          <div className="flex flex-col gap-3">
+            <UploadCard />
+            <AddLinkForm />
+          </div>
         </div>
 
         {!!books?.length && (
           <>
             <div className="mt-8 flex flex-wrap items-baseline gap-3.5">
-              <h2 className="font-serif text-[22px] font-bold">Your books</h2>
+              <h2 className="font-serif text-[22px] font-bold">Your library</h2>
               <span className="text-sm text-muted">
-                {books.length} book{books.length === 1 ? "" : "s"}
+                {books.length} item{books.length === 1 ? "" : "s"}
               </span>
               <div role="group" aria-label="Sort books" className="ml-auto flex gap-1 text-[13px]">
                 {(["recent", "title", "progress"] as const).map((s) => (
@@ -130,7 +146,7 @@ function Library() {
               {shown.map((b) => (
                 <BookTile key={b._id} book={b} onRemove={setRemoving} onError={setNotice} />
               ))}
-              {shown.length === 0 && <p className="text-muted">No books match “{search}”.</p>}
+              {shown.length === 0 && <p className="text-muted">Nothing matches “{search}”.</p>}
             </div>
           </>
         )}

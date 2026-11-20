@@ -19,13 +19,21 @@ export type LibraryBook = {
   chapterTitle: string | null;
   progress: number; // % of pages seen
   lastReadAt: number | null;
+  sourceType: "pdf" | "article" | "video";
+  siteName: string | null;
+  imageUrl: string | null;
 };
+
+// Where a library item opens: a book's chapter path, or straight into an article or video.
+export const openHref = (b: LibraryBook) => (b.sourceType === "pdf" ? `/read/${b._id}` : `/read/${b._id}/book`);
 
 export const progressOf = (b: LibraryBook) => b.progress;
 
 function metaLine(b: LibraryBook): string {
-  if (b.status === "processing") return "Preparing…";
+  if (b.status === "processing") return b.sourceType === "pdf" ? "Preparing…" : "Adding…";
   if (b.status === "failed") return "Couldn't read this PDF";
+  if (b.sourceType === "article") return `Article · ${b.siteName ?? "web"}`;
+  if (b.sourceType === "video") return `Video · ${b.siteName ?? "YouTube"}`;
   if (!b.page) return "Not started";
   return `p. ${b.page} of ${b.pageCount}${b.chapterNumber ? ` · Ch ${b.chapterNumber}` : ""}`;
 }
@@ -65,7 +73,16 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
   const openable = book.status === "ready";
   const body = (
     <>
-      <BookCover id={book._id} title={book.title} pageCount={book.pageCount} className="aspect-[2/3] w-full transition-transform group-hover:-translate-y-1" badge={!book.page && openable ? "New" : undefined} />
+      <BookCover
+        id={book._id}
+        title={book.title}
+        pageCount={book.sourceType === "pdf" ? book.pageCount : undefined}
+        imageUrl={book.imageUrl}
+        kind={book.sourceType}
+        label={book.sourceType === "pdf" ? undefined : (book.siteName ?? undefined)}
+        className="aspect-[2/3] w-full transition-transform group-hover:-translate-y-1"
+        badge={!book.lastReadAt && openable ? "New" : undefined}
+      />
       {editing ? (
         <input
           autoFocus
@@ -89,16 +106,18 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
         </div>
       )}
       <div className={`mt-0.5 text-[13px] ${book.status === "failed" ? "text-bad" : "text-muted"}`}>{metaLine(book)}</div>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-line">
-        <div className="h-full rounded-full bg-good" style={{ width: `${pct}%` }} />
-      </div>
+      {book.sourceType === "pdf" && (
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-line">
+          <div className="h-full rounded-full bg-good" style={{ width: `${pct}%` }} />
+        </div>
+      )}
     </>
   );
 
   return (
     <div ref={wrapRef} className="group relative">
       {openable && !editing ? (
-        <Link href={`/read/${book._id}`} className="block rounded-lg">
+        <Link href={openHref(book)} className="block rounded-lg">
           {body}
         </Link>
       ) : (

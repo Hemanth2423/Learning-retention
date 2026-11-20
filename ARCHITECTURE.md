@@ -39,7 +39,7 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 
 | Table | One row per | Key fields |
 |---|---|---|
-| `documents` | upload | `userId`, `title`, `sourceType`, `fileId`, `status`, `hasText`, `pageCount`, `sections[]`, `lastLocator` |
+| `documents` | upload or link | `userId`, `title`, `sourceType` (pdf, article, video), `fileId` (PDFs), `sourceUrl` + `siteName` + `imageUrl` + `videoId` (links; index `by_user_source` refuses duplicates), `status`, `hasText`, `pageCount`, `sections[]`, `lastLocator` · locators are `{kind: "pdf" \| "text", page}` (ADR 012) |
 | `chunks` | page of text | `documentId`, `index`, `text`, `locator` · **search index on `text`**, filtered by `documentId` |
 | `highlights` | highlight | `userId`, `documentId`, `locator` (first page), `text`, `segments` (per page: boxes as fractions of the page), `comment?` |
 | `reflections` | chapter reflection | `userId`, `documentId`, `sectionKey` (the chapter), `content` (Tiptap JSON), `plainText` (for AI), `dismissed?` |
@@ -58,6 +58,7 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 | `convex/highlights.ts`, `highlightRules.ts`, `reflections.ts`, `reflectionRules.ts` | CRUD, owner only; pure rules for checking input, joining boxes and validating notes |
 | `convex/chat.ts`, `chatRules.ts` | Ask and validate actions, history, daily limit; pure rules for the limit, search words, chapter boost, citation and answer checks |
 | `convex/xp.ts`, `xpRules.ts` | XP, level and streak: `awardXp` (called only from saveProgress, notes save and test answers), `stats`, `setTimeZone`; pure rules for award keys, levels, the reader's day and streaks |
+| `convex/links.ts`, `linkRules.ts` | Add an article (Firecrawl, server only) or YouTube video (oEmbed) by link: duplicate check, fetch once, save text blocks; pure rules for link parsing, URL cleaning, Markdown cleaning and block splitting |
 | `convex/quizzes.ts`, `quizRules.ts` | Test yourself: make a chapter's test once (`prepare`), start a round (full or missed only), grade each answer on the server, best scores for the path; pure rules for a usable question, shuffling and scores |
 | `convex/llm.ts`, `auth.ts`, `helpers.ts` | Every LLM call (DeepSeek, or Gemini when `LLM_PROVIDER=gemini`), sign-in, access |
 | `app/` + `components/reader/` | Upload page, `/read/[id]`, `/read/[id]/test`; viewer, left overlay (Contents, Highlights), resizable right panel (Chat, Reflections), test tab |

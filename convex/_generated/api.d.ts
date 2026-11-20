@@ -27,6 +27,8 @@ import type * as ingest from "../ingest.js";
 import type * as lessonRules from "../lessonRules.js";
 import type * as lessonTypes from "../lessonTypes.js";
 import type * as lessons from "../lessons.js";
+import type * as linkRules from "../linkRules.js";
+import type * as links from "../links.js";
 import type * as llm from "../llm.js";
 import type * as locators from "../locators.js";
 import type * as nextSteps from "../nextSteps.js";
@@ -77,6 +79,8 @@ declare const fullApi: ApiFromModules<{
   lessonRules: typeof lessonRules;
   lessonTypes: typeof lessonTypes;
   lessons: typeof lessons;
+  linkRules: typeof linkRules;
+  links: typeof links;
   llm: typeof llm;
   locators: typeof locators;
   nextSteps: typeof nextSteps;
