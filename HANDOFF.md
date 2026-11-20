@@ -31,5 +31,6 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 
 ## Next action
 
-1. **Feature 3, slice 1:** articles (Firecrawl) + YouTube by link, with the duplicate-link test. Spec: `tasks/feature-3-sources-and-notebook.md`. Needs approval for the schema change and a Markdown renderer.
-2. Merge #73; make the repo private; decide on automatic deploys from `main`.
+1. **Merge PR #82** (Feature 3 spec + slice 1: articles and YouTube by link) after a teammate approves, then deploy production (`npx convex deploy`, then `vercel deploy --prod` from a clean export of `main`).
+2. **Slices 2–6 on one branch, one PR** (`feat/feature-3-rest`, from `main` after #82 merges): polish, tiles and covers, export downloads, Notebook (after the Notion/Docs PRs merge), EPUB/Word/PowerPoint + bulk add. Spec: `tasks/feature-3-sources-and-notebook.md`; design: prototype 005 (local, `.context/…/02-sources-notebook-export/screens/005-clickable-app.html`). Small fixes queued for polish: "Summarize this chapter / Ask about this book / Remove this book?" wording for articles and videos.
+3. Merge #73 (temporary AGENTS.md team rules); make the repo private; revert #73 after Dec 2.

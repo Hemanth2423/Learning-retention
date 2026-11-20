@@ -65,5 +65,6 @@ Agreed in the local prototype `005-clickable-app.html` (`.context/compound-engin
 - [ ] Browser: each slice end to end with real files (an EPUB with Parts, a Word file, a PowerPoint, two article links, a YouTube link), and the exported Markdown opened in Obsidian.
 
 ## Status log
+- 2026-11-19: **Slice 1 built** (PR #82, issue #81): articles via Firecrawl and YouTube via oEmbed, added by link under the upload card; duplicates refused (graded test); reader mode with Open original, Ask (§N citations) and a note; videos embedded with a note; paywall saved as a link; no XP/path/tests for links. Schema per ADR 012; `react-markdown` added. **Deviations:** link field under the upload card (Add sheet + bulk queue in slice 3); article highlights and timed video notes wait for slice 5. **Decision:** the remaining slices (2–6) go on one branch and one PR.
 - 2026-11-19: Approved and re-ordered for the CodeMates team assignment (demo Dec 2): slice 1 = articles (Firecrawl) + YouTube; Notion/Docs moved to @abbystern and @EEBarr14; Notebook after their PRs merge.
 - 2026-11-19: Spec written from prototype 005 and Hemanth's rounds 3–5.
