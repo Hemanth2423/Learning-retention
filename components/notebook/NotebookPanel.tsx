@@ -8,6 +8,7 @@ import { ChapterRange, SectionLike } from "@/convex/chapters";
 import { MAX_COMMENT } from "@/convex/highlightRules";
 import { formatTime, GENERAL, notebookGroups, NotebookFilter, NotebookItem } from "@/convex/notebookRules";
 import { ComposeWindow } from "./Compose";
+import { ExportSheet } from "./ExportSheet";
 import { NoteRow, NotebookState, SavedRow } from "./useNotebook";
 
 type Highlight = Doc<"highlights">;
@@ -44,7 +45,6 @@ export type NotebookProps = {
   onJumpHighlight: (h: Highlight) => void;
   onJumpPage: (page: number) => void;
   onSeek?: (seconds: number) => void; // videos
-  onExport?: () => void;
   onNotice: (message: string) => void;
   emptyHint: string; // what to do when there's nothing yet
 };
@@ -57,6 +57,7 @@ export function NotebookPanel(p: NotebookProps) {
   const [filter, setFilter] = useState<NotebookFilter>("all");
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const unit = p.unit ?? "chapter";
   const chapterKey = scope === "chapter" ? p.currentKey : null;
@@ -139,11 +140,9 @@ export function NotebookPanel(p: NotebookProps) {
           >
             ⌕
           </button>
-          {p.onExport && (
-            <button className="quiet" onClick={p.onExport} title="Download or copy your notes">
-              ⤓ Export
-            </button>
-          )}
+          <button className="quiet" onClick={() => setExporting(true)} title="Download, print or copy your notes">
+            ⤓ Export
+          </button>
         </div>
         {searching && (
           <div className="shrink-0 px-4 pb-2">
@@ -209,6 +208,7 @@ export function NotebookPanel(p: NotebookProps) {
           </p>
         </div>
       </div>
+      {exporting && <ExportSheet documentId={state.documentId} onClose={() => setExporting(false)} />}
       <ComposeWindow
         state={state}
         ranges={ranges}

@@ -17,6 +17,7 @@ function ReaderRoute() {
   const params = useSearchParams();
   const startPage = Number(params.get("page")) || undefined;
   const startNotes = params.get("notes") ?? undefined;
+  const startNotebook = params.get("notebook") === "1"; // the path's 📓 Notebook button
   const documentId = id as Id<"documents">;
   const doc = useQuery(api.documents.get, { documentId });
   const url = useQuery(api.documents.fileUrl, { documentId });
@@ -55,7 +56,7 @@ function ReaderRoute() {
     // key: a fresh reader per book, so position and zoom never leak between books
     return (
       <ReadingShell chrome={false}>
-        <Reader key={doc._id} doc={doc} url={url} startPage={startPage} startNotes={startNotes} />
+        <Reader key={doc._id} doc={doc} url={url} startPage={startPage} startNotes={startNotes} startNotebook={startNotebook} />
       </ReadingShell>
     );
   }

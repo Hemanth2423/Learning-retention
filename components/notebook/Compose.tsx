@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { errorMessage } from "@/components/FieldError";
 import { NoteEditor } from "@/components/reader/NoteEditor";
@@ -209,12 +210,13 @@ export function ComposeWindow({
   );
 
   if (c.big) {
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/30 p-4" onMouseDown={(e) => e.target === e.currentTarget && state.patchCompose({ big: false })}>
         <div role="dialog" aria-label={title} className="flex h-[80vh] w-[min(820px,100%)] flex-col overflow-hidden rounded-xl border-2 border-ink bg-card shadow-[0_6px_0_var(--ink)]">
           {body}
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
   return (

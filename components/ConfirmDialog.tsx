@@ -1,5 +1,7 @@
 "use client";
 
+import { createPortal } from "react-dom";
+
 export function ConfirmDialog({
   open,
   title,
@@ -16,8 +18,9 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
+  // In a portal, above any sheet or drawer, so nothing on the page can cover it.
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
       <div
         role="alertdialog"
         aria-modal="true"
@@ -32,6 +35,7 @@ export function ConfirmDialog({
           <button className="chunky sm bg-bad hover:bg-bad/90" onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

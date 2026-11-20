@@ -86,7 +86,7 @@ function ChapterEndNotice({
 }
 
 // `startPage` / `startNotes` come from the chapter path: open at a chapter, or open that chapter's note.
-export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; url: string; startPage?: number; startNotes?: string }) {
+export function Reader({ doc, url, startPage, startNotes, startNotebook }: { doc: ReaderDoc; url: string; startPage?: number; startNotes?: string; startNotebook?: boolean }) {
   const pageCount = doc.pageCount ?? 1;
   const initialPage = startPage && startPage >= 1 && startPage <= pageCount ? startPage : (doc.lastLocator?.page ?? 1);
   const canHighlight = doc.hasText !== false;
@@ -113,8 +113,8 @@ export function Reader({ doc, url, startPage, startNotes }: { doc: ReaderDoc; ur
   const [zoomIndex, setZoomIndex] = useState(2);
   const [contentsOpen, setContentsOpen] = useState(false);
   // Opened from a chapter's Notes marker on the path: the drawer starts open on the Notebook.
-  const [studyOpen, setStudyOpen] = useState(!!startNotes);
-  const [studyTab, setStudyTab] = useState<StudyTab>(canHighlight && !startNotes ? "ask" : "notebook");
+  const [studyOpen, setStudyOpen] = useState(!!startNotes || !!startNotebook);
+  const [studyTab, setStudyTab] = useState<StudyTab>(canHighlight && !startNotes && !startNotebook ? "ask" : "notebook");
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [editingId, setEditingId] = useState<Id<"highlights"> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

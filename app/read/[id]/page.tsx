@@ -3,9 +3,10 @@
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bulb } from "@/components/icons/Bulb";
 import { BookCover } from "@/components/library/BookCover";
+import { ExportSheet } from "@/components/notebook/ExportSheet";
 import { ChapterPath, Stop } from "@/components/path/ChapterPath";
 import { ReadingShell } from "@/components/ReadingShell";
 import { LevelBar, XpStats } from "@/components/XpStats";
@@ -21,6 +22,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
   const notebook = useQuery(api.notebook.list, { documentId });
   const notes = notebook?.notes;
   const scores = useQuery(api.quizzes.bestScores, { documentId });
+  const [exporting, setExporting] = useState(false);
   const router = useRouter();
   const notABook = !!doc && doc.sourceType !== "pdf";
   useEffect(() => {
@@ -101,6 +103,15 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
           <Link href={`/read/${doc._id}/book`} className="chunky mt-4 w-full">
             📖 {view.started ? "Continue reading" : "Start reading"}
           </Link>
+          <div className="mt-2.5 flex gap-2">
+            <Link href={`/read/${doc._id}/book?notebook=1`} className="quiet flex-1">
+              📓 Notebook
+            </Link>
+            <button className="quiet flex-1" onClick={() => setExporting(true)}>
+              ⤓ Export notes
+            </button>
+          </div>
+          {exporting && <ExportSheet documentId={doc._id} onClose={() => setExporting(false)} />}
           <p className="mt-4 text-label leading-relaxed text-muted">
             📖 Read · ✏️ Notes · <Bulb size={14} /> Test
             <br />
