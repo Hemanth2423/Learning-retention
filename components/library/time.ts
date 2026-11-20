@@ -8,5 +8,8 @@ export function timeAgo(then: number, now: number): string {
   const d = Math.floor(h / 24);
   if (d === 1) return "yesterday";
   if (d < 7) return `${d} days ago`;
-  return new Date(then).toLocaleDateString([], { month: "short", day: "numeric" });
+  return new Date(then).toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
 }

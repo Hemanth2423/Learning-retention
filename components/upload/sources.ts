@@ -1,5 +1,10 @@
-// What a reader can add. Only PDF for now. Links, YouTube and other formats become new entries here
-// (plus an adapter in convex/sources/), and the upload page picks them up.
-export const SOURCES = [
-  { type: "pdf", label: "Upload PDF", hint: "PDF · up to 25 MB", accept: "application/pdf,.pdf" },
-] as const;
+// What a reader can add from the Files tab. Links (articles, YouTube) are in the Links tab.
+export const MAX_FILES_AT_ONCE = 20;
+export const FILE_ACCEPT = "application/pdf,.pdf";
+export const FILE_HINT = "PDF · up to 25 MB each · up to 20 at once";
+export const FILE_KINDS = ["PDF"];
+
+export function fileKindLabel(name: string): string {
+  const ext = name.toLowerCase().split(".").pop() ?? "";
+  return ext === "pdf" ? "PDF" : ext.toUpperCase() || "File";
+}

@@ -93,3 +93,13 @@ See [tasks/feature-2-library-and-path.md](tasks/feature-2-library-and-path.md). 
 | **Images in notes** | `noteImages` (userId, documentId, storageId); images ≤5 MB uploaded to Convex storage; the note holds the link | Deleted with the book by the same background purge |
 | **Library** | `documents.list` (owner's books, newest-read first), `documents.rename`, `documents.remove` | Remove deletes the file, chunks, highlights, notes, chat, tests and attempts for that book |
 | **Parts for books without contents** | `chapterRanges` falls back to 20-page parts with keys `part-1`, `part-2`… | One code path for the chapter path, % read, notes and tests (ADR 008) |
+
+## Feature 3 changes (approved 2026-11-19, being built)
+
+See [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebook.md). ⚠ = schema change.
+
+| Change | How | Why this way |
+|---|---|---|
+| ⚠ **Covers** | `documents.coverId` + `coverChecked`; page 1 drawn in the browser, checked by `documents.setCover` (ADR 013) | Free, no server rendering; text-page PDFs keep the colour cover |
+| **Add sheet + queue** | `components/upload/`: Files and Links tabs, one item at a time, each with its state and reason | Bulk add without hitting Firecrawl or storage all at once |
+

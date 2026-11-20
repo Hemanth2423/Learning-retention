@@ -86,7 +86,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       </header>
       <div className="mx-auto grid max-w-[1060px] items-start gap-10 px-4 pb-20 pt-7 md:grid-cols-[300px_1fr] md:px-7">
         <aside className="rounded-2xl border border-line bg-card p-5 md:sticky md:top-[84px]">
-          <BookCover id={doc._id} title={doc.title} pageCount={doc.pageCount} className="h-40 w-full text-h3" />
+          <BookCover id={doc._id} title={doc.title} meta={doc.pageCount ? `${doc.pageCount} pages` : undefined} coverUrl={doc.coverUrl} className="mx-auto w-[170px] text-h3" />
           <div className="mb-1.5 mt-3.5 flex justify-between text-meta text-muted">
             <span>Your path</span>
             <span>

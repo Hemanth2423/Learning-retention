@@ -124,6 +124,18 @@ body {
   }
   .seg > button[aria-selected="true"],
   .seg > button[aria-pressed="true"] { @apply border-accent bg-accent-soft text-accent-dark; }
+  /* Filter chips (library): the chosen one is ink */
+  .chip {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-line bg-card px-[11px] py-1 text-meta font-medium text-muted transition hover:text-ink;
+  }
+  .chip[aria-pressed="true"] { @apply border-ink bg-ink text-card; }
+  /* Small source label: PDF, EPUB, Article… */
+  .kind {
+    @apply inline-flex items-center rounded border border-line bg-panel px-1.5 text-label font-bold uppercase tracking-[0.06em] text-muted;
+  }
+  .spin {
+    @apply inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-accent;
+  }
   /* Empty states: one line on what to do next */
   .empty-note { @apply px-3 py-6 text-center text-meta text-muted; }
   /* Small game counters (XP, level, streak) */

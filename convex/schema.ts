@@ -30,6 +30,8 @@ export default defineSchema({
     siteName: v.optional(v.string()), // article site or YouTube channel
     imageUrl: v.optional(v.string()), // article preview image or YouTube thumbnail
     videoId: v.optional(v.string()),
+    coverId: v.optional(v.id("_storage")), // a small cover image: a PDF's first page or an EPUB's own cover (made in the browser)
+    coverChecked: v.optional(v.boolean()), // page 1 was looked at and isn't a cover (a plain text page): keep the colour cover
     status: v.union(v.literal("processing"), v.literal("ready"), v.literal("failed")),
     statusMessage: v.optional(v.string()),
     hasText: v.optional(v.boolean()), // false = scanned/image-only: reading works, highlights and chat are off

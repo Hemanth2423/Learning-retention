@@ -4,7 +4,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { chapterRanges } from "./chapters";
 import { bookProgress, chapterProgress, markPages, MAX_SEEN_PER_SAVE } from "./readingRules";
-import { libraryOrder, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateTitle } from "./documentRules";
+import { libraryOrder, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateCover, validateTitle } from "./documentRules";
 import { getOwnDocument, requireUser } from "./helpers";
 import { locator } from "./locators";
 import { awardXp } from "./xp";
@@ -49,8 +49,8 @@ export const get = query({
     const userId = await requireUser(ctx);
     const doc = await getOwnDocument(ctx, userId, documentId);
     if (!doc) return null;
-    const { fileId: _fileId, ...rest } = doc;
-    return rest;
+    const { fileId: _fileId, coverId, ...rest } = doc;
+    return { ...rest, coverUrl: coverId ? await ctx.storage.getUrl(coverId) : null };
   },
 });
 
@@ -94,7 +94,7 @@ export const list = query({
   handler: async (ctx) => {
     const userId = await requireUser(ctx);
     const docs = await ctx.db.query("documents").withIndex("by_user", (q) => q.eq("userId", userId)).take(500);
-    return libraryOrder(docs).map((d) => {
+    return await Promise.all(libraryOrder(docs).map(async (d) => {
       const page = d.lastLocator?.page ?? null;
       const ranges = chapterRanges(d.sections ?? [], d.pageCount ?? 0);
       const at = page === null ? -1 : ranges.findIndex((r) => page >= r.startPage && page <= r.endPage);
@@ -111,9 +111,40 @@ export const list = query({
         sourceType: d.sourceType,
         siteName: d.siteName ?? null,
         imageUrl: d.imageUrl ?? null,
+        coverUrl: d.coverId ? await ctx.storage.getUrl(d.coverId) : null,
+        needsCover: d.sourceType === "pdf" && d.status === "ready" && !d.coverId && !d.coverChecked,
         lastReadAt: d.lastReadAt ?? null,
       };
-    });
+    }));
+  },
+});
+
+// Saves a cover image the browser made (a PDF's first page). The image is checked here, not trusted.
+// Returns instead of throwing on a bad image, so the delete of the uploaded file isn't rolled back.
+export const setCover = mutation({
+  args: { documentId: v.id("documents"), coverId: v.id("_storage") },
+  handler: async (ctx, { documentId, coverId }) => {
+    const userId = await requireUser(ctx);
+    const doc = await getOwnDocument(ctx, userId, documentId);
+    const meta = await ctx.db.system.get(coverId);
+    const problem = !doc ? "That book isn't in your library." : validateCover(meta ? { contentType: meta.contentType, size: meta.size } : null);
+    if (problem) {
+      await ctx.storage.delete(coverId).catch(() => {});
+      return { ok: false as const, message: problem };
+    }
+    if (doc!.coverId) await ctx.storage.delete(doc!.coverId).catch(() => {});
+    await ctx.db.patch(documentId, { coverId });
+    return { ok: true as const };
+  },
+});
+
+// Page 1 isn't a cover (mostly white: a text or title page). Remember that, so it isn't drawn again.
+export const skipCover = mutation({
+  args: { documentId: v.id("documents") },
+  handler: async (ctx, { documentId }) => {
+    const userId = await requireUser(ctx);
+    const doc = await getOwnDocument(ctx, userId, documentId);
+    if (doc && !doc.coverId) await ctx.db.patch(documentId, { coverChecked: true });
   },
 });
 
@@ -138,16 +169,17 @@ export const remove = mutation({
     const doc = await getOwnDocument(ctx, userId, documentId);
     if (!doc) return;
     await ctx.db.delete(documentId);
-    await ctx.scheduler.runAfter(0, internal.documents.purge, { documentId, fileId: doc.fileId });
+    await ctx.scheduler.runAfter(0, internal.documents.purge, { documentId, fileId: doc.fileId, coverId: doc.coverId });
   },
 });
 
 const PURGE_BATCH = 400;
 
 export const purge = internalMutation({
-  args: { documentId: v.id("documents"), fileId: v.optional(v.id("_storage")) },
-  handler: async (ctx, { documentId, fileId }) => {
+  args: { documentId: v.id("documents"), fileId: v.optional(v.id("_storage")), coverId: v.optional(v.id("_storage")) },
+  handler: async (ctx, { documentId, fileId, coverId }) => {
     if (fileId) await ctx.storage.delete(fileId).catch(() => {});
+    if (coverId) await ctx.storage.delete(coverId).catch(() => {});
     const batches = await Promise.all([
       ctx.db.query("chunks").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("highlights").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),

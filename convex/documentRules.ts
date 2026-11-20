@@ -30,6 +30,24 @@ export function documentTitle(metaTitle: string | undefined, fileName: string): 
   return title.slice(0, 120);
 }
 
+// Covers are small images the browser makes (a PDF's first page, an EPUB's cover).
+export const MAX_COVER_BYTES = 1024 * 1024;
+const COVER_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+export function validateCover(file: { contentType?: string; size: number } | null): string | undefined {
+  if (!file || file.size === 0) return "No cover image was uploaded.";
+  if (!file.contentType || !COVER_TYPES.includes(file.contentType)) return "A cover must be a JPEG, PNG, WebP or GIF image.";
+  if (file.size > MAX_COVER_BYTES) return "That cover image is too large.";
+  return undefined;
+}
+
+// A first page counts as a cover when enough of it is ink or colour. Text and title pages are mostly white
+// (about 3–12% ink); real covers are mostly picture. `inkShare` is the share of sampled pixels that aren't near-white.
+export const MIN_COVER_INK = 0.2;
+export function looksLikeCover(inkShare: number): boolean {
+  return inkShare >= MIN_COVER_INK;
+}
+
 export const MAX_TITLE = 120;
 
 export function validateTitle(title: string): string | undefined {

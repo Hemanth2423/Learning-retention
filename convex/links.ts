@@ -64,7 +64,7 @@ export const finish = internalMutation({
       pageCount: Math.max(1, blocks.length),
       // One "chapter" covering the whole item, so the existing note and Ask code work unchanged.
       sections: [{ key, title: title.slice(0, 120), level: 1, locator: { kind: "text", page: 1 } }],
-      lastReadAt: Date.now(),
+      // No lastReadAt: it's "New" in the library until it's opened (adding no longer opens it).
     });
   },
 });

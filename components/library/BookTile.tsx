@@ -22,6 +22,8 @@ export type LibraryBook = {
   sourceType: "pdf" | "article" | "video";
   siteName: string | null;
   imageUrl: string | null;
+  coverUrl: string | null;
+  needsCover: boolean;
 };
 
 // Where a library item opens: a book's chapter path, or straight into an article or video.
@@ -32,8 +34,8 @@ export const progressOf = (b: LibraryBook) => b.progress;
 function metaLine(b: LibraryBook): string {
   if (b.status === "processing") return b.sourceType === "pdf" ? "Preparing…" : "Adding…";
   if (b.status === "failed") return "Couldn't read this PDF";
-  if (b.sourceType === "article") return `Article · ${b.siteName ?? "web"}`;
-  if (b.sourceType === "video") return `Video · ${b.siteName ?? "YouTube"}`;
+  if (b.sourceType === "article") return b.status === "ready" && b.statusMessage ? "Article · saved as a link" : "Article";
+  if (b.sourceType === "video") return "Video";
   if (!b.page) return "Not started";
   return `p. ${b.page} of ${b.pageCount}${b.chapterNumber ? ` · Ch ${b.chapterNumber}` : ""}`;
 }
@@ -76,11 +78,12 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
       <BookCover
         id={book._id}
         title={book.title}
-        pageCount={book.sourceType === "pdf" ? book.pageCount : undefined}
+        meta={book.sourceType === "pdf" && book.pageCount ? `${book.pageCount} pages` : undefined}
+        coverUrl={book.coverUrl}
         imageUrl={book.imageUrl}
         kind={book.sourceType}
         label={book.sourceType === "pdf" ? undefined : (book.siteName ?? undefined)}
-        className="aspect-[2/3] w-full transition-transform group-hover:-translate-y-1"
+        className="w-full text-ui transition-transform group-hover:-translate-y-1 group-hover:border-accent"
         badge={!book.lastReadAt && openable ? "New" : undefined}
       />
       {editing ? (
@@ -101,7 +104,7 @@ export function BookTile({ book, onRemove, onError }: { book: LibraryBook; onRem
           className="input mt-2.5 border-accent py-1 font-semibold"
         />
       ) : (
-        <div className="mt-2.5 line-clamp-2 font-semibold leading-snug" title={book.title}>
+        <div className="mt-2.5 line-clamp-2 font-semibold leading-snug group-hover:text-accent-dark" title={book.title}>
           {book.title}
         </div>
       )}
