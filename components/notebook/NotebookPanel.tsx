@@ -47,12 +47,14 @@ export type NotebookProps = {
   onSeek?: (seconds: number) => void; // videos
   onNotice: (message: string) => void;
   emptyHint: string; // what to do when there's nothing yet
+  kinds?: Exclude<NotebookFilter, "all">[]; // what this source can have: videos have notes only; saved questions come from book tests
 };
 
 // The Notebook tab: notes, highlights (with comments) and saved questions in one list, for this chapter or the
 // whole book. Writing and editing happen in the compose window pinned to the bottom of the drawer.
 export function NotebookPanel(p: NotebookProps) {
   const { state, ranges, single } = p;
+  const shownKinds = p.kinds ?? ["notes", "highlights", "saved"];
   const [scope, setScope] = useState<"chapter" | "book">(single || !p.currentKey ? "book" : "chapter");
   const [filter, setFilter] = useState<NotebookFilter>("all");
   const [query, setQuery] = useState("");
@@ -126,7 +128,7 @@ export function NotebookPanel(p: NotebookProps) {
               </button>
             </div>
           ) : (
-            <span className="text-meta font-semibold text-muted">{single ? "Your notes and highlights" : "Whole book"}</span>
+            <span className="text-meta font-semibold text-muted">{!single ? "Whole book" : shownKinds.includes("highlights") ? "Your notes and highlights" : "Your notes"}</span>
           )}
           <button
             className="icon-btn ml-auto"
@@ -140,9 +142,6 @@ export function NotebookPanel(p: NotebookProps) {
           >
             ⌕
           </button>
-          <button className="quiet" onClick={() => setExporting(true)} title="Download, print or copy your notes">
-            ⤓ Export
-          </button>
         </div>
         {searching && (
           <div className="shrink-0 px-4 pb-2">
@@ -150,7 +149,7 @@ export function NotebookPanel(p: NotebookProps) {
           </div>
         )}
         <div role="group" aria-label="Filter" className="flex shrink-0 flex-wrap gap-1.5 px-4 pb-2.5">
-          {FILTERS.map((f) => (
+          {FILTERS.filter((f) => f.key === "all" || shownKinds.includes(f.key)).map((f) => (
             <button key={f.key} className="chip !py-0.5" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
               {f.label}
             </button>
@@ -200,9 +199,15 @@ export function NotebookPanel(p: NotebookProps) {
           )}
         </div>
         <div className="shrink-0 border-t border-line bg-cream px-4 pb-3.5 pt-3">
-          <button className="chunky w-full" onClick={() => write(writeKey)}>
-            ✏️ Write a note
-          </button>
+          {/* Write is the main action; Export sits beside it as the second (prototype 005, round 5). */}
+          <div className="flex gap-2">
+            <button className="chunky min-w-0 flex-1" onClick={() => write(writeKey)}>
+              ✏️ Write a note
+            </button>
+            <button className="chunky chunky-light shrink-0" onClick={() => setExporting(true)} title="Download, print or copy your notes">
+              ⤓ Export
+            </button>
+          </div>
           <p className="mt-1.5 truncate text-center text-label text-muted">
             {single ? "Goes to your notes" : p.currentKey ? `Goes to ${chapterTitle}` : "Goes to General notes"} · or press N
           </p>

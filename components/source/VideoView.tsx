@@ -118,6 +118,7 @@ export function VideoView({ doc }: { doc: VideoDoc }) {
           onJumpPage={() => {}}
           onSeek={seek}
           onNotice={setNotice}
+          kinds={["notes"]}
           emptyHint="Nothing here yet. Type a quick note under the video: it keeps the time, so you can jump back."
         />
       ),

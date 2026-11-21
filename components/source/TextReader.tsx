@@ -259,6 +259,7 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
           onJumpHighlight={(h) => h.range && textRef.current && flashHighlight(textRef.current, h.range)}
           onJumpPage={jumpTo}
           onNotice={setNotice}
+          kinds={isBook ? ["notes", "highlights", "saved"] : readable ? ["notes", "highlights"] : ["notes"]}
           emptyHint={readable ? "Nothing here yet. Select text to highlight it, or write a note." : "Nothing here yet. Write a note about what you read."}
         />
       ),

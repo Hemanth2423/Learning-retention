@@ -313,6 +313,7 @@ export function Reader({ doc, url, startPage, startNotes, startNotebook }: { doc
           }
           onJumpPage={jumpToPage}
           onNotice={setNotice}
+          kinds={canHighlight ? ["notes", "highlights", "saved"] : ["notes"]} // scanned PDFs have no highlights or tests
           emptyHint={canHighlight ? "Nothing here yet. Select text in the book to highlight it, or write a note." : "Nothing here yet. Write a note about what you read."}
         />
       ),
