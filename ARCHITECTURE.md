@@ -106,3 +106,9 @@ See [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebo
 | **Export** | `convex/exportRules.ts`: the one builder (book → chapters in order → notes, highlights + comments, saved questions) → Markdown, print HTML; built in the browser, nothing sent anywhere. Notion / Google Docs reuse it | One tested builder for every destination (TEAM-PLAN.md) |
 | ⚠ **EPUB, Word, PowerPoint** | `sourceType` adds `epub`/`word`/`powerpoint`; read in the browser (`components/upload/readFile.ts`, deps `fflate`, `mammoth`) into Markdown blocks; `convex/textSources.ts` + `textSourceRules.ts` re-check everything; one `TextReader` for all text sources (ADR 015) | No server parsing or AI; EPUB gets the full book experience |
 
+## Feature 4: folders (approved 2026-11-21)
+
+| Change | How | Why this way |
+|---|---|---|
+| ⚠ **Folders** | `folders` table + optional `documents.folderId` (index `by_folder`); `convex/folders.ts` (list, create, rename, remove, moveItems) + `folderRules.ts`; add paths take an optional `folderId`; rail in `components/library/FolderRail.tsx` (ADR 016) | Any format in any folder; deleting a folder never deletes items |
+

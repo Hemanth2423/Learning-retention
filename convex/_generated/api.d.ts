@@ -19,6 +19,8 @@ import type * as dashboard from "../dashboard.js";
 import type * as documentRules from "../documentRules.js";
 import type * as documents from "../documents.js";
 import type * as exportRules from "../exportRules.js";
+import type * as folderRules from "../folderRules.js";
+import type * as folders from "../folders.js";
 import type * as gamification from "../gamification.js";
 import type * as helpers from "../helpers.js";
 import type * as highlightRules from "../highlightRules.js";
@@ -76,6 +78,8 @@ declare const fullApi: ApiFromModules<{
   documentRules: typeof documentRules;
   documents: typeof documents;
   exportRules: typeof exportRules;
+  folderRules: typeof folderRules;
+  folders: typeof folders;
   gamification: typeof gamification;
   helpers: typeof helpers;
   highlightRules: typeof highlightRules;

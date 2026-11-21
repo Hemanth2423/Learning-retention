@@ -33,6 +33,7 @@ export default defineSchema({
     videoId: v.optional(v.string()),
     coverId: v.optional(v.id("_storage")), // a small cover image: a PDF's first page or an EPUB's own cover (made in the browser)
     coverChecked: v.optional(v.boolean()), // page 1 was looked at and isn't a cover (a plain text page): keep the colour cover
+    folderId: v.optional(v.id("folders")), // the library folder it's filed in (ADR 016); none = "No folder"
     status: v.union(v.literal("processing"), v.literal("ready"), v.literal("failed")),
     statusMessage: v.optional(v.string()),
     hasText: v.optional(v.boolean()), // false = scanned/image-only: reading works, highlights and chat are off
@@ -43,7 +44,16 @@ export default defineSchema({
     pagesSeen: v.optional(v.string()), // one character per page: "1" once it was on screen for ~2 s (see readingRules.ts)
   })
     .index("by_user", ["userId"])
-    .index("by_user_source", ["userId", "sourceUrl"]),
+    .index("by_user_source", ["userId", "sourceUrl"])
+    .index("by_folder", ["folderId"]),
+
+  // A reader's library folder (ADR 016). Holds any kind of item; an item is in at most one folder.
+  folders: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    colour: v.string(),
+    emoji: v.string(),
+  }).index("by_user", ["userId"]),
 
   // A highlight, with an optional comment. `locator` is its first page (where the left panel jumps).
   // `segments` are the PDF boxes it covers, one entry per page, as fractions of the page size.

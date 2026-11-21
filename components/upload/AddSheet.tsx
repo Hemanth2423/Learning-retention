@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateUpload } from "@/convex/documentRules";
+import { Id } from "@/convex/_generated/dataModel";
+import { FolderOption } from "@/components/library/BookTile";
 import { parseLink } from "@/convex/linkRules";
 import { coverColour } from "@/components/library/BookCover";
 import { FILE_HINT, FILE_ACCEPT, MAX_FILES_AT_ONCE, fileKindLabel, fileNote } from "./sources";
@@ -27,7 +29,20 @@ export function checkLinks(text: string) {
 // "Add to your library": files (several at once) or links (one per line). Each item gets its own row and a
 // reason if it can't be added; pressing Add hands the good ones to the corner queue.
 // Mounted only while open, so each opening starts fresh (with any files dropped onto the Add card).
-export function AddSheet({ initialFiles, onClose, onAdd }: { initialFiles?: File[]; onClose: () => void; onAdd: (files: File[], links: string[]) => void }) {
+export function AddSheet({
+  initialFiles,
+  folders = [],
+  initialFolder = null,
+  onClose,
+  onAdd,
+}: {
+  initialFiles?: File[];
+  folders?: FolderOption[];
+  initialFolder?: Id<"folders"> | null; // the open folder: new items go there unless changed
+  onClose: () => void;
+  onAdd: (files: File[], links: string[], folderId: Id<"folders"> | null) => void;
+}) {
+  const [folderId, setFolderId] = useState<Id<"folders"> | null>(initialFolder);
   const [tab, setTab] = useState<Tab>("files");
   const [files, setFiles] = useState<File[]>(() => (initialFiles ?? []).slice(0, MAX_FILES_AT_ONCE));
   const [text, setText] = useState("");
@@ -185,6 +200,24 @@ export function AddSheet({ initialFiles, onClose, onAdd }: { initialFiles?: File
           </div>
         )}
 
+        {folders.length > 0 && (
+          <label className="mt-3.5 flex items-center gap-2.5 rounded-xl border border-line bg-cream px-3 py-2">
+            <span className="text-label font-bold uppercase tracking-[0.08em] text-muted">Add to</span>
+            <select
+              value={folderId ?? ""}
+              onChange={(e) => setFolderId((e.target.value || null) as Id<"folders"> | null)}
+              className="min-w-0 flex-1 rounded-lg border-[1.5px] border-line bg-white px-2 py-1 text-ui focus:border-ink focus:outline-none"
+            >
+              <option value="">No folder</option>
+              {folders.map((f) => (
+                <option key={f._id} value={f._id}>
+                  {f.emoji} {f.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <div className="mt-4 flex items-center justify-between gap-3">
           {tab === "files" && files.length > 0 ? (
             // Checked while picking: the total, and how many can't be added (each file can be up to 25 MB).
@@ -204,7 +237,7 @@ export function AddSheet({ initialFiles, onClose, onAdd }: { initialFiles?: File
           ) : (
             <span className="text-meta text-muted">Books get a chapter path and tests. Articles and videos: read or watch and take notes.</span>
           )}
-          <button className="chunky shrink-0" disabled={count === 0} onClick={() => onAdd(goodFiles, goodLinks)}>
+          <button className="chunky shrink-0" disabled={count === 0} onClick={() => onAdd(goodFiles, goodLinks, folderId)}>
             {count === 0 ? "Add to library" : `Add ${count} to library`}
           </button>
         </div>

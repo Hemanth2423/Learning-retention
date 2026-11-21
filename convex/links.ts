@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { folderForNewItem } from "./folders";
 import { MAX_TEXT_BLOCKS } from "./textSourceRules";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -20,8 +21,8 @@ export type AddLinkResult =
 
 // Step 1: refuse duplicates and reserve the item, in one transaction (two quick clicks can't add it twice).
 export const begin = internalMutation({
-  args: { userId: v.id("users"), url: v.string(), kind: v.union(v.literal("article"), v.literal("video")), videoId: v.optional(v.string()), title: v.string() },
-  handler: async (ctx, { userId, url, kind, videoId, title }): Promise<AddLinkResult> => {
+  args: { userId: v.id("users"), url: v.string(), kind: v.union(v.literal("article"), v.literal("video")), videoId: v.optional(v.string()), title: v.string(), folderId: v.optional(v.id("folders")) },
+  handler: async (ctx, { userId, url, kind, videoId, title, folderId }): Promise<AddLinkResult> => {
     const existing = await ctx.db.query("documents").withIndex("by_user_source", (q) => q.eq("userId", userId).eq("sourceUrl", url)).first();
     if (existing) return { ok: false, message: "That's already in your library.", documentId: existing._id };
     const documentId = await ctx.db.insert("documents", {
@@ -30,6 +31,7 @@ export const begin = internalMutation({
       sourceType: kind,
       sourceUrl: url,
       videoId,
+      folderId: await folderForNewItem(ctx, userId, folderId),
       status: "processing",
       statusMessage: kind === "video" ? "Adding the video…" : "Reading the article…",
     });
@@ -81,15 +83,15 @@ const httpsOrUndefined = (u: unknown) => (typeof u === "string" && /^https:\/\//
 const firstString = (u: unknown) => (Array.isArray(u) ? u.find((x) => typeof x === "string") : u);
 
 export const add = action({
-  args: { url: v.string() },
-  handler: async (ctx, { url }): Promise<AddLinkResult> => {
+  args: { url: v.string(), folderId: v.optional(v.id("folders")) },
+  handler: async (ctx, { url, folderId }): Promise<AddLinkResult> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { ok: false, message: "Please log in first." };
     const link = parseLink(url);
     if (!link) return { ok: false, message: "That doesn't look like an article or YouTube link." };
 
     const placeholder = link.kind === "video" ? "YouTube video" : siteNameOf(link.host);
-    const start = await ctx.runMutation(internal.links.begin, { userId, url: link.url, kind: link.kind, videoId: link.kind === "video" ? link.videoId : undefined, title: placeholder });
+    const start = await ctx.runMutation(internal.links.begin, { userId, url: link.url, kind: link.kind, videoId: link.kind === "video" ? link.videoId : undefined, title: placeholder, folderId });
     if (!start.ok) return start;
     const { documentId } = start;
 

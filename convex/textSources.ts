@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateCover, validateTitle } from "./documentRules";
+import { folderForNewItem } from "./folders";
 import { getOwnDocument, requireUser } from "./helpers";
 import { KIND_LABEL, kindOfFile, MAX_TEXT_BLOCKS, TextKind, validateBlocks, validateSections } from "./textSourceRules";
 
@@ -12,8 +13,8 @@ const kindArg = v.union(v.literal("epub"), v.literal("word"), v.literal("powerpo
 const section = v.object({ key: v.string(), title: v.string(), level: v.number(), locator: v.object({ kind: v.literal("text"), page: v.number() }) });
 
 export const begin = mutation({
-  args: { fileId: v.id("_storage"), fileName: v.string(), kind: kindArg, title: v.string() },
-  handler: async (ctx, { fileId, fileName, kind, title }) => {
+  args: { fileId: v.id("_storage"), fileName: v.string(), kind: kindArg, title: v.string(), folderId: v.optional(v.id("folders")) },
+  handler: async (ctx, { fileId, fileName, kind, title, folderId }) => {
     const userId = await requireUser(ctx);
     const meta = await ctx.db.system.get(fileId);
     const label = KIND_LABEL[kind];
@@ -35,6 +36,7 @@ export const begin = mutation({
       title: title.trim(),
       sourceType: kind as TextKind,
       fileId,
+      folderId: await folderForNewItem(ctx, userId, folderId),
       status: "processing",
       statusMessage: `Reading your ${label} file…`,
     });

@@ -8,7 +8,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BookCover } from "@/components/library/BookCover";
-import { BookTile, LibraryBook, progressOf } from "@/components/library/BookTile";
+import { BookTile, FolderOption, LibraryBook, progressOf } from "@/components/library/BookTile";
+import { FolderRail, FolderView } from "@/components/library/FolderRail";
+import { errorMessage } from "@/components/FieldError";
+import { folderCounts, inFolder } from "@/convex/folderRules";
 import { timeAgo } from "@/components/library/time";
 import { ReadingShell } from "@/components/ReadingShell";
 import { renderPdfCover, uploadImage } from "@/components/library/covers";
@@ -20,6 +23,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
 type Sort = "recent" | "title" | "progress";
+const NO_FOLDERS: FolderOption[] = [];
 type Filter = "all" | "book" | "article" | "video";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
@@ -60,7 +64,7 @@ function useCoverBackfill(books: LibraryBook[] | undefined) {
 }
 
 // The "+" card: opens the Add sheet. Files dropped straight onto it open the sheet with them listed.
-function AddCard({ onOpen }: { onOpen: (files?: File[]) => void }) {
+function AddCard({ onOpen, into }: { onOpen: (files?: File[]) => void; into?: string }) {
   const [dragging, setDragging] = useState(false);
   return (
     <button
@@ -92,6 +96,11 @@ function AddCard({ onOpen }: { onOpen: (files?: File[]) => void }) {
         ))}
       </span>
       <span className="text-meta text-muted">or paste article and YouTube links</span>
+      {into && (
+        <span className="text-meta text-muted">
+          Goes into <b className="text-accent-dark">{into}</b>
+        </span>
+      )}
     </button>
   );
 }
@@ -168,29 +177,118 @@ function Library() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>("recent");
   const [filter, setFilter] = useState<Filter>("all");
-  const [adding, setAdding] = useState<{ files?: File[] } | null>(null);
+  const [adding, setAdding] = useState<{ files?: File[]; folder?: Id<"folders"> | null } | null>(null);
+  const folders = (useQuery(api.folders.list) as FolderOption[] | undefined) ?? NO_FOLDERS;
+  const createFolder = useMutation(api.folders.create);
+  const renameFolder = useMutation(api.folders.rename);
+  const removeFolder = useMutation(api.folders.remove);
+  const moveItems = useMutation(api.folders.moveItems);
+  const [view, setView] = useState<FolderView>("all");
+  const [dragging, setDragging] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [folderMenu, setFolderMenu] = useState(false);
+  const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
+  const setNotice = useCallback((message: string | null) => setToast(message ? { message } : null), []);
+  const openFolder = folders.find((f) => f._id === view);
+  // A folder that was deleted (here or in another tab) falls back to All items.
+  const current: FolderView = view === "all" || view === "none" || openFolder ? view : "all";
   const queue = useAddQueue();
   useCoverBackfill(books);
   const closeSheet = useCallback(() => setAdding(null), []);
   const [removing, setRemoving] = useState<LibraryBook | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  // Move items, remembering where each came from so Undo puts them back.
+  const move = useCallback(
+    async (ids: Id<"documents">[], folderId: Id<"folders"> | null) => {
+      const before = new Map(ids.map((id) => [id, books?.find((b) => b._id === id)?.folderId ?? null]));
+      const changing = ids.filter((id) => before.get(id) !== folderId);
+      if (!changing.length) return;
+      try {
+        await moveItems({ documentIds: changing, folderId });
+      } catch (err) {
+        return setNotice(errorMessage(err));
+      }
+      const name = folderId ? folders.find((f) => f._id === folderId)?.name : "No folder";
+      setToast({
+        message: `${changing.length === 1 ? `Moved “${books?.find((b) => b._id === changing[0])?.title ?? "item"}”` : `Moved ${changing.length} items`} to ${name}`,
+        undo: () => {
+          const groups = new Map<Id<"folders"> | null, Id<"documents">[]>();
+          for (const id of changing) groups.set(before.get(id) ?? null, [...(groups.get(before.get(id) ?? null) ?? []), id]);
+          for (const [f, list] of groups) void moveItems({ documentIds: list, folderId: f }).catch(() => {});
+          setToast(null);
+        },
+      });
+    },
+    [books, folders, moveItems, setNotice]
+  );
+
+  async function newFolder(name: string): Promise<string | null> {
+    try {
+      const id = await createFolder({ name });
+      setView(id);
+      setToast({ message: `Made “${name.trim()}”. Drag items onto it, or add files straight into it.` });
+      return null;
+    } catch (err) {
+      return errorMessage(err);
+    }
+  }
+
+  async function deleteFolder(f: FolderOption) {
+    setFolderMenu(false);
+    try {
+      const { moved } = await removeFolder({ folderId: f._id });
+      setView("all");
+      setToast({
+        message: `Deleted “${f.name}”. Its ${moved.length} item${moved.length === 1 ? "" : "s"} ${moved.length === 1 ? "is" : "are"} in No folder.`,
+        undo: async () => {
+          setToast(null);
+          try {
+            const id = await createFolder({ name: f.name, emoji: f.emoji });
+            if (moved.length) await moveItems({ documentIds: moved, folderId: id });
+            setView(id);
+          } catch (err) {
+            setNotice(errorMessage(err));
+          }
+        },
+      });
+    } catch (err) {
+      setNotice(errorMessage(err));
+    }
+  }
+
+  async function saveRename(f: FolderOption, name: string) {
+    setRenaming(null);
+    if (!name.trim() || name.trim() === f.name) return;
+    await renameFolder({ folderId: f._id, name }).catch((err) => setNotice(errorMessage(err)));
+  }
 
   const latest = books?.find((b) => b.status === "ready" && b.page) ?? books?.find((b) => b.status === "ready");
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = (books ?? []).filter((b) => (filter === "all" || groupOf(b) === filter) && (!q || b.title.toLowerCase().includes(q)));
+    const scope = q ? (books ?? []) : inFolder(books ?? [], current);
+    const list = scope.filter((b) => (filter === "all" || groupOf(b) === filter) && (!q || b.title.toLowerCase().includes(q)));
     if (sort === "title") return [...list].sort((a, b) => a.title.localeCompare(b.title));
     if (sort === "progress") return [...list].sort((a, b) => progressOf(b) - progressOf(a));
     return list; // the server already sorts by most recently read
-  }, [books, search, sort, filter]);
+  }, [books, search, sort, filter, current]);
+  const fCounts = useMemo(() => folderCounts(books ?? []), [books]);
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { all: 0, book: 0, article: 0, video: 0 };
-    for (const b of books ?? []) {
+    const q = search.trim().toLowerCase();
+    for (const b of q ? (books ?? []).filter((x) => x.title.toLowerCase().includes(q)) : inFolder(books ?? [], current)) {
       c.all++;
       c[groupOf(b)]++;
     }
     return c;
-  }, [books]);
+  }, [books, current, search]);
+  const searching = !!search.trim();
+  const viewTitle = searching ? `Results for “${search.trim()}”` : current === "all" ? "Your library" : current === "none" ? "No folder" : `${openFolder!.emoji} ${openFolder!.name}`;
 
   return (
     <div className="flex-1">
@@ -200,7 +298,14 @@ function Library() {
         </span>
         <label className="flex max-w-sm flex-1 items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted">
           <span aria-hidden="true">⌕</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your library" aria-label="Search your library" className="flex-1 bg-transparent text-ink outline-none" />
+          <input
+            value={search}
+            onChange={(e) => {
+              // A new search looks across every folder and every kind.
+              if (!search.trim() && e.target.value.trim()) setFilter("all");
+              setSearch(e.target.value);
+            }}
+            placeholder="Search your library" aria-label="Search your library" className="flex-1 bg-transparent text-ink outline-none" />
         </label>
         <div className="ml-auto">
           <XpStats />
@@ -226,13 +331,84 @@ function Library() {
               </button>
             </div>
           )}
-          <AddCard onOpen={(files) => setAdding({ files })} />
+          <AddCard onOpen={(files) => setAdding({ files, folder: openFolder?._id ?? null })} into={openFolder ? `${openFolder.emoji} ${openFolder.name}` : undefined} />
         </div>
 
         {!!books?.length && (
-          <>
-            <div className="mt-8 flex flex-wrap items-center gap-2.5">
-              <h2 className="mr-1.5 font-serif text-h2 font-bold">Your library</h2>
+          // Layout C (prototype 008): the primary actions above stay full width; folders sit beside the shelf.
+          // Phones: heading, then the folder chips, then the shelf. Wide screens: the rail spans heading and shelf.
+          <div className="mt-8 grid gap-x-6 gap-y-3 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr]">
+            <div className="max-md:order-2 md:col-start-1 md:row-span-2 md:row-start-1">
+            <FolderRail
+              folders={folders}
+              counts={fCounts}
+              view={current}
+              dragging={dragging}
+              onView={(v) => {
+                setView(v);
+                setSearch("");
+                setFilter("all");
+              }}
+              onCreate={newFolder}
+              onDropItems={(ids, folderId) => {
+                setDragging(false);
+                void move(ids, folderId);
+              }}
+              onDropFiles={(files, folderId) => {
+                if (folderId) setView(folderId);
+                setAdding({ files, folder: folderId });
+              }}
+            />
+            </div>
+            <section aria-label={viewTitle} className="contents">
+            <div className="flex min-w-0 flex-wrap items-center gap-2.5 max-md:order-1 md:col-start-2 md:row-start-1">
+              {renaming !== null && openFolder ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void saveRename(openFolder, renaming);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <input
+                    autoFocus
+                    value={renaming}
+                    maxLength={40}
+                    onChange={(e) => setRenaming(e.target.value)}
+                    onBlur={() => void saveRename(openFolder, renaming)}
+                    onKeyDown={(e) => e.key === "Escape" && setRenaming(null)}
+                    aria-label="Folder name"
+                    className="input py-1 font-serif text-h3 font-bold"
+                  />
+                </form>
+              ) : (
+                <h2 className="mr-1.5 min-w-0 truncate font-serif text-h2 font-bold">{viewTitle}</h2>
+              )}
+              {openFolder && !searching && renaming === null && (
+                <div className="relative">
+                  <button className="icon-btn" aria-label={`Options for ${openFolder.name}`} aria-haspopup="menu" aria-expanded={folderMenu} onClick={() => setFolderMenu((m) => !m)}>
+                    ⋯
+                  </button>
+                  {folderMenu && (
+                    <div role="menu" className="absolute left-0 top-9 z-30 min-w-[230px] rounded-xl border border-line bg-card p-1 shadow-lg" onMouseLeave={() => setFolderMenu(false)}>
+                      <button
+                        role="menuitem"
+                        autoFocus
+                        className="w-full rounded-lg px-2.5 py-2 text-left text-ui hover:bg-panel"
+                        onClick={() => {
+                          setFolderMenu(false);
+                          setRenaming(openFolder.name);
+                        }}
+                      >
+                        ✏️ Rename folder
+                      </button>
+                      <button role="menuitem" className="w-full rounded-lg px-2.5 py-2 text-left text-ui text-accent-dark hover:bg-panel" onClick={() => void deleteFolder(openFolder)}>
+                        🗑 Delete folder (keeps its items)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
                 {FILTERS.filter((f) => f.key === "all" || counts[f.key] > 0).map((f) => (
                   <button key={f.key} className="chip" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
@@ -253,28 +429,46 @@ function Library() {
                 ))}
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-x-5 gap-y-[26px]">
+            <div className="grid min-w-0 grid-cols-[repeat(auto-fill,minmax(160px,1fr))] content-start gap-x-5 gap-y-[26px] max-md:order-3 md:col-start-2 md:row-start-2 md:mt-1">
               {shown.map((b) => (
-                <BookTile key={b._id} book={b} onRemove={setRemoving} onError={setNotice} />
+                <BookTile
+                  key={b._id}
+                  book={b}
+                  onRemove={setRemoving}
+                  onError={setNotice}
+                  folders={folders}
+                  showFolder={current === "all" || searching}
+                  onMove={(ids, folderId) => void move(ids, folderId)}
+                  onDragChange={setDragging}
+                />
               ))}
               {shown.length === 0 && (
                 <p className="empty-note col-span-full">
-                  {search.trim() ? `Nothing matches “${search.trim()}”. Try a shorter word, or clear the search.` : "Nothing here yet. Choose All to see everything in your library."}
+                  {searching
+                    ? `Nothing matches “${search.trim()}”. Try a shorter word, or clear the search.`
+                    : openFolder && filter === "all"
+                      ? "This folder is empty. Drag items here from All items, or use Add to your library above: new items go straight into this folder."
+                      : current === "none" && filter === "all"
+                        ? "Everything is in a folder."
+                        : "Nothing of this kind here. Choose All to see everything in this view."}
                 </p>
               )}
             </div>
-          </>
+            </section>
+          </div>
         )}
       </main>
 
       {adding && (
         <AddSheet
           initialFiles={adding.files}
+          folders={folders}
+          initialFolder={adding.folder ?? null}
           onClose={closeSheet}
-          onAdd={(files, links) => {
+          onAdd={(files, links, folderId) => {
             setAdding(null);
-            if (files.length) queue.addFiles(files);
-            if (links.length) queue.addLinks(links);
+            if (files.length) queue.addFiles(files, folderId ?? undefined);
+            if (links.length) queue.addLinks(links, folderId ?? undefined);
           }}
         />
       )}
@@ -291,9 +485,17 @@ function Library() {
           if (b) removeBook({ documentId: b._id }).catch(() => setNotice("We couldn't remove that book. Try again."));
         }}
       />
-      {notice && (
-        <p role="alert" onClick={() => setNotice(null)} className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-ui text-white shadow-lg">
-          {notice}
+      {toast && (
+        <p role="status" className="fixed bottom-6 left-1/2 z-40 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-lg bg-ink px-4 py-2 text-ui text-white shadow-lg">
+          <span className="min-w-0 truncate">{toast.message}</span>
+          {toast.undo && (
+            <button className="shrink-0 font-bold text-ochre hover:underline" onClick={toast.undo}>
+              Undo
+            </button>
+          )}
+          <button className="shrink-0 text-white/70 hover:text-white" aria-label="Dismiss" onClick={() => setToast(null)}>
+            ✕
+          </button>
         </p>
       )}
     </div>

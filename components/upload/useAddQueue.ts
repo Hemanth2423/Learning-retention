@@ -78,7 +78,7 @@ export function useAddQueue() {
   // EPUB / Word / PowerPoint: read in the browser first (a file that can't be read fails here, nothing saved),
   // then upload the original, send the text in batches, and finish with the contents (and an EPUB's cover).
   const addTextFile = useCallback(
-    async (id: string, file: File, kind: "epub" | "word" | "powerpoint") => {
+    async (id: string, file: File, kind: "epub" | "word" | "powerpoint", folderId?: Id<"folders">) => {
       update(id, { state: "reading" });
       let read;
       try {
@@ -91,7 +91,7 @@ export function useAddQueue() {
       try {
         update(id, { state: "uploading", pct: 0 });
         const fileId = await putFile(await generateUploadUrl(), file, (pct) => update(id, { pct }));
-        const started = await beginText({ fileId, fileName: file.name, kind, title: read.title.slice(0, 120) });
+        const started = await beginText({ fileId, fileName: file.name, kind, title: read.title.slice(0, 120), folderId });
         if (!started.ok) return update(id, { state: "failed", message: started.message });
         documentId = started.documentId;
         update(id, { state: "preparing", documentId });
@@ -114,7 +114,8 @@ export function useAddQueue() {
   );
 
   const addFiles = useCallback(
-    (files: File[]) => {
+    // folderId: add straight into that folder (the server ignores it if it's gone by then).
+    (files: File[], folderId?: Id<"folders">) => {
       for (const file of files) {
         const id = `q${nextId++}`;
         setItems((list) => [...list, { id, name: file.name, kind: "file", state: "waiting" }]);
@@ -122,11 +123,11 @@ export function useAddQueue() {
           id,
           run: async () => {
             const kind = kindOfFile(file.name);
-            if (kind && kind !== "pdf") return addTextFile(id, file, kind);
+            if (kind && kind !== "pdf") return addTextFile(id, file, kind, folderId);
             try {
               update(id, { state: "uploading", pct: 0 });
               const fileId = await putFile(await generateUploadUrl(), file, (pct) => update(id, { pct }));
-              const res = await createDocument({ fileId, fileName: file.name });
+              const res = await createDocument({ fileId, fileName: file.name, folderId });
               if (!res.ok) return update(id, { state: "failed", message: res.message });
               update(id, { state: "preparing", documentId: res.documentId });
               void file.arrayBuffer().then((data) => makeCover(res.documentId, data));
@@ -145,7 +146,7 @@ export function useAddQueue() {
   );
 
   const addLinks = useCallback(
-    (urls: string[]) => {
+    (urls: string[], folderId?: Id<"folders">) => {
       for (const url of urls) {
         const id = `q${nextId++}`;
         setItems((list) => [
@@ -161,7 +162,7 @@ export function useAddQueue() {
           id,
           run: async () => {
             update(id, { state: "adding" });
-            const res = await addLink({ url }).catch(() => ({
+            const res = await addLink({ url, folderId }).catch(() => ({
               ok: false as const,
               message: "We couldn't add that link just now. Try again.",
             }));

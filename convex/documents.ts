@@ -8,6 +8,7 @@ import { libraryOrder, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateCover, validateT
 import { getOwnDocument, requireUser } from "./helpers";
 import { locator } from "./locators";
 import { kindOfFile } from "./textSourceRules";
+import { folderForNewItem } from "./folders";
 import { awardXp } from "./xp";
 import { awardKey, XP } from "./xpRules";
 
@@ -22,8 +23,8 @@ export const generateUploadUrl = mutation({
 // Called after the browser has uploaded the file. Re-checks size on the server (the browser check can be skipped),
 // then starts the (non-AI) preparation.
 export const create = mutation({
-  args: { fileId: v.id("_storage"), fileName: v.string() },
-  handler: async (ctx, { fileId, fileName }) => {
+  args: { fileId: v.id("_storage"), fileName: v.string(), folderId: v.optional(v.id("folders")) },
+  handler: async (ctx, { fileId, fileName, folderId }) => {
     const userId = await requireUser(ctx);
     const meta = await ctx.db.system.get(fileId); // size of the uploaded file
     if (kindOfFile(fileName) !== "pdf") {
@@ -41,6 +42,7 @@ export const create = mutation({
       title: fileName.replace(/\.pdf$/i, "").slice(0, 120) || "Untitled",
       sourceType: "pdf",
       fileId,
+      folderId: await folderForNewItem(ctx, userId, folderId),
       status: "processing",
       statusMessage: "Preparing your book…",
     });
@@ -119,6 +121,7 @@ export const list = query({
         imageUrl: d.imageUrl ?? null,
         coverUrl: d.coverId ? await ctx.storage.getUrl(d.coverId) : null,
         needsCover: d.sourceType === "pdf" && d.status === "ready" && !d.coverId && !d.coverChecked,
+        folderId: d.folderId ?? null,
         lastReadAt: d.lastReadAt ?? null,
       };
     }));

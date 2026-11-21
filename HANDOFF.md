@@ -31,6 +31,8 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 
 ## Next action
 
+0. **Folders (Feature 4)** are built on `feat/folders` (stacked on `feat/feature-3-rest`), committed, not pushed: spec `tasks/feature-4-folders.md`, ADR 016. Open its PR after the Feature 3 PR. Mockups 006–008 (folders) and 007 (practice ladder, parked until Hemanth returns to it) are in the gitignored `.context/compound-engineering/ce-prototype/2026-11-21-folders-and-practice/`.
+
 1. **Merge PR #82** (Feature 3 spec + slice 1) after a teammate approves, deploy production, then rebase `feat/feature-3-rest` onto `main` and open its PR (slices 2–6, all committed locally, not pushed).
 2. **After deploying slice 5 anywhere:** run `npx convex run notebook:migrateReflections` until it returns 0 (moves old chapter notes into the Notebook; done on dev: 7 notes).
 3. **Tell @abbystern and @EEBarr14:** `convex/exportRules.ts` (buildExport + toMarkdown) is the shared builder; their Send buttons go in the Export sheet ("Soon" rows today).
