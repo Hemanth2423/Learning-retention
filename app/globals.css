@@ -115,20 +115,21 @@ body {
   }
   /* Segmented control: the selected option is soft terracotta, never a white pill */
   .seg {
-    @apply grid gap-0.5 rounded-xl border border-line bg-panel p-[3px];
+    @apply grid gap-1 rounded-xl bg-panel p-1;
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, auto); /* sized to each label; can still shrink in a narrow drawer */
   }
   .seg > button {
     @apply relative flex items-center justify-center gap-1.5 rounded-[9px] border border-transparent px-1.5 py-[7px] text-meta font-semibold text-muted transition hover:text-ink;
   }
+  /* One "selected" look everywhere (prototype 004, Hemanth 2026-11-21): a white pill, hairline border, terracotta text */
   .seg > button[aria-selected="true"],
-  .seg > button[aria-pressed="true"] { @apply border-accent bg-accent-soft text-accent-dark; }
-  /* Filter chips (library): the chosen one is ink */
+  .seg > button[aria-pressed="true"] { @apply border-line bg-white text-accent-dark shadow-[0_1px_2px_rgba(42,34,27,.08)]; }
+  /* Filter chips: same selected look as the toggles */
   .chip {
-    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-line bg-card px-[11px] py-1 text-meta font-medium text-muted transition hover:text-ink;
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-line bg-transparent px-[11px] py-1 text-meta font-medium text-muted transition hover:border-[#c9b9a0] hover:text-ink;
   }
-  .chip[aria-pressed="true"] { @apply border-ink bg-ink text-card; }
+  .chip[aria-pressed="true"] { @apply border-[#c9b9a0] bg-white font-semibold text-accent-dark shadow-[0_1px_2px_rgba(42,34,27,.08)]; }
   /* Small source label: PDF, EPUB, Article… */
   .kind {
     @apply inline-flex items-center rounded border border-line bg-panel px-1.5 text-label font-bold uppercase tracking-[0.06em] text-muted;

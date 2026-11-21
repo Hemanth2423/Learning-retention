@@ -138,7 +138,7 @@ export function VideoView({ doc }: { doc: VideoDoc }) {
           <p className="truncate text-label text-muted">YouTube · {doc.siteName}</p>
         </div>
         <button className="retro" aria-expanded={studyOpen} onClick={() => setStudyOpen((o) => !o)}>
-          📓 Notebook
+          📚 Study tools
         </button>
       </header>
       <div className="relative flex min-h-0 flex-1">

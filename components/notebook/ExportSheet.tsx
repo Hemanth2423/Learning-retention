@@ -132,10 +132,10 @@ export function ExportSheet({ documentId, onClose }: { documentId: Id<"documents
           <button className="chunky sm" disabled={empty} onClick={download}>
             ⤓ Markdown
           </button>
-          <button className="quiet" disabled={empty} onClick={print} title="Opens your browser's print window: choose Save as PDF">
+          <button className="chunky sm chunky-light" disabled={empty} onClick={print} title="Opens your browser's print window: choose Save as PDF">
             🖨 PDF / Print
           </button>
-          <button className="quiet" disabled={empty} onClick={() => void copy()}>
+          <button className="chunky sm chunky-light" disabled={empty} onClick={() => void copy()}>
             ⧉ Copy all
           </button>
         </div>

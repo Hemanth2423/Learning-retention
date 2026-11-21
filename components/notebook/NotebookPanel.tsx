@@ -105,6 +105,10 @@ export function NotebookPanel(p: NotebookProps) {
   }
 
   const empty = state.loaded && shown.length === 0;
+  // Items that match the filter but sit in other chapters: so "nothing here" never hides notes that exist.
+  const elsewhere = scope === "chapter" ? groups.reduce((n, g) => n + (g.key === chapterKey ? 0 : g.items.length), 0) : 0;
+  const inChapter = groups.find((g) => g.key === p.currentKey)?.items.length ?? 0;
+  const inBook = groups.reduce((n, g) => n + g.items.length, 0);
   return (
     <div className="relative flex h-full min-h-0">
       {p.wide && !single && (
@@ -122,9 +126,11 @@ export function NotebookPanel(p: NotebookProps) {
             <div role="tablist" aria-label="Show" className="seg max-w-[260px] flex-1">
               <button role="tab" aria-selected={scope === "chapter"} onClick={() => setScope("chapter")} title={chapterTitle} className="!py-1 !text-label">
                 This {unit}
+                {inChapter > 0 && <span className="ml-1 opacity-70">{inChapter}</span>}
               </button>
               <button role="tab" aria-selected={scope === "book"} onClick={() => setScope("book")} className="!py-1 !text-label">
                 Whole book
+                {inBook > 0 && <span className="ml-1 opacity-70">{inBook}</span>}
               </button>
             </div>
           ) : (
@@ -167,6 +173,14 @@ export function NotebookPanel(p: NotebookProps) {
                   : filter === "highlights"
                     ? "No highlights yet. Select text and press 🖍 Highlight."
                     : p.emptyHint}
+              {elsewhere > 0 && (
+                <>
+                  <br />
+                  <button className="mt-2 font-semibold text-accent-dark hover:underline" onClick={() => setScope("book")}>
+                    {elsewhere} in the rest of the book: show the whole book →
+                  </button>
+                </>
+              )}
             </p>
           ) : (
             shown.map((g, i) => {
@@ -200,11 +214,11 @@ export function NotebookPanel(p: NotebookProps) {
         </div>
         <div className="shrink-0 border-t border-line bg-cream px-4 pb-3.5 pt-3">
           {/* Write is the main action; Export sits beside it as the second (prototype 005, round 5). */}
-          <div className="flex gap-2">
-            <button className="chunky min-w-0 flex-1" onClick={() => write(writeKey)}>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button className="chunky min-w-0" onClick={() => write(writeKey)}>
               ✏️ Write a note
             </button>
-            <button className="chunky chunky-light shrink-0" onClick={() => setExporting(true)} title="Download, print or copy your notes">
+            <button className="chunky chunky-light min-w-0" onClick={() => setExporting(true)} title="Download, print or copy your notes">
               ⤓ Export
             </button>
           </div>
