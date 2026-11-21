@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { validateUpload } from "@/convex/documentRules";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateUpload } from "@/convex/documentRules";
 import { parseLink } from "@/convex/linkRules";
 import { coverColour } from "@/components/library/BookCover";
 import { FILE_HINT, FILE_ACCEPT, MAX_FILES_AT_ONCE, fileKindLabel, fileNote } from "./sources";
@@ -42,7 +42,10 @@ export function AddSheet({ initialFiles, onClose, onAdd }: { initialFiles?: File
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const fileRows = files.map((f) => ({ file: f, problem: validateUpload(f) }));
+  const fileRows = files.map((f) => ({ file: f, problem: validateUpload(f), tooBig: f.size > MAX_UPLOAD_BYTES }));
+  const totalBytes = files.reduce((n, f) => n + f.size, 0);
+  const tooBig = fileRows.filter((r) => r.tooBig).length;
+  const unusable = fileRows.filter((r) => r.problem).length;
   const linkRows = useMemo(() => checkLinks(text), [text]);
   const goodFiles = fileRows.filter((r) => !r.problem).map((r) => r.file);
   const goodLinks = linkRows.filter((r) => !r.problem).map((r) => r.link!.url);
@@ -50,8 +53,11 @@ export function AddSheet({ initialFiles, onClose, onAdd }: { initialFiles?: File
   const tooMany = files.length >= MAX_FILES_AT_ONCE;
 
   function pick(list: FileList | null) {
-    if (!list?.length) return;
-    setFiles((cur) => [...cur, ...Array.from(list)].slice(0, MAX_FILES_AT_ONCE));
+    // Copy now: the picker's FileList is emptied when the input is reset right after this call,
+    // before React runs the update below (that made picked files vanish).
+    const picked = Array.from(list ?? []);
+    if (!picked.length) return;
+    setFiles((cur) => [...cur, ...picked].slice(0, MAX_FILES_AT_ONCE));
   }
 
   return (
@@ -124,17 +130,18 @@ export function AddSheet({ initialFiles, onClose, onAdd }: { initialFiles?: File
                 {fileRows.map((r, i) => (
                   <li
                     key={`${r.file.name}-${i}`}
-                    className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-[10px] border border-line bg-cream px-2.5 py-1.5"
+                    className={`grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 rounded-[10px] border px-2.5 py-1.5 ${r.problem ? "border-bad/60 bg-accent-soft" : "border-line bg-cream"}`}
                   >
                     <span className="kind">{fileKindLabel(r.file.name)}</span>
                     <span className="truncate text-ui" title={r.file.name}>
                       {r.file.name}
                     </span>
+                    <span className={`text-label tabular-nums ${r.tooBig ? "font-bold text-bad" : "text-muted"}`}>{formatSize(r.file.size)}</span>
                     <button className="icon-btn h-7 w-7" aria-label={`Remove ${r.file.name}`} onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))}>
                       ✕
                     </button>
-                    {r.problem && <span className="col-start-2 col-end-4 -mt-0.5 text-label text-accent-dark">{r.problem}</span>}
-                    {!r.problem && fileNote(r.file.name) && <span className="col-start-2 col-end-4 -mt-0.5 text-label text-muted">{fileNote(r.file.name)}</span>}
+                    {r.problem && <span className="col-start-2 col-end-5 -mt-0.5 text-label font-semibold text-bad">⚠️ {r.problem}</span>}
+                    {!r.problem && fileNote(r.file.name) && <span className="col-start-2 col-end-5 -mt-0.5 text-label text-muted">{fileNote(r.file.name)}</span>}
                   </li>
                 ))}
               </ul>
@@ -179,7 +186,24 @@ export function AddSheet({ initialFiles, onClose, onAdd }: { initialFiles?: File
         )}
 
         <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-meta text-muted">Books get a chapter path and tests. Articles and videos: read or watch and take notes.</span>
+          {tab === "files" && files.length > 0 ? (
+            // Checked while picking: the total, and how many can't be added (each file can be up to 25 MB).
+            <span className="text-meta" aria-live="polite">
+              <span className="text-muted">
+                {files.length} file{files.length === 1 ? "" : "s"} · {formatSize(totalBytes)}
+              </span>
+              {unusable > 0 && (
+                <span className="font-semibold text-bad">
+                  {" "}
+                  · {tooBig > 0 ? `${tooBig} over ${MAX_UPLOAD_MB} MB` : ""}
+                  {tooBig > 0 && unusable > tooBig ? ", " : ""}
+                  {unusable > tooBig ? `${unusable - tooBig} can't be read` : ""}: {unusable === 1 ? "it" : "they"} won&apos;t be added
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-meta text-muted">Books get a chapter path and tests. Articles and videos: read or watch and take notes.</span>
+          )}
           <button className="chunky shrink-0" disabled={count === 0} onClick={() => onAdd(goodFiles, goodLinks)}>
             {count === 0 ? "Add to library" : `Add ${count} to library`}
           </button>
@@ -207,4 +231,10 @@ function LinkPreview({ row }: { row: ReturnType<typeof checkLinks>[number] }) {
       {host.charAt(0).toUpperCase()}
     </span>
   );
+}
+
+// "740 KB", "12.4 MB"
+function formatSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
