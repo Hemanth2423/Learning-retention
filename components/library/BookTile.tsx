@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "@/components/FieldError";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { flattenFolders } from "@/convex/folderRules";
 import { BookCover } from "./BookCover";
 
 export type LibraryBook = {
@@ -27,7 +28,7 @@ export type LibraryBook = {
   folderId: Id<"folders"> | null;
 };
 
-export type FolderOption = { _id: Id<"folders">; name: string; colour: string; emoji: string };
+export type FolderOption = { _id: Id<"folders">; name: string; colour: string; emoji: string; parentId: Id<"folders"> | null };
 // The drag payload for library items (ids as JSON), so folder drop targets can tell items from files.
 export const ITEM_DRAG_TYPE = "application/x-ingrain-items";
 
@@ -59,6 +60,7 @@ export function BookTile({
   showFolder,
   onMove,
   onDragChange,
+  onNewFolder,
 }: {
   book: LibraryBook;
   onRemove: (b: LibraryBook) => void;
@@ -67,6 +69,7 @@ export function BookTile({
   showFolder: boolean; // in "All items", say which folder it's in
   onMove: (ids: Id<"documents">[], folderId: Id<"folders"> | null) => void;
   onDragChange: (dragging: boolean) => void;
+  onNewFolder: (b: LibraryBook) => void; // Move to → New folder…
 }) {
   const rename = useMutation(api.documents.rename);
   const [menu, setMenu] = useState<false | "button" | { x: number; y: number }>(false);
@@ -204,9 +207,10 @@ export function BookTile({
           </button>
           <div className="my-1 border-t border-line" />
           <p className="px-2.5 pb-1 pt-1 text-label font-bold uppercase tracking-[0.08em] text-muted">Move to</p>
-          {folders.map((f) => (
+          {flattenFolders(folders).map((f) => (
             <button
               key={f._id}
+              style={{ paddingLeft: 10 + f.depth * 12 }}
               role="menuitem"
               disabled={f._id === book.folderId}
               onClick={() => {
@@ -232,6 +236,16 @@ export function BookTile({
             <span aria-hidden="true">·</span>
             <span className="flex-1">No folder</span>
             {!book.folderId && <span aria-label="current folder">✓</span>}
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              setMenu(false);
+              onNewFolder(book);
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-meta font-semibold text-accent-dark hover:bg-panel"
+          >
+            <span aria-hidden="true">+</span> New folder…
           </button>
           <div className="my-1 border-t border-line" />
           <button

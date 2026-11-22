@@ -1,163 +1,167 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
-import { MAX_FOLDER_NAME } from "@/convex/folderRules";
+import { flattenFolders, folderPath, totalInFolder } from "@/convex/folderRules";
 import { FolderOption, ITEM_DRAG_TYPE } from "./BookTile";
 
 export type FolderView = "all" | "none" | Id<"folders">;
+export const FOLDER_DRAG_TYPE = "application/x-ingrain-folder";
 
-// The folder rail beside "Your library" (prototype 008, layout C). On wide screens a sticky card; on phones a
-// row of chips. Every folder (and "No folder") takes dropped library items, and files dropped from the computer.
+// The folder tree beside "Your library". On wide screens a sticky card with expandable folders; on phones a row of
+// chips. Folders take dropped items, files from the computer, and other folders (to nest them).
 export function FolderRail({
   folders,
   counts,
   view,
   dragging,
   onView,
-  onCreate,
+  onNew,
   onDropItems,
   onDropFiles,
+  onMoveFolder,
 }: {
   folders: FolderOption[];
   counts: { all: number; none: number; byFolder: Map<string, number> };
   view: FolderView;
   dragging: boolean; // an item is being dragged: show where it can go
   onView: (v: FolderView) => void;
-  onCreate: (name: string) => Promise<string | null>; // returns why it failed, or null
+  onNew: () => void;
   onDropItems: (ids: Id<"documents">[], folderId: Id<"folders"> | null) => void;
   onDropFiles: (files: File[], folderId: Id<"folders"> | null) => void;
+  onMoveFolder: (id: Id<"folders">, parentId: Id<"folders"> | null) => void;
 }) {
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [problem, setProblem] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
+  const [closed, setClosed] = useState<Set<string>>(() => new Set());
+  const tree = useMemo(() => flattenFolders(folders), [folders]);
+  const hasKids = useMemo(() => new Set(folders.flatMap((f) => (f.parentId ? [f.parentId] : []))), [folders]);
+  // The open folder's parents always stay expanded.
+  const onPath = useMemo(() => new Set(view === "all" || view === "none" ? [] : folderPath(folders, view).map((f) => f._id as string)), [folders, view]);
+  const hidden = (f: FolderOption) => folderPath(folders, f._id).slice(0, -1).some((p) => closed.has(p._id) && !onPath.has(p._id));
 
-  async function create() {
-    if (!name.trim()) return setCreating(false);
-    const err = await onCreate(name);
-    if (err) return setProblem(err);
-    setCreating(false);
-    setName("");
-    setProblem(null);
-  }
+  const dropProps = (id: FolderView) => ({
+    onDragOver: (e: React.DragEvent) => {
+      const t = e.dataTransfer.types;
+      const isFolder = t.includes(FOLDER_DRAG_TYPE);
+      if (id === "all" ? !isFolder : !(t.includes(ITEM_DRAG_TYPE) || t.includes("Files") || (isFolder && id !== "none"))) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = t.includes("Files") ? "copy" : "move";
+      setOver(id);
+    },
+    onDragLeave: () => setOver((o) => (o === id ? null : o)),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setOver(null);
+      const target = id === "none" || id === "all" ? null : (id as Id<"folders">);
+      const folder = e.dataTransfer.getData(FOLDER_DRAG_TYPE);
+      if (folder) {
+        if (folder !== target) onMoveFolder(folder as Id<"folders">, target);
+        return;
+      }
+      const raw = e.dataTransfer.getData(ITEM_DRAG_TYPE);
+      if (raw) onDropItems(JSON.parse(raw) as Id<"documents">[], target);
+      else if (e.dataTransfer.files.length) onDropFiles(Array.from(e.dataTransfer.files), target);
+    },
+  });
 
-  const rows: { id: FolderView; name: string; emoji: string; colour?: string; count: number }[] = [
-    { id: "all", name: "All items", emoji: "📚", count: counts.all },
-    ...folders.map((f) => ({ id: f._id, name: f.name, emoji: f.emoji, colour: f.colour, count: counts.byFolder.get(f._id) ?? 0 })),
-    { id: "none", name: "No folder", emoji: "·", count: counts.none },
-  ];
-
-  const dropProps = (id: FolderView) =>
-    id === "all"
-      ? {}
-      : {
-          onDragOver: (e: React.DragEvent) => {
-            if (!e.dataTransfer.types.includes(ITEM_DRAG_TYPE) && !e.dataTransfer.types.includes("Files")) return;
-            e.preventDefault();
-            e.dataTransfer.dropEffect = e.dataTransfer.types.includes("Files") ? "copy" : "move";
-            setOver(id);
-          },
-          onDragLeave: () => setOver((o) => (o === id ? null : o)),
-          onDrop: (e: React.DragEvent) => {
-            e.preventDefault();
-            setOver(null);
-            const target = id === "none" ? null : (id as Id<"folders">);
-            const raw = e.dataTransfer.getData(ITEM_DRAG_TYPE);
-            if (raw) onDropItems(JSON.parse(raw) as Id<"documents">[], target);
-            else if (e.dataTransfer.files.length) onDropFiles(Array.from(e.dataTransfer.files), target);
-          },
-        };
+  const row = (id: FolderView, current: boolean) =>
+    `flex min-w-0 flex-1 items-center gap-2.5 whitespace-nowrap rounded-[10px] border px-2 py-1.5 text-left transition ${
+      over === id
+        ? "border-dashed border-accent bg-accent-soft"
+        : current
+          ? "border-line bg-white font-semibold text-accent-dark shadow-[0_1px_2px_rgba(42,34,27,.08)]"
+          : dragging && id !== "all"
+            ? "border-dashed border-[#c9b9a0] bg-panel/60"
+            : "border-transparent hover:bg-panel"
+    } max-md:rounded-full max-md:border-line max-md:bg-card max-md:py-1`;
+  const icon = (emoji: string, colour?: string) => (
+    <span aria-hidden="true" className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] text-meta" style={{ background: colour ?? "var(--panel)", color: colour ? "#fff" : "var(--muted)" }}>
+      {emoji}
+    </span>
+  );
 
   return (
-    <nav aria-label="Folders" className="md:sticky md:top-[76px] md:rounded-2xl md:border md:border-line md:bg-card md:px-2.5 md:py-3">
-      <p className="mb-2 hidden px-2 text-label font-bold uppercase tracking-[0.08em] text-muted md:block">Library</p>
+    <nav aria-label="Folders" className="md:sticky md:top-[76px] md:max-h-[calc(100dvh-100px)] md:overflow-y-auto md:rounded-2xl md:border md:border-line md:bg-card md:px-2.5 md:py-3">
+      <div className="mb-2 hidden items-center justify-between px-2 md:flex">
+        <p className="text-label font-bold uppercase tracking-[0.08em] text-muted">Library</p>
+        <button onClick={onNew} aria-label="New folder" title="New folder" className="icon-btn h-7 w-7 border border-line bg-white text-h3 leading-none text-accent-dark hover:border-accent hover:bg-white">
+          +
+        </button>
+      </div>
       <ul className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 md:mx-0 md:block md:space-y-0.5 md:overflow-visible md:px-0 md:pb-0">
-        {rows.map((r, i) => {
-          const current = view === r.id;
-          const target = dragging && r.id !== "all";
+        <li className="shrink-0 md:mb-2 md:border-b md:border-line md:pb-2">
+          <button onClick={() => onView("all")} aria-current={view === "all" ? "true" : undefined} {...dropProps("all")} className={`${row("all", view === "all")} w-full`}>
+            {icon("📚")}
+            <span className="min-w-0 flex-1 truncate">All items</span>
+            <span className="text-label text-muted">{counts.all}</span>
+          </button>
+        </li>
+        {tree.map((f) => {
+          const current = view === f._id;
+          const open = !closed.has(f._id) || onPath.has(f._id);
           return (
-            <li key={r.id} className={`shrink-0 ${i === 0 ? "md:mb-2 md:border-b md:border-line md:pb-2" : ""}`}>
-              <button
-                onClick={() => onView(r.id)}
-                aria-current={current ? "true" : undefined}
-                {...dropProps(r.id)}
-                className={`flex w-full items-center gap-2.5 whitespace-nowrap rounded-[10px] border px-2.5 py-1.5 text-left transition ${
-                  over === r.id
-                    ? "border-2 border-dashed border-accent bg-accent-soft"
-                    : current
-                      ? "border-line bg-white font-semibold text-accent-dark shadow-[0_1px_2px_rgba(42,34,27,.08)]"
-                      : target
-                        ? "border-dashed border-[#c9b9a0] bg-panel/60"
-                        : "border-transparent hover:bg-panel"
-                } max-md:rounded-full max-md:border-line max-md:bg-card max-md:py-1`}
-              >
-                <span
-                  aria-hidden="true"
-                  className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] text-meta text-white"
-                  style={{ background: r.colour ?? "var(--panel)", color: r.colour ? "#fff" : "var(--muted)" }}
+            <li key={f._id} className={`shrink-0 ${hidden(f) ? "md:hidden" : ""}`}>
+              <div className="flex items-center">
+                <span className="hidden shrink-0 md:block" style={{ width: f.depth * 14 }} />
+                {hasKids.has(f._id) ? (
+                  <button
+                    onClick={() =>
+                      setClosed((c) => {
+                        const next = new Set(c);
+                        if (open) next.add(f._id);
+                        else next.delete(f._id);
+                        return next;
+                      })
+                    }
+                    aria-label={`${open ? "Collapse" : "Expand"} ${f.name}`}
+                    aria-expanded={open}
+                    className="hidden h-6 w-4 shrink-0 place-items-center rounded text-label text-muted hover:text-ink md:grid"
+                  >
+                    {open ? "▾" : "▸"}
+                  </button>
+                ) : (
+                  <span className="hidden w-4 shrink-0 md:block" />
+                )}
+                <button
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(FOLDER_DRAG_TYPE, f._id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onClick={() => onView(f._id)}
+                  aria-current={current ? "true" : undefined}
+                  title={f.name}
+                  {...dropProps(f._id)}
+                  className={row(f._id, current)}
                 >
-                  {r.emoji}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{r.name}</span>
-                <span className="text-label text-muted">{r.count}</span>
-              </button>
+                  {icon(f.emoji, f.colour)}
+                  <span className="min-w-0 flex-1 truncate max-md:max-w-[140px]">{f.name}</span>
+                  <span className="text-label text-muted">{totalInFolder(folders, counts.byFolder, f._id)}</span>
+                </button>
+              </div>
             </li>
           );
         })}
         <li className="shrink-0">
-          {creating ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void create();
-              }}
-              className="flex gap-1.5 p-0.5"
-            >
-              <input
-                autoFocus
-                value={name}
-                maxLength={MAX_FOLDER_NAME}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setProblem(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    setCreating(false);
-                    setProblem(null);
-                  }
-                }}
-                placeholder="Folder name"
-                aria-label="New folder name"
-                aria-invalid={!!problem}
-                className="input min-w-0 flex-1 px-2 py-1 text-meta"
-              />
-              <button type="submit" className="quiet">
-                Add
-              </button>
-            </form>
-          ) : (
-            <button
-              onClick={() => setCreating(true)}
-              className="flex w-full items-center gap-2.5 whitespace-nowrap rounded-[10px] px-2.5 py-1.5 text-left font-semibold text-accent-dark hover:bg-panel max-md:rounded-full max-md:border max-md:border-dashed max-md:border-[#c9b9a0] max-md:py-1"
-            >
-              <span aria-hidden="true" className="grid h-6 w-6 place-items-center rounded-[7px] border-[1.5px] border-dashed border-[#c9b9a0]">
-                +
-              </span>
-              New folder
-            </button>
-          )}
-          {problem && (
-            <p role="alert" className="px-2 pt-1 text-label text-bad">
-              {problem}
-            </p>
-          )}
+          <button onClick={() => onView("none")} aria-current={view === "none" ? "true" : undefined} {...dropProps("none")} className={`${row("none", view === "none")} w-full`}>
+            {icon("·")}
+            <span className="min-w-0 flex-1 truncate">No folder</span>
+            <span className="text-label text-muted">{counts.none}</span>
+          </button>
+        </li>
+        <li className="shrink-0 md:pt-1">
+          <button
+            onClick={onNew}
+            className="flex w-full items-center gap-2.5 whitespace-nowrap rounded-[10px] px-2 py-1.5 text-left font-semibold text-accent-dark hover:bg-panel max-md:rounded-full max-md:border max-md:border-dashed max-md:border-[#c9b9a0] max-md:py-1"
+          >
+            <span aria-hidden="true" className="grid h-6 w-6 place-items-center rounded-[7px] border-[1.5px] border-dashed border-[#c9b9a0]">
+              +
+            </span>
+            New folder
+          </button>
         </li>
       </ul>
-      <p className="mt-2.5 hidden px-2 text-label leading-relaxed text-muted md:block">
-        Drag an item onto a folder, or right-click it → <b>Move to</b>. Drop files from your computer on a folder to add them straight into it.
-      </p>
     </nav>
   );
 }
+

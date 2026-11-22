@@ -8,10 +8,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BookCover } from "@/components/library/BookCover";
-import { BookTile, FolderOption, LibraryBook, progressOf } from "@/components/library/BookTile";
+import { BookTile, FolderOption, ITEM_DRAG_TYPE, LibraryBook, progressOf } from "@/components/library/BookTile";
+import { FolderSheet, FolderSheetMode } from "@/components/library/FolderSheet";
 import { FolderRail, FolderView } from "@/components/library/FolderRail";
 import { errorMessage } from "@/components/FieldError";
-import { folderCounts, inFolder } from "@/convex/folderRules";
+import { canHaveSubfolder, childrenOf, flattenFolders, folderCounts, folderPath, inFolder, moveFolderProblem, totalInFolder } from "@/convex/folderRules";
 import { timeAgo } from "@/components/library/time";
 import { ReadingShell } from "@/components/ReadingShell";
 import { renderPdfCover, uploadImage } from "@/components/library/covers";
@@ -178,6 +179,11 @@ function Library() {
   const renameFolder = useMutation(api.folders.rename);
   const removeFolder = useMutation(api.folders.remove);
   const moveItems = useMutation(api.folders.moveItems);
+  const moveFolder = useMutation(api.folders.moveFolder);
+  const restoreFolder = useMutation(api.folders.restore);
+  const [sheet, setSheet] = useState<FolderSheetMode | null>(null);
+  const closeFolderSheet = useCallback(() => setSheet(null), []);
+  const folderMenuRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<FolderView>("all");
   const [dragging, setDragging] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -191,6 +197,20 @@ function Library() {
   useCoverBackfill(books);
   const closeSheet = useCallback(() => setAdding(null), []);
   const [removing, setRemoving] = useState<LibraryBook | null>(null);
+
+  // The folder menu closes on a click outside it or Esc.
+  useEffect(() => {
+    if (!folderMenu) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !folderMenuRef.current?.contains(e.target as Node)) setFolderMenu(false);
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", close);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", close);
+    };
+  }, [folderMenu]);
 
   useEffect(() => {
     if (!toast) return;
@@ -223,30 +243,27 @@ function Library() {
     [books, folders, moveItems, setNotice]
   );
 
-  async function newFolder(name: string): Promise<string | null> {
-    try {
-      const id = await createFolder({ name });
-      setView(id);
-      setToast({ message: `Made “${name.trim()}”. Drag items onto it, or add files straight into it.` });
-      return null;
-    } catch (err) {
-      return errorMessage(err);
-    }
+  async function newFolder(name: string, parentId: Id<"folders"> | null, ids: Id<"documents">[]) {
+    const id = await createFolder({ name, parentId: parentId ?? undefined, documentIds: ids.length ? ids : undefined });
+    setView(id);
+    setSearch("");
+    setFilter("all");
+    setToast({ message: ids.length ? `Made “${name.trim()}” with ${ids.length} item${ids.length === 1 ? "" : "s"}` : `Made “${name.trim()}”` });
   }
 
   async function deleteFolder(f: FolderOption) {
     setFolderMenu(false);
     try {
-      const { moved } = await removeFolder({ folderId: f._id });
-      setView("all");
+      const res = await removeFolder({ folderId: f._id });
+      setView(res.parentId ?? "all");
+      const where = res.parentId ? folders.find((x) => x._id === res.parentId)?.name : "No folder";
+      const kept = res.moved.length + res.children.length;
       setToast({
-        message: `Deleted “${f.name}”. Its ${moved.length} item${moved.length === 1 ? "" : "s"} ${moved.length === 1 ? "is" : "are"} in No folder.`,
+        message: kept ? `Deleted “${f.name}”. What was inside moved to ${res.children.length && !res.parentId ? "the top level" : where}.` : `Deleted “${f.name}”`,
         undo: async () => {
           setToast(null);
           try {
-            const id = await createFolder({ name: f.name, emoji: f.emoji });
-            if (moved.length) await moveItems({ documentIds: moved, folderId: id });
-            setView(id);
+            setView(await restoreFolder({ name: f.name, emoji: f.emoji, parentId: res.parentId, documentIds: res.moved, children: res.children }));
           } catch (err) {
             setNotice(errorMessage(err));
           }
@@ -261,6 +278,25 @@ function Library() {
     setRenaming(null);
     if (!name.trim() || name.trim() === f.name) return;
     await renameFolder({ folderId: f._id, name }).catch((err) => setNotice(errorMessage(err)));
+  }
+
+  async function nestFolder(id: Id<"folders">, parentId: Id<"folders"> | null) {
+    setFolderMenu(false);
+    const f = folders.find((x) => x._id === id);
+    if (!f || f.parentId === parentId) return;
+    const before = f.parentId;
+    try {
+      await moveFolder({ folderId: id, parentId });
+      setToast({
+        message: `Moved “${f.name}” to ${parentId ? folders.find((x) => x._id === parentId)?.name : "the top level"}`,
+        undo: () => {
+          setToast(null);
+          void moveFolder({ folderId: id, parentId: before }).catch((err) => setNotice(errorMessage(err)));
+        },
+      });
+    } catch (err) {
+      setNotice(errorMessage(err));
+    }
   }
 
   const latest = books?.find((b) => b.status === "ready" && b.page) ?? books?.find((b) => b.status === "ready");
@@ -283,6 +319,8 @@ function Library() {
     return c;
   }, [books, current, search]);
   const searching = !!search.trim();
+  const path = openFolder ? folderPath(folders, openFolder._id) : [];
+  const subfolders = openFolder ? childrenOf(folders, openFolder._id) : [];
   const viewTitle = searching ? `Results for “${search.trim()}”` : current === "all" ? "Your library" : current === "none" ? "No folder" : `${openFolder!.emoji} ${openFolder!.name}`;
 
   return (
@@ -333,130 +371,240 @@ function Library() {
         </div>
 
         {!!books?.length && (
-          // Layout C (prototype 008): the primary actions above stay full width; folders sit beside the shelf.
           // Phones: heading, then the folder chips, then the shelf. Wide screens: the rail spans heading and shelf.
-          <div className="mt-8 grid gap-x-6 gap-y-3 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-[auto_1fr]">
+          <div className="mt-12 grid gap-x-8 gap-y-4 md:grid-cols-[250px_minmax(0,1fr)] md:grid-rows-[auto_1fr]">
             <div className="max-md:order-2 md:col-start-1 md:row-span-2 md:row-start-1">
-            <FolderRail
-              folders={folders}
-              counts={fCounts}
-              view={current}
-              dragging={dragging}
-              onView={(v) => {
-                setView(v);
-                setSearch("");
-                setFilter("all");
-              }}
-              onCreate={newFolder}
-              onDropItems={(ids, folderId) => {
-                setDragging(false);
-                void move(ids, folderId);
-              }}
-              onDropFiles={(files, folderId) => {
-                if (folderId) setView(folderId);
-                setAdding({ files, folder: folderId });
-              }}
-            />
+              <FolderRail
+                folders={folders}
+                counts={fCounts}
+                view={current}
+                dragging={dragging}
+                onView={(v) => {
+                  setView(v);
+                  setSearch("");
+                  setFilter("all");
+                  setRenaming(null);
+                }}
+                onNew={() => setSheet({ kind: "create", parentId: null })}
+                onDropItems={(ids, folderId) => {
+                  setDragging(false);
+                  void move(ids, folderId);
+                }}
+                onDropFiles={(files, folderId) => {
+                  if (folderId) setView(folderId);
+                  setAdding({ files, folder: folderId });
+                }}
+                onMoveFolder={(id, parentId) => void nestFolder(id, parentId)}
+              />
             </div>
             <section aria-label={viewTitle} className="contents">
-            <div className="flex min-w-0 flex-wrap items-center gap-2.5 max-md:order-1 md:col-start-2 md:row-start-1">
-              {renaming !== null && openFolder ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void saveRename(openFolder, renaming);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <input
-                    autoFocus
-                    value={renaming}
-                    maxLength={40}
-                    onChange={(e) => setRenaming(e.target.value)}
-                    onBlur={() => void saveRename(openFolder, renaming)}
-                    onKeyDown={(e) => e.key === "Escape" && setRenaming(null)}
-                    aria-label="Folder name"
-                    className="input py-1 font-serif text-h3 font-bold"
-                  />
-                </form>
-              ) : (
-                <h2 className="mr-1.5 min-w-0 truncate font-serif text-h2 font-bold">{viewTitle}</h2>
-              )}
-              {openFolder && !searching && renaming === null && (
-                <div className="relative">
-                  <button className="icon-btn" aria-label={`Options for ${openFolder.name}`} aria-haspopup="menu" aria-expanded={folderMenu} onClick={() => setFolderMenu((m) => !m)}>
-                    ⋯
-                  </button>
-                  {folderMenu && (
-                    <div role="menu" className="absolute left-0 top-9 z-30 min-w-[230px] rounded-xl border border-line bg-card p-1 shadow-lg" onMouseLeave={() => setFolderMenu(false)}>
-                      <button
-                        role="menuitem"
+              <div className="min-w-0 max-md:order-1 md:col-start-2 md:row-start-1">
+                {openFolder && !searching && (
+                  <nav aria-label="Folder path" className="mb-1 flex min-w-0 items-center gap-1 text-meta text-muted">
+                    <button className="shrink-0 hover:text-ink hover:underline" onClick={() => setView("all")}>
+                      Library
+                    </button>
+                    {path.slice(0, -1).map((p) => (
+                      <span key={p._id} className="flex min-w-0 items-center gap-1">
+                        <span aria-hidden="true">›</span>
+                        <button className="max-w-[140px] truncate hover:text-ink hover:underline" onClick={() => setView(p._id)}>
+                          {p.name}
+                        </button>
+                      </span>
+                    ))}
+                  </nav>
+                )}
+                <div className="flex min-w-0 items-center gap-2">
+                  {renaming !== null && openFolder ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void saveRename(openFolder, renaming);
+                      }}
+                      className="min-w-0 max-w-[340px] flex-1"
+                    >
+                      <input
                         autoFocus
-                        className="w-full rounded-lg px-2.5 py-2 text-left text-ui hover:bg-panel"
-                        onClick={() => {
-                          setFolderMenu(false);
-                          setRenaming(openFolder.name);
-                        }}
-                      >
-                        ✏️ Rename folder
+                        value={renaming}
+                        maxLength={40}
+                        onChange={(e) => setRenaming(e.target.value)}
+                        onBlur={() => void saveRename(openFolder, renaming)}
+                        onKeyDown={(e) => e.key === "Escape" && setRenaming(null)}
+                        aria-label="Folder name"
+                        className="input py-1 font-serif text-h3 font-bold"
+                      />
+                    </form>
+                  ) : (
+                    <h2 className="min-w-0 truncate font-serif text-h2 font-bold" title={viewTitle}>
+                      {viewTitle}
+                    </h2>
+                  )}
+                  {openFolder && !searching && renaming === null && (
+                    <div className="relative shrink-0" ref={folderMenuRef}>
+                      <button className="icon-btn" aria-label={`Options for ${openFolder.name}`} aria-haspopup="menu" aria-expanded={folderMenu} onClick={() => setFolderMenu((m) => !m)}>
+                        ⋯
                       </button>
-                      <button role="menuitem" className="w-full rounded-lg px-2.5 py-2 text-left text-ui text-accent-dark hover:bg-panel" onClick={() => void deleteFolder(openFolder)}>
-                        🗑 Delete folder (keeps its items)
-                      </button>
+                      {folderMenu && (
+                        <div role="menu" className="absolute left-0 top-9 z-30 max-h-[60vh] min-w-[240px] overflow-y-auto rounded-xl border border-line bg-card p-1 shadow-lg">
+                          <button
+                            role="menuitem"
+                            autoFocus
+                            className="w-full rounded-lg px-2.5 py-2 text-left text-ui hover:bg-panel"
+                            onClick={() => {
+                              setFolderMenu(false);
+                              setRenaming(openFolder.name);
+                            }}
+                          >
+                            ✏️ Rename
+                          </button>
+                          {canHaveSubfolder(folders, openFolder._id) && (
+                            <button
+                              role="menuitem"
+                              className="w-full rounded-lg px-2.5 py-2 text-left text-ui hover:bg-panel"
+                              onClick={() => {
+                                setFolderMenu(false);
+                                setSheet({ kind: "create", parentId: openFolder._id });
+                              }}
+                            >
+                              📁 New folder inside
+                            </button>
+                          )}
+                          <div className="my-1 border-t border-line" />
+                          <p className="px-2.5 pb-1 pt-1 text-label font-bold uppercase tracking-[0.08em] text-muted">Move to</p>
+                          {openFolder.parentId && (
+                            <button role="menuitem" className="w-full rounded-lg px-2.5 py-1.5 text-left text-meta hover:bg-panel" onClick={() => void nestFolder(openFolder._id, null)}>
+                              Library (top level)
+                            </button>
+                          )}
+                          {flattenFolders(folders)
+                            .filter((f) => f._id !== openFolder.parentId && !moveFolderProblem(folders, openFolder._id, f._id))
+                            .map((f) => (
+                              <button
+                                key={f._id}
+                                role="menuitem"
+                                style={{ paddingLeft: 10 + f.depth * 12 }}
+                                className="block w-full truncate rounded-lg py-1.5 pr-2.5 text-left text-meta hover:bg-panel"
+                                onClick={() => void nestFolder(openFolder._id, f._id)}
+                              >
+                                {f.emoji} {f.name}
+                              </button>
+                            ))}
+                          <div className="my-1 border-t border-line" />
+                          <button role="menuitem" className="w-full rounded-lg px-2.5 py-2 text-left text-ui text-accent-dark hover:bg-panel" onClick={() => void deleteFolder(openFolder)}>
+                            🗑 Delete folder (keeps what&apos;s inside)
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
+                  <div role="group" aria-label="Sort" className="seg ml-auto shrink-0">
+                    {(["recent", "title", "progress"] as const).map((s) => (
+                      <button key={s} aria-pressed={sort === s} onClick={() => setSort(s)} className="px-3 py-1 capitalize">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
-              <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
-                {FILTERS.filter((f) => f.key === "all" || counts[f.key] > 0).map((f) => (
-                  <button key={f.key} className="chip" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
-                    {f.label} <span className="opacity-70">{counts[f.key]}</span>
-                  </button>
-                ))}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {counts.all > 0 && (
+                    <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
+                      {FILTERS.filter((f) => f.key === "all" || counts[f.key] > 0).map((f) => (
+                        <button key={f.key} className="chip" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
+                          {f.label} <span className="opacity-70">{counts[f.key]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {openFolder && !searching && counts.all + subfolders.length > 0 && (
+                    <button className="chunky sm ml-auto" onClick={() => setSheet({ kind: "add", folderId: openFolder._id })}>
+                      + Add items
+                    </button>
+                  )}
+                </div>
               </div>
-              <div role="group" aria-label="Sort" className="seg ml-auto">
-                {(["recent", "title", "progress"] as const).map((s) => (
-                  <button
-                    key={s}
-                    aria-pressed={sort === s}
-                    onClick={() => setSort(s)}
-                    className="px-3 py-1 capitalize"
-                  >
-                    {s}
-                  </button>
-                ))}
+              <div className="min-w-0 max-md:order-3 md:col-start-2 md:row-start-2">
+                {!searching && subfolders.length > 0 && (
+                  <ul aria-label="Folders inside" className="mb-5 grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2.5">
+                    {subfolders.map((f) => (
+                      <li key={f._id}>
+                        <button
+                          onClick={() => setView(f._id)}
+                          onDragOver={(e) => {
+                            if (e.dataTransfer.types.includes(ITEM_DRAG_TYPE)) e.preventDefault();
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const raw = e.dataTransfer.getData(ITEM_DRAG_TYPE);
+                            setDragging(false);
+                            if (raw) void move(JSON.parse(raw) as Id<"documents">[], f._id);
+                          }}
+                          className={`flex w-full items-center gap-2.5 rounded-xl border bg-card px-3 py-2.5 text-left transition hover:border-accent ${dragging ? "border-dashed border-accent" : "border-line"}`}
+                        >
+                          <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: f.colour }}>
+                            {f.emoji}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold">{f.name}</span>
+                            <span className="block text-label text-muted">{totalInFolder(folders, fCounts.byFolder, f._id)} items</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {openFolder && !searching && counts.all === 0 && subfolders.length === 0 ? (
+                  <div className="rounded-[18px] border border-line bg-card px-6 py-12 text-center">
+                    <p className="font-serif text-h2 font-bold">Let&apos;s fill this folder</p>
+                    <p className="mx-auto mt-1.5 max-w-sm text-muted">Pick from what&apos;s already in your library, or add something new.</p>
+                    <div className="mt-5 flex flex-wrap justify-center gap-3">
+                      <button className="chunky" onClick={() => setSheet({ kind: "add", folderId: openFolder._id })}>
+                        + Add from library
+                      </button>
+                      <button className="chunky chunky-light" onClick={() => setAdding({ folder: openFolder._id })}>
+                        Upload new
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] content-start gap-x-5 gap-y-7">
+                    {shown.map((b) => (
+                      <BookTile
+                        key={b._id}
+                        book={b}
+                        onRemove={setRemoving}
+                        onError={setNotice}
+                        folders={folders}
+                        showFolder={current === "all" || searching}
+                        onMove={(ids, folderId) => void move(ids, folderId)}
+                        onDragChange={setDragging}
+                        onNewFolder={(book) => setSheet({ kind: "create", parentId: null, preselect: [book._id] })}
+                      />
+                    ))}
+                    {shown.length === 0 && !(openFolder && subfolders.length > 0 && !searching) && (
+                      <p className="empty-note col-span-full">
+                        {searching ? `Nothing matches “${search.trim()}”. Try a shorter word, or clear the search.` : current === "none" && filter === "all" ? "Everything is in a folder." : "Nothing of this kind here. Choose All to see everything in this view."}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="grid min-w-0 grid-cols-[repeat(auto-fill,minmax(160px,1fr))] content-start gap-x-5 gap-y-[26px] max-md:order-3 md:col-start-2 md:row-start-2 md:mt-1">
-              {shown.map((b) => (
-                <BookTile
-                  key={b._id}
-                  book={b}
-                  onRemove={setRemoving}
-                  onError={setNotice}
-                  folders={folders}
-                  showFolder={current === "all" || searching}
-                  onMove={(ids, folderId) => void move(ids, folderId)}
-                  onDragChange={setDragging}
-                />
-              ))}
-              {shown.length === 0 && (
-                <p className="empty-note col-span-full">
-                  {searching
-                    ? `Nothing matches “${search.trim()}”. Try a shorter word, or clear the search.`
-                    : openFolder && filter === "all"
-                      ? "This folder is empty. Drag items here from All items, or use Add to your library above: new items go straight into this folder."
-                      : current === "none" && filter === "all"
-                        ? "Everything is in a folder."
-                        : "Nothing of this kind here. Choose All to see everything in this view."}
-                </p>
-              )}
-            </div>
             </section>
           </div>
         )}
       </main>
 
+      {sheet && (
+        <FolderSheet
+          mode={sheet}
+          books={books ?? []}
+          folders={folders}
+          onClose={closeFolderSheet}
+          onCreate={newFolder}
+          onAdd={async (folderId, ids) => {
+            await move(ids, folderId);
+          }}
+        />
+      )}
       {adding && (
         <AddSheet
           initialFiles={adding.files}

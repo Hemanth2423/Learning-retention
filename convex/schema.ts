@@ -53,6 +53,7 @@ export default defineSchema({
     name: v.string(),
     colour: v.string(),
     emoji: v.string(),
+    parentId: v.optional(v.id("folders")), // inside another folder (up to 4 levels); none = top level
   }).index("by_user", ["userId"]),
 
   // A highlight, with an optional comment. `locator` is its first page (where the left panel jumps).

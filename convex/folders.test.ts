@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { cleanEmoji, folderCounts, inFolder, MAX_FOLDERS, validateFolderName } from "./folderRules";
+import { cleanEmoji, flattenFolders, folderCounts, folderPath, inFolder, MAX_FOLDERS, moveFolderProblem, totalInFolder, uniqueFolderName, validateFolderName } from "./folderRules";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
@@ -89,7 +89,7 @@ describe("folders", () => {
     const theirFolder = await s.asB.mutation(api.folders.create, { name: "Theirs" });
     expect(await s.asB.query(api.folders.list, {})).toMatchObject([{ name: "Theirs" }]);
     await expect(s.asB.mutation(api.folders.rename, { folderId: mine, name: "Hacked" })).rejects.toThrow(/couldn't find/);
-    expect(await s.asB.mutation(api.folders.remove, { folderId: mine })).toEqual({ moved: [] });
+    expect(await s.asB.mutation(api.folders.remove, { folderId: mine })).toMatchObject({ moved: [], children: [] });
     expect(await s.asA.query(api.folders.list, {})).toMatchObject([{ name: "Mine" }]);
     // moving my item into their folder, or their item into my folder: refused, nothing changes
     await expect(s.asA.mutation(api.folders.moveItems, { documentIds: [s.book], folderId: theirFolder })).rejects.toThrow(/couldn't find that folder/);
@@ -129,5 +129,87 @@ describe("adding straight into a folder", () => {
       if (!r.ok) throw new Error("expected ok");
       expect(await folderOf(s, r.documentId)).toBeNull();
     }
+  });
+});
+
+describe("nested folder rules", () => {
+  const tree = [
+    { _id: "a", name: "A", parentId: null },
+    { _id: "b", name: "B", parentId: "a" },
+    { _id: "c", name: "C", parentId: "b" },
+    { _id: "d", name: "D", parentId: "c" },
+    { _id: "z", name: "Z", parentId: null },
+  ];
+  test("path and display order", () => {
+    expect(folderPath(tree, "c").map((f) => f.name)).toEqual(["A", "B", "C"]);
+    expect(flattenFolders(tree).map((f) => [f.name, f.depth])).toEqual([["A", 0], ["B", 1], ["C", 2], ["D", 3], ["Z", 0]]);
+  });
+  test("a folder can't go inside itself or its own subfolder, or past 4 levels", () => {
+    expect(moveFolderProblem(tree, "a", "a")).toMatch(/inside itself/);
+    expect(moveFolderProblem(tree, "a", "c")).toMatch(/inside itself/);
+    expect(moveFolderProblem(tree, "z", "d")).toMatch(/4 levels/);
+    expect(moveFolderProblem(tree, "a", "z")).toMatch(/4 levels/); // A's four levels under Z would be five
+    expect(moveFolderProblem(tree, "b", "z")).toBeUndefined(); // Z > B > C > D is exactly four
+    expect(moveFolderProblem(tree, "d", null)).toBeUndefined();
+  });
+  test("counts include subfolders; clashing names get a number", () => {
+    expect(totalInFolder(tree, new Map([["a", 1], ["c", 2], ["z", 9]]), "a")).toBe(3);
+    expect(uniqueFolderName("Notes", ["notes", "Notes (2)"])).toBe("Notes (3)");
+    expect(uniqueFolderName("Fresh", ["notes"])).toBe("Fresh");
+  });
+});
+
+describe("nested folders", () => {
+  test("the same name is fine in different folders, not twice in one", async () => {
+    const s = await setup();
+    const a = await s.asA.mutation(api.folders.create, { name: "AI" });
+    const b = await s.asA.mutation(api.folders.create, { name: "Work" });
+    await s.asA.mutation(api.folders.create, { name: "Notes", parentId: a });
+    await s.asA.mutation(api.folders.create, { name: "Notes", parentId: b });
+    await expect(s.asA.mutation(api.folders.create, { name: "notes", parentId: a })).rejects.toThrow(/already have/);
+  });
+
+  test("the New folder pop-up creates a folder with its items in one step", async () => {
+    const s = await setup();
+    const f = await s.asA.mutation(api.folders.create, { name: "Picked", documentIds: [s.book, s.video] });
+    expect(await folderOf(s, s.book)).toBe(f);
+    expect(await folderOf(s, s.video)).toBe(f);
+    await expect(s.asA.mutation(api.folders.create, { name: "Sneaky", documentIds: [s.theirs] })).rejects.toThrow(/one of those items/);
+    expect((await s.asA.query(api.folders.list, {})).map((x) => x.name)).toEqual(["Picked"]); // all or nothing
+  });
+
+  test("moving folders: nesting works; cycles, depth and name clashes are refused", async () => {
+    const s = await setup();
+    const a = await s.asA.mutation(api.folders.create, { name: "A" });
+    const b = await s.asA.mutation(api.folders.create, { name: "B", parentId: a });
+    const c = await s.asA.mutation(api.folders.create, { name: "C", parentId: b });
+    const d = await s.asA.mutation(api.folders.create, { name: "D", parentId: c });
+    await expect(s.asA.mutation(api.folders.create, { name: "E", parentId: d })).rejects.toThrow(/4 levels/);
+    await expect(s.asA.mutation(api.folders.moveFolder, { folderId: a, parentId: c })).rejects.toThrow(/inside itself/);
+    const top = await s.asA.mutation(api.folders.create, { name: "D" });
+    await expect(s.asA.mutation(api.folders.moveFolder, { folderId: top, parentId: c })).rejects.toThrow(/already have/);
+    await s.asA.mutation(api.folders.moveFolder, { folderId: d, parentId: null }).catch(() => {}); // clash with top-level D
+    await s.asA.mutation(api.folders.rename, { folderId: top, name: "Top" });
+    await s.asA.mutation(api.folders.moveFolder, { folderId: d, parentId: null });
+    expect((await s.asA.query(api.folders.list, {})).find((f) => f._id === d)?.parentId).toBeNull();
+    const other = await s.asB.mutation(api.folders.create, { name: "Theirs" });
+    await expect(s.asA.mutation(api.folders.moveFolder, { folderId: a, parentId: other })).rejects.toThrow(/couldn't find/);
+    await expect(s.asB.mutation(api.folders.moveFolder, { folderId: a, parentId: null })).rejects.toThrow(/couldn't find/);
+  });
+
+  test("deleting a folder lifts its items and subfolders one level, and Undo puts everything back", async () => {
+    const s = await setup();
+    const top = await s.asA.mutation(api.folders.create, { name: "Top" });
+    const mid = await s.asA.mutation(api.folders.create, { name: "Mid", parentId: top });
+    const sub = await s.asA.mutation(api.folders.create, { name: "Same", parentId: mid });
+    await s.asA.mutation(api.folders.create, { name: "Same", parentId: top }); // will clash when Mid is deleted
+    await s.asA.mutation(api.folders.moveItems, { documentIds: [s.book], folderId: mid });
+    const res = await s.asA.mutation(api.folders.remove, { folderId: mid });
+    expect(await folderOf(s, s.book)).toBe(top);
+    const lifted = (await s.asA.query(api.folders.list, {})).find((f) => f._id === sub);
+    expect(lifted).toMatchObject({ parentId: top, name: "Same (2)" });
+    const back = await s.asA.mutation(api.folders.restore, { name: "Mid", emoji: "📁", parentId: res.parentId, documentIds: res.moved, children: res.children });
+    expect(await folderOf(s, s.book)).toBe(back);
+    expect((await s.asA.query(api.folders.list, {})).find((f) => f._id === sub)).toMatchObject({ parentId: back, name: "Same" });
   });
 });

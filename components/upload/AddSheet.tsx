@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateUpload } from "@/convex/documentRules";
 import { Id } from "@/convex/_generated/dataModel";
 import { FolderOption } from "@/components/library/BookTile";
+import { flattenFolders } from "@/convex/folderRules";
 import { parseLink } from "@/convex/linkRules";
 import { coverColour } from "@/components/library/BookCover";
 import { FILE_HINT, FILE_ACCEPT, MAX_FILES_AT_ONCE, fileKindLabel, fileNote } from "./sources";
@@ -209,8 +210,9 @@ export function AddSheet({
               className="min-w-0 flex-1 rounded-lg border-[1.5px] border-line bg-white px-2 py-1 text-ui focus:border-ink focus:outline-none"
             >
               <option value="">No folder</option>
-              {folders.map((f) => (
+              {flattenFolders(folders).map((f) => (
                 <option key={f._id} value={f._id}>
+                  {"\u00A0\u00A0".repeat(f.depth)}
                   {f.emoji} {f.name}
                 </option>
               ))}
