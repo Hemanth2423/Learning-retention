@@ -51,9 +51,10 @@ export function BookCover({
       title={title}
     >
       {picture ? (
-        <div className={`absolute ${inset} overflow-hidden bg-ink ${pad === "sm" ? "rounded-md" : "rounded-lg"}`}>
+        // The whole image always shows: a wide thumbnail sits centred with quiet space around it, never cropped.
+        <div className={`absolute ${inset} grid place-items-center overflow-hidden bg-panel ${pad === "sm" ? "rounded-md" : "rounded-lg"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={picture} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+          <img src={picture} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-contain" />
         </div>
       ) : linkLike ? (
         <div
@@ -77,7 +78,7 @@ export function BookCover({
       {kind === "video" && (
         <span className="absolute inset-0 m-auto grid h-[34px] w-12 place-items-center rounded-[9px] bg-[#c4302b]/95 pl-0.5 text-meta text-white">▶</span>
       )}
-      {linkLike && label && (
+      {linkLike && label && !picture && (
         <span className="absolute bottom-[18px] left-[18px] max-w-[calc(100%-36px)] truncate rounded-md bg-[#1d1813]/80 px-2 py-0.5 text-label font-semibold text-white">
           {kind === "video" ? "▶ " : ""}
           {label}

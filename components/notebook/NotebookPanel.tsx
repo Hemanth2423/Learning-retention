@@ -19,9 +19,9 @@ type Item =
 
 const FILTERS: { key: NotebookFilter; label: string }[] = [
   { key: "all", label: "All" },
-  { key: "notes", label: "Notes" },
-  { key: "highlights", label: "Highlights" },
-  { key: "saved", label: "Saved" },
+  { key: "notes", label: "✏️ Notes" },
+  { key: "highlights", label: "🖍 Highlights" },
+  { key: "saved", label: "📓 Saved" },
 ];
 
 const rangeOf = (ranges: ChapterRange[], page: number) => ranges.find((r) => page >= r.startPage && page <= r.endPage)?.key ?? null;
@@ -146,7 +146,10 @@ export function NotebookPanel(p: NotebookProps) {
               if (searching) setQuery("");
             }}
           >
-            ⌕
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.8-3.8" />
+            </svg>
           </button>
         </div>
         {searching && (
@@ -323,11 +326,15 @@ function HighlightCard({ h, editingId, onEditComment, onSetComment, onRemoveHigh
           </button>
         </span>
       </div>
-      <blockquote className="line-clamp-6 border-l-[3px] border-[#e2bd52] pl-2.5 font-serif text-ui leading-normal">{h.text}</blockquote>
+      <blockquote title={h.text} className="line-clamp-2 border-l-[3px] border-[#e2bd52] pl-2.5 font-serif text-ui leading-normal">{h.text}</blockquote>
       {editing ? (
         <CommentEditor initial={h.comment ?? ""} onSave={(text) => onSetComment(h._id, text)} onCancel={() => onEditComment(null)} />
       ) : (
-        h.comment && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-panel px-2.5 py-1.5 text-meta">{h.comment}</p>
+        h.comment && (
+          <p title={h.comment} className="mt-2 line-clamp-2 whitespace-pre-line rounded-lg bg-panel px-2.5 py-1.5 text-meta">
+            {h.comment}
+          </p>
+        )
       )}
       <ConfirmDialog
         open={confirm}

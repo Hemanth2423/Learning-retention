@@ -17,10 +17,12 @@
   --good-line: #b7cbaa;
   --ochre: #f3d27f; /* highlights */
   --bad: #a8352a;
+  --canvas: #fbfbf9; /* the reading canvas: one soft white around the page (like Notes on Mac) */
 }
 
 @theme inline {
   --color-paper: var(--paper);
+  --color-canvas: var(--canvas);
   --color-card: var(--card);
   --color-ink: var(--ink);
   --color-muted: var(--muted);

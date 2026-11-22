@@ -326,7 +326,7 @@ export function Reader({ doc, url, startPage, startNotes, startNotebook }: { doc
       <header
         onMouseEnter={() => (overMenu.current = true)}
         onMouseLeave={() => (overMenu.current = false)}
-        className={`absolute inset-x-0 top-0 z-30 flex items-center gap-2.5 border-b border-line bg-card/95 px-4 py-3 backdrop-blur transition duration-300 ${
+        className={`absolute inset-x-0 top-0 z-30 flex items-center gap-2.5 border-b border-ink/[0.07] bg-canvas/95 px-4 py-3 backdrop-blur transition duration-300 ${
           menuShown ? "" : "pointer-events-none -translate-y-full opacity-0"
         }`}
       >

@@ -2,7 +2,7 @@
 
 import "pdfjs-dist/web/pdf_viewer.css";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { mergeRects, normalizeText, Rect, Segment } from "@/convex/highlightRules";
 import { PdfPage } from "./PdfPage";
 
@@ -29,9 +29,10 @@ const GUTTER = 48;
 const TOP_GAP = 76; // room for the top menu, so a jump never lands under it
 const CONTEXT_ABOVE = 120; // when jumping to a spot, show this much above it
 const MAX_LINE_HEIGHT = 0.08; // fraction of the page; taller boxes are containers, not text
+const NO_MARKS: { id: string; rects: Rect[] }[] = []; // stable, so pages without highlights don't re-render
 
 // Scrolls the pages of one PDF. Only pages near the screen are drawn, so long books stay fast.
-export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
+export const PdfViewer = memo(forwardRef<PdfViewerHandle, Props>(function PdfViewer(
   { url, pageCount, zoom, initialPage, highlights, onPageChange, onSelection, onVisiblePages, onError },
   ref
 ) {
@@ -274,13 +275,22 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
       const segments = [...byPage.entries()].sort((a, b) => a[0] - b[0]).map(([page, rects]) => ({ page, rects: mergeRects(rects) }));
       return { text, segments, x: anchor.x, y: anchor.y };
     };
-    const onUp = () => window.setTimeout(() => onSelection(read()), 0);
-    const hide = () => onSelection(null);
-    root.addEventListener("mouseup", onUp);
+    // Listen on the document: a drag that started on the page may end outside it.
+    let started = false;
+    const onUp = () => {
+      if (!started) return;
+      started = false;
+      window.setTimeout(() => onSelection(read()), 0);
+    };
+    const hide = () => {
+      started = true;
+      onSelection(null);
+    };
+    document.addEventListener("mouseup", onUp);
     root.addEventListener("pointerdown", hide);
     root.addEventListener("scroll", hide, { passive: true });
     return () => {
-      root.removeEventListener("mouseup", onUp);
+      document.removeEventListener("mouseup", onUp);
       root.removeEventListener("pointerdown", hide);
       root.removeEventListener("scroll", hide);
     };
@@ -296,17 +306,16 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
 
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
   void dimsVersion;
-  const NO_MARKS: { id: string; rects: Rect[] }[] = [];
 
   return (
     <div
       ref={setRoot}
       tabIndex={0}
       aria-label="Book pages"
-      className="relative min-w-0 flex-1 overflow-auto bg-line/30 outline-none"
+      className="relative min-w-0 flex-1 overflow-auto bg-canvas outline-none"
     >
       {pdf && firstPage && scale > 0 ? (
-        <div ref={columnRef} className="relative mx-auto flex w-max min-w-full flex-col items-center gap-4 px-6 pb-24 pt-16">
+        <div ref={columnRef} className="relative mx-auto flex w-max min-w-full flex-col items-center gap-3 px-6 pb-24 pt-16">
           {pages.map((n) => (
             <PdfPage
               key={n}
@@ -317,7 +326,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
               near={near.has(n)}
               root={root}
               marks={marksByPage.get(n) ?? NO_MARKS}
-              flashId={flashId}
+              flashId={marksByPage.get(n)?.some((m) => m.id === flashId) ? flashId : null}
               onDims={onDims}
               onNear={onNear}
             />
@@ -332,4 +341,4 @@ export const PdfViewer = forwardRef<PdfViewerHandle, Props>(function PdfViewer(
       )}
     </div>
   );
-});
+}));

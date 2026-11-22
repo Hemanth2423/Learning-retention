@@ -127,7 +127,7 @@ export function VideoView({ doc }: { doc: VideoDoc }) {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex shrink-0 items-center gap-3 border-b border-line bg-card/95 px-4 py-2.5">
+      <header className="flex shrink-0 items-center gap-3 border-b border-ink/[0.07] bg-canvas px-4 py-2.5">
         <Link href="/read" className="retro">
           ← Library
         </Link>
@@ -142,7 +142,7 @@ export function VideoView({ doc }: { doc: VideoDoc }) {
         </button>
       </header>
       <div className="relative flex min-h-0 flex-1">
-        <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6">
+        <main className="min-w-0 flex-1 overflow-y-auto bg-canvas px-4 py-6">
           <div className="mx-auto max-w-[900px]">
             <div className="aspect-video overflow-hidden rounded-2xl bg-black shadow-[0_16px_34px_-22px_rgba(0,0,0,.7)]">
               {doc.videoId && (

@@ -43,8 +43,8 @@ function metaLine(b: LibraryBook): string {
   if (b.sourceType === "word") return "Word";
   if (b.sourceType === "powerpoint") return `PowerPoint · ${b.pageCount} slide${b.pageCount === 1 ? "" : "s"}`;
   if (b.sourceType === "epub") return !b.page ? "EPUB · not started" : `EPUB${b.chapterNumber ? ` · Ch ${b.chapterNumber}` : ""} · ${b.progress}%`;
-  if (b.sourceType === "article") return b.status === "ready" && b.statusMessage ? "Article · saved as a link" : "Article";
-  if (b.sourceType === "video") return "Video";
+  if (b.sourceType === "article") return b.status === "ready" && b.statusMessage ? "Article · saved as a link" : `Article${b.siteName ? ` · ${b.siteName}` : ""}`;
+  if (b.sourceType === "video") return `Video${b.siteName ? ` · ${b.siteName}` : ""}`;
   if (!b.page) return "Not started";
   return `p. ${b.page} of ${b.pageCount}${b.chapterNumber ? ` · Ch ${b.chapterNumber}` : ""}`;
 }
@@ -135,7 +135,7 @@ export function BookTile({
           {book.title}
         </div>
       )}
-      <div className={`mt-0.5 text-meta ${book.status === "failed" ? "text-bad" : "text-muted"}`}>{metaLine(book)}</div>
+      <div className={`mt-0.5 truncate text-meta ${book.status === "failed" ? "text-bad" : "text-muted"}`}>{metaLine(book)}</div>
       {showFolder && folder && (
         <span className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-full border border-line bg-panel px-2 text-label font-semibold text-muted">
           {folder.emoji} {folder.name}

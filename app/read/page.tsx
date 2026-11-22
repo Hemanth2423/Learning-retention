@@ -80,25 +80,20 @@ function AddCard({ onOpen, into }: { onOpen: (files?: File[]) => void; into?: st
         setDragging(false);
         onOpen(Array.from(e.dataTransfer.files));
       }}
-      className={`flex h-full min-h-[180px] w-full flex-col items-center justify-center gap-2 rounded-[18px] border-2 border-dashed p-[18px] text-center transition ${
-        dragging ? "border-accent bg-card" : "border-[#b9a88f] bg-card/55 hover:border-accent hover:bg-card"
+      // The page's primary action: the one solid terracotta surface on Home.
+      className={`flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-2.5 rounded-[18px] border-2 border-ink p-5 text-center text-white shadow-[0_5px_0_var(--ink)] transition active:translate-y-[3px] active:shadow-[0_2px_0_var(--ink)] ${
+        dragging ? "bg-accent-dark ring-4 ring-ochre" : "bg-accent hover:bg-accent-dark"
       }`}
     >
-      <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-full bg-accent text-h1 leading-none text-white">
+      <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-full bg-white text-h1 leading-none text-accent-dark">
         +
       </span>
-      <b className="font-serif text-h3">Add to your library</b>
-      <span className="flex flex-wrap justify-center gap-1">
-        {FILE_KINDS.map((k) => (
-          <span key={k} className="kind">
-            {k}
-          </span>
-        ))}
-      </span>
-      <span className="text-meta text-muted">or paste article and YouTube links</span>
+      <b className="font-serif text-h2">Add to your library</b>
+      <span className="text-meta text-white/90">{FILE_KINDS.join(" · ")}</span>
+      <span className="text-meta text-white/90">or paste article, YouTube and playlist links</span>
       {into && (
-        <span className="text-meta text-muted">
-          Goes into <b className="text-accent-dark">{into}</b>
+        <span className="mt-0.5 max-w-full truncate rounded-full bg-white/15 px-2.5 py-0.5 text-meta">
+          Goes into <b>{into}</b>
         </span>
       )}
     </button>
@@ -297,7 +292,10 @@ function Library() {
           Ingrain<span className="text-accent">.</span>
         </span>
         <label className="flex max-w-sm flex-1 items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted">
-          <span aria-hidden="true">⌕</span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="shrink-0">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.8-3.8" />
+          </svg>
           <input
             value={search}
             onChange={(e) => {
@@ -316,8 +314,8 @@ function Library() {
       </header>
 
       <main className="mx-auto max-w-[1120px] px-4 pb-20 md:px-8">
-        <h2 className="mb-3.5 mt-6 font-serif text-h2 font-bold">{books === undefined ? " " : latest ? "Continue reading" : "Start your library"}</h2>
-        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_280px]">
+        <h2 className="mb-4 mt-8 font-serif text-h2 font-bold">{books === undefined ? " " : latest ? "Continue reading" : "Start your library"}</h2>
+        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_300px]">
           {books === undefined ? (
             <div className="h-[230px] animate-pulse rounded-[18px] bg-card/60" />
           ) : latest ? (

@@ -271,7 +271,7 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
   return (
     <CiteUnit.Provider value="part">
       <div className="flex h-screen flex-col">
-        <header className="flex shrink-0 items-center gap-2.5 border-b border-line bg-card/95 px-4 py-2.5">
+        <header className="flex shrink-0 items-center gap-2.5 border-b border-ink/[0.07] bg-canvas px-4 py-2.5">
           <Link href={isBook ? `/read/${doc._id}` : "/read"} className="retro">
             ← {isBook ? "Path" : "Library"}
           </Link>
@@ -318,8 +318,8 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
               />
             </aside>
           )}
-          <main ref={scroller} className="relative min-w-0 flex-1 overflow-y-auto px-4 py-8" onScroll={() => selection && setSelection(null)}>
-            <article className="mx-auto max-w-[700px] rounded-md border border-line bg-card px-6 py-10 shadow-[0_12px_30px_-24px_rgba(42,34,27,.6)] md:px-14">
+          <main ref={scroller} className="relative min-w-0 flex-1 overflow-y-auto bg-canvas px-4 py-8" onScroll={() => selection && setSelection(null)}>
+            <article className="mx-auto max-w-[700px] px-6 py-6 md:px-10">
               <p className="mb-2 flex items-center gap-2 text-meta text-muted">
                 <span className="kind">{KIND_LABEL[kind]}</span>
                 {isArticle ? `${doc.siteName ?? ""} · reader mode` : kind === "powerpoint" ? "Slide text only" : null}
