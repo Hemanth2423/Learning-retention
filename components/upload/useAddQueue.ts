@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { renderPdfCover, uploadImage } from "@/components/library/covers";
+import { parseLink } from "@/convex/linkRules";
 import { BLOCK_BATCH, kindOfFile } from "@/convex/textSourceRules";
 import { readTextFile, ReadError } from "./readFile";
 
@@ -17,6 +18,7 @@ export type QueueItem = {
   pct?: number;
   message?: string; // why it failed, or a note ("Saved as a link")
   documentId?: Id<"documents">;
+  folderId?: Id<"folders">; // a playlist: the folder it became
 };
 type Job = { id: string; run: () => Promise<void> };
 
@@ -43,6 +45,7 @@ export function useAddQueue() {
   const setCover = useMutation(api.documents.setCover);
   const skipCover = useMutation(api.documents.skipCover);
   const addLink = useAction(api.links.add);
+  const addPlaylist = useAction(api.links.addPlaylist);
   const beginText = useMutation(api.textSources.begin);
   const addBlocks = useMutation(api.textSources.addBlocks);
   const finishText = useMutation(api.textSources.finish);
@@ -162,6 +165,17 @@ export function useAddQueue() {
           id,
           run: async () => {
             update(id, { state: "adding" });
+            if (parseLink(url)?.kind === "playlist") {
+              const res = await addPlaylist({ url, folderId }).catch(() => ({ ok: false as const, message: "We couldn't add that playlist just now. Try again." }));
+              if (!res.ok) return update(id, { state: "failed", message: res.message });
+              const notes = [
+                res.updated ? `Updated: ${res.added} new` : `${res.added} video${res.added === 1 ? "" : "s"}`,
+                res.alreadyHad ? `${res.alreadyHad} already in your library` : "",
+                res.hidden ? `${res.hidden} private or deleted` : "",
+                res.capped ? "first 200 only" : "",
+              ].filter(Boolean);
+              return update(id, { state: "ready", name: res.name, folderId: res.folderId, message: notes.join(" · ") });
+            }
             const res = await addLink({ url, folderId }).catch(() => ({
               ok: false as const,
               message: "We couldn't add that link just now. Try again.",
@@ -183,7 +197,7 @@ export function useAddQueue() {
       }
       void pump();
     },
-    [addLink, pump, update],
+    [addLink, addPlaylist, pump, update],
   );
 
   const clearFinished = useCallback(() => setItems((list) => list.filter((i) => !["ready", "failed"].includes(i.state))), []);

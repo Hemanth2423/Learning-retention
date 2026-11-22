@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
@@ -19,6 +19,7 @@ import { Icons } from "@/components/reader/Tooltip";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { chapterRanges } from "@/convex/chapters";
+import { cleanArticleBlocks } from "@/convex/linkRules";
 import type { TextRange } from "@/convex/highlightRules";
 import { chapterProgress } from "@/convex/readingRules";
 import { flashHighlight, paintHighlights, selectionRange } from "./textHighlights";
@@ -58,7 +59,13 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
   const kind = doc.sourceType as keyof typeof KIND_LABEL;
   const isArticle = kind === "article";
   const isBook = kind === "epub";
-  const blocks = useQuery(api.links.blocks, { documentId: doc._id });
+  const rawBlocks = useQuery(api.links.blocks, { documentId: doc._id });
+  // Articles are shown without the site's buttons and counters, and we say so when only the free part came through.
+  const cleaned = useMemo(() => (rawBlocks && doc.sourceType === "article" ? cleanArticleBlocks(rawBlocks, doc.title) : { blocks: rawBlocks, partial: false }), [rawBlocks, doc.sourceType, doc.title]);
+  const blocks = cleaned.blocks;
+  const checkEmbed = useAction(api.links.canEmbed);
+  const [articleView, setArticleView] = useState<"reader" | "original">("reader");
+  const [embeddable, setEmbeddable] = useState<boolean | null>(null); // null = not checked yet
   const saveProgress = useMutation(api.documents.saveProgress);
   const addHighlight = useMutation(api.notebook.addTextHighlight);
   const setComment = useMutation(api.highlights.setComment);
@@ -230,6 +237,11 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
     }
   }
 
+  function showOriginal() {
+    setArticleView("original");
+    if (embeddable === null) void checkEmbed({ documentId: doc._id }).then(setEmbeddable, () => setEmbeddable(false));
+  }
+
   const noun = isArticle ? "article" : isBook ? "book" : "document";
   const tabs: StudyTabSpec[] = [
     ...(readable ? [{ key: "ask" as const, label: "Ask", icon: Icons.ask, content: <ChatPanel noun={noun} chat={chat} page={page} draft={draft} onDraft={setDraft} onJump={jumpTo} /> }] : []),
@@ -292,9 +304,19 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
               <p className="truncate text-label text-muted">{isArticle ? doc.siteName : KIND_LABEL[kind]}</p>
             )}
           </div>
+          {isArticle && doc.sourceUrl && readable && (
+            <div role="group" aria-label="How to view this article" className="seg shrink-0">
+              <button aria-pressed={articleView === "reader"} onClick={() => setArticleView("reader")} className="px-3 py-1">
+                Reader
+              </button>
+              <button aria-pressed={articleView === "original"} onClick={showOriginal} className="px-3 py-1">
+                Original
+              </button>
+            </div>
+          )}
           {isArticle && doc.sourceUrl && (
             <a href={doc.sourceUrl} target="_blank" rel="noopener noreferrer" className="retro" title="Open the original page in a new tab">
-              Open original ↗
+              Open ↗
             </a>
           )}
           <button className="retro" aria-expanded={studyOpen} aria-controls="right-panel" onClick={() => setStudyOpen((o) => !o)}>
@@ -318,7 +340,29 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
               />
             </aside>
           )}
-          <main ref={scroller} className="relative min-w-0 flex-1 overflow-y-auto bg-canvas px-4 py-8" onScroll={() => selection && setSelection(null)}>
+          {articleView === "original" && doc.sourceUrl && (
+            <div className="min-w-0 flex-1 bg-canvas">
+              {embeddable ? (
+                // Sandboxed: the page can run, but can't reach the app or navigate it.
+                <iframe src={doc.sourceUrl} title={`Original: ${doc.title}`} sandbox="allow-scripts allow-same-origin allow-popups allow-forms" referrerPolicy="no-referrer" className="h-full w-full border-0" />
+              ) : (
+                <div className="grid h-full place-items-center px-6 text-center">
+                  {embeddable === null ? (
+                    <p className="text-muted">Checking if this site can be shown here…</p>
+                  ) : (
+                    <div className="max-w-md">
+                      <p className="font-serif text-h2 font-bold">{doc.siteName ?? "This site"} doesn&apos;t allow being shown inside other apps</p>
+                      <p className="mt-2 text-muted">Open it in a new tab. Your notes and Ask stay here.</p>
+                      <a href={doc.sourceUrl} target="_blank" rel="noopener noreferrer" className="chunky mt-4">
+                        Open original ↗
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <main hidden={articleView === "original"} ref={scroller} className="relative min-w-0 flex-1 overflow-y-auto bg-canvas px-4 py-8" onScroll={() => selection && setSelection(null)}>
             <article className="mx-auto max-w-[700px] px-6 py-6 md:px-10">
               <p className="mb-2 flex items-center gap-2 text-meta text-muted">
                 <span className="kind">{KIND_LABEL[kind]}</span>
@@ -338,11 +382,23 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
               ) : blocks === undefined ? (
                 <p className="mt-6 text-muted">Loading…</p>
               ) : (
+                <>
+                {cleaned.partial && (
+                  <div role="note" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-panel px-4 py-3">
+                    <p className="min-w-0 flex-1 text-meta">
+                      <b>This is the free preview.</b> The rest is for the site&apos;s subscribers.
+                    </p>
+                    <a href={doc.sourceUrl} target="_blank" rel="noopener noreferrer" className="quiet shrink-0">
+                      Read the full post ↗
+                    </a>
+                  </div>
+                )}
                 <div ref={textRef} className="article-body mt-4 font-serif text-read leading-[1.75]" onMouseUp={onSelectEnd} onKeyUp={onSelectEnd}>
                   {blocks.map((b) => (
                     <Block key={b.page} n={b.page} text={b.text} />
                   ))}
                 </div>
+                </>
               )}
             </article>
           </main>

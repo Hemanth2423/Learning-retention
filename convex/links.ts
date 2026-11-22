@@ -1,17 +1,19 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { folderForNewItem } from "./folders";
+import { folderForNewItem, insertFolder } from "./folders";
+import { canHaveSubfolder, MAX_FOLDER_NAME, MAX_FOLDERS, normalizeFolderName, uniqueFolderName } from "./folderRules";
 import { MAX_TEXT_BLOCKS } from "./textSourceRules";
-import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { ConvexError, v } from "convex/values";
+import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { action, internalMutation, query } from "./_generated/server";
 import { getOwnDocument, requireUser } from "./helpers";
-import { cleanArticleMarkdown, parseLink, readableEnough, siteNameOf, splitArticle, youtubeThumb } from "./linkRules";
+import { allowsFraming, cleanArticleMarkdown, isPublicHost, MAX_PLAYLIST_VIDEOS, parseLink, playlistPageVideos, PlaylistVideo, readableEnough, siteNameOf, splitArticle, youtubeThumb } from "./linkRules";
 
 // Adding an article or a YouTube video by link (Feature 3, slice 1). All network calls happen here, on the server:
 // Firecrawl reads the article once; YouTube oEmbed gives the video's title and channel. Nothing is re-fetched later.
 
 const FIRECRAWL_URL = "https://api.firecrawl.dev/v2/scrape";
+const YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
 const OEMBED_URL = "https://www.youtube.com/oembed";
 const TIMEOUT_MS = 45_000;
 
@@ -89,6 +91,7 @@ export const add = action({
     if (!userId) return { ok: false, message: "Please log in first." };
     const link = parseLink(url);
     if (!link) return { ok: false, message: "That doesn't look like an article or YouTube link." };
+    if (link.kind === "playlist") return { ok: false, message: "That's a playlist: add it from the Links tab." };
 
     const placeholder = link.kind === "video" ? "YouTube video" : siteNameOf(link.host);
     const start = await ctx.runMutation(internal.links.begin, { userId, url: link.url, kind: link.kind, videoId: link.kind === "video" ? link.videoId : undefined, title: placeholder, folderId });
@@ -126,7 +129,7 @@ export const add = action({
         const res = await fetch(FIRECRAWL_URL, {
           method: "POST",
           headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ url: link.url, formats: ["markdown"], onlyMainContent: true }),
+          body: JSON.stringify({ url: link.url, formats: ["markdown"], onlyMainContent: true, excludeTags: ["nav", "footer", "aside", "button", "svg"] }),
           signal: AbortSignal.timeout(TIMEOUT_MS),
         });
         const body = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { markdown?: string; metadata?: Record<string, unknown> } };
@@ -157,6 +160,136 @@ export const add = action({
       await ctx.runMutation(internal.links.abort, { documentId });
       return { ok: false, message: "We couldn't add that link just now. Try again." };
     }
+  },
+});
+
+export type AddPlaylistResult =
+  | { ok: true; folderId: Id<"folders">; name: string; added: number; alreadyHad: number; hidden: number; capped: boolean; updated: boolean }
+  | { ok: false; message: string };
+
+// Saves a playlist as a folder of videos, in playlist order. Adding the same playlist again updates its folder.
+// Videos already in the library aren't duplicated: they stay where they're filed (or join this folder if unfiled).
+export const savePlaylist = internalMutation({
+  args: {
+    userId: v.id("users"),
+    listId: v.string(),
+    name: v.string(),
+    parentId: v.optional(v.id("folders")),
+    videos: v.array(v.object({ videoId: v.string(), title: v.string(), channel: v.string() })),
+  },
+  handler: async (ctx, { userId, listId, name, parentId, videos }) => {
+    const all = await ctx.db.query("folders").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_FOLDERS + 1);
+    let folderId = all.find((f) => f.playlistId === listId)?._id;
+    const updated = !!folderId;
+    if (!folderId) {
+      const parent = parentId && all.some((f) => f._id === parentId) && canHaveSubfolder(all, parentId) ? parentId : undefined;
+      const siblings = all.filter((f) => (f.parentId ?? undefined) === parent).map((f) => f.name);
+      const clean = normalizeFolderName(name).slice(0, MAX_FOLDER_NAME) || "YouTube playlist";
+      folderId = await insertFolder(ctx, userId, uniqueFolderName(clean, siblings), "🎬", parent);
+      await ctx.db.patch(folderId, { playlistId: listId });
+    }
+    let added = 0;
+    let alreadyHad = 0;
+    // Newest first in the library, so inserting backwards shows video 1 first.
+    for (const video of [...videos].reverse()) {
+      const url = `https://www.youtube.com/watch?v=${video.videoId}`;
+      const existing = await ctx.db.query("documents").withIndex("by_user_source", (q) => q.eq("userId", userId).eq("sourceUrl", url)).first();
+      if (existing) {
+        alreadyHad++;
+        if (!existing.folderId) await ctx.db.patch(existing._id, { folderId });
+        continue;
+      }
+      await ctx.db.insert("documents", {
+        userId,
+        title: video.title,
+        sourceType: "video",
+        sourceUrl: url,
+        videoId: video.videoId,
+        siteName: video.channel,
+        imageUrl: youtubeThumb(video.videoId),
+        folderId,
+        status: "ready",
+        hasText: false,
+        pageCount: 1,
+        sections: [{ key: "video", title: video.title, level: 1, locator: { kind: "text", page: 1 } }],
+      });
+      added++;
+    }
+    const folder = await ctx.db.get(folderId);
+    return { folderId, name: folder?.name ?? name, added, alreadyHad, updated };
+  },
+});
+
+// A YouTube playlist link → a folder with its videos (up to 200). Uses the YouTube Data API on the server.
+export const addPlaylist = action({
+  args: { url: v.string(), folderId: v.optional(v.id("folders")) },
+  handler: async (ctx, { url, folderId }): Promise<AddPlaylistResult> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { ok: false, message: "Please log in first." };
+    const link = parseLink(url);
+    if (link?.kind !== "playlist") return { ok: false, message: "That doesn't look like a YouTube playlist link." };
+    const key = process.env.YOUTUBE_API_KEY;
+    if (!key) return { ok: false, message: "Playlists aren't switched on yet (the YouTube key is missing)." };
+    const get = async (path: string, params: Record<string, string>) => {
+      const q = new URLSearchParams({ ...params, key });
+      const res = await fetch(`${YOUTUBE_API}/${path}?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      return { status: res.status, body: (await res.json().catch(() => ({}))) as Record<string, unknown> };
+    };
+    try {
+      const info = await get("playlists", { part: "snippet", id: link.listId, maxResults: "1" });
+      const snippet = (info.body.items as { snippet?: { title?: string } }[] | undefined)?.[0]?.snippet;
+      if (info.status !== 200) {
+        console.error("[links] playlist lookup failed", info.status);
+        return { ok: false, message: "We couldn't reach YouTube just now. Try again." };
+      }
+      if (!snippet) return { ok: false, message: "We couldn't find that playlist. It may be private." };
+      const videos: PlaylistVideo[] = [];
+      let hidden = 0;
+      let pageToken: string | undefined;
+      let more = false;
+      do {
+        const page = await get("playlistItems", { part: "snippet,status", playlistId: link.listId, maxResults: "50", ...(pageToken ? { pageToken } : {}) });
+        if (page.status !== 200) return { ok: false, message: "We couldn't read that playlist. It may be private." };
+        const parsed = playlistPageVideos(page.body);
+        for (const video of parsed.videos) if (!videos.some((x) => x.videoId === video.videoId)) videos.push(video);
+        hidden += parsed.hidden;
+        pageToken = parsed.next;
+        more = !!pageToken && videos.length >= MAX_PLAYLIST_VIDEOS;
+      } while (pageToken && videos.length < MAX_PLAYLIST_VIDEOS);
+      const capped = more || videos.length > MAX_PLAYLIST_VIDEOS;
+      const kept = videos.slice(0, MAX_PLAYLIST_VIDEOS);
+      if (!kept.length) return { ok: false, message: "This playlist has no videos we can show." };
+      const saved = await ctx.runMutation(internal.links.savePlaylist, { userId, listId: link.listId, name: snippet.title ?? "YouTube playlist", parentId: folderId, videos: kept });
+      return { ok: true, ...saved, hidden, capped };
+    } catch (err) {
+      console.error("[links] playlist failed", err);
+      const message = err instanceof ConvexError && typeof err.data === "string" ? err.data : "We couldn't add that playlist just now. Try again.";
+      return { ok: false, message };
+    }
+  },
+});
+
+// Can this article's original page be shown in a frame here? Looks only at response headers, follows at most three
+// redirects, and refuses anything that isn't a public web host. Answers yes/no; nothing from the page is returned.
+export const canEmbed = action({
+  args: { documentId: v.id("documents") },
+  handler: async (ctx, { documentId }): Promise<boolean> => {
+    const doc = await ctx.runQuery(api.documents.get, { documentId });
+    if (!doc?.sourceUrl || doc.sourceType !== "article") return false;
+    try {
+      let url = new URL(doc.sourceUrl);
+      for (let hop = 0; hop < 4; hop++) {
+        if (url.protocol !== "https:" || !isPublicHost(url.hostname)) return false;
+        const res = await fetch(url, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(8000) });
+        await res.body?.cancel().catch(() => {});
+        const next = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+        if (!next) return res.ok && allowsFraming({ xFrameOptions: res.headers.get("x-frame-options"), csp: res.headers.get("content-security-policy") });
+        url = new URL(next, url);
+      }
+    } catch {
+      /* unreachable: treat as not embeddable, the reader can still open it in a new tab */
+    }
+    return false;
   },
 });
 

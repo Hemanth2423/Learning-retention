@@ -20,12 +20,13 @@ Prototype 008, layout C (local, gitignored: `.context/compound-engineering/ce-pr
 
 ## Constraints
 - **Schema:** new `folders` table, `documents.folderId` (approved by Hemanth with "build it out", 2026-11-21; ADR 016).
-- **Out of scope:** folders inside folders, an item in two folders (tags), shared folders, reordering folders.
+- **Out of scope:** an item in two folders (tags), shared folders, reordering folders.
 
 ## Verification
 - [x] Tests: name rules; create/rename/delete; move (owner checks on item and folder); delete keeps items; adding into a folder (PDF, text files, links); data isolation.
 - [x] Browser: create, drag, right-click and ⋯ moves, Undo, rename, delete + Undo, filters + search inside a folder, Add into a folder (file and link), drop files on a folder, phone width.
 
 ## Status log
+- 2026-11-22: **UX round from Hemanth, built:** nested folders (4 levels), New folder pop-up, playlist-style + Add items, empty-folder actions, playlists as folders (needs `YOUTUBE_API_KEY`), whole-image covers, solid Add card and calmer Home, capped titles, cleaned article view with paywall notice and Reader | Original, Notebook 2-line caps + icons, exact PDF selection, memoised pages, one soft-white reading canvas. ADR 017. **Not tested live:** a real playlist (no key yet; covered with mocked API tests), a real paywalled article in the browser (covered by tests on Lenny's text).
 - 2026-11-21: **Built and browser-checked** (layout C). Tested: make folders (duplicate name refused), drag onto a folder (rail highlights targets), right-click and ⋯ → Move to for PDF, EPUB, article, PowerPoint and video, Undo, folder view with kind filters, search across folders (resets the kind filter, shows each item's folder), rename, delete (items to No folder) + Undo, Add sheet preset to the open folder (YouTube link landed in it), files dropped on a folder (PDF + EPUB landed in it), phone width (heading → folder chips → shelf, no sideways scroll), keyboard path via ⋯. 11 server tests. **Deviations:** folders are listed alphabetically (keeps order stable after Undo); search ignores the open folder on purpose.
 - 2026-11-21: Spec written from prototype 008 (layout C).

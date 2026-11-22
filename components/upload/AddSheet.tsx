@@ -166,7 +166,7 @@ export function AddSheet({
         ) : (
           <div role="tabpanel">
             <label htmlFor="add-links" className="text-meta text-muted">
-              Paste links, one per line: articles or YouTube videos
+              Paste links, one per line: articles, YouTube videos or playlists
             </label>
             <textarea
               id="add-links"
@@ -187,11 +187,15 @@ export function AddSheet({
                     <LinkPreview row={r} />
                     <span className="min-w-0">
                       <b className="block truncate font-serif" title={r.raw}>
-                        {r.link ? (r.link.kind === "video" ? "YouTube video" : r.link.host.replace(/^www\./, "")) : r.raw}
+                        {r.link ? (r.link.kind === "video" ? "YouTube video" : r.link.kind === "playlist" ? "YouTube playlist" : r.link.host.replace(/^www\./, "")) : r.raw}
                       </b>
                       <span className={`block truncate text-meta ${r.problem ? "text-accent-dark" : "text-muted"}`}>
                         {r.problem ??
-                          (r.link?.kind === "video" ? "Video · title and channel come from YouTube" : "Article · read once, then kept in reader mode")}
+                          (r.link?.kind === "video"
+                            ? "Video · title and channel come from YouTube"
+                            : r.link?.kind === "playlist"
+                              ? "Becomes a folder with its videos (up to 200)"
+                              : "Article · read once, then kept in reader mode")}
                       </span>
                     </span>
                   </li>
@@ -255,6 +259,12 @@ function LinkPreview({ row }: { row: ReturnType<typeof checkLinks>[number] }) {
       <span className={`${box} relative bg-ink`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`https://i.ytimg.com/vi/${row.link.videoId}/mqdefault.jpg`} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+      </span>
+    );
+  if (row.link?.kind === "playlist")
+    return (
+      <span aria-hidden="true" className={`${box} grid place-items-center bg-ink text-h2`}>
+        🎬
       </span>
     );
   const host = row.link?.kind === "article" ? row.link.host.replace(/^www\./, "") : "?";

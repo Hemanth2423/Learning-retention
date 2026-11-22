@@ -111,4 +111,7 @@ See [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebo
 | Change | How | Why this way |
 |---|---|---|
 | ⚠ **Folders** | `folders` table + optional `documents.folderId` (index `by_folder`); `convex/folders.ts` (list, create, rename, remove, moveItems) + `folderRules.ts`; add paths take an optional `folderId`; rail in `components/library/FolderRail.tsx` (ADR 016) | Any format in any folder; deleting a folder never deletes items |
+| ⚠ **Nesting + playlists** | `folders.parentId` (4 levels), `folders.playlistId`; `links.addPlaylist` calls the **YouTube Data API** (`YOUTUBE_API_KEY`, server only) (ADR 017) | Playlists reuse folders; nothing new to learn |
+| **Article view** | `linkRules.cleanArticleBlocks` runs when reading (stored text unchanged); `links.canEmbed` decides if the Original tab can frame the page | Cleans old articles at no cost; safe header check |
+| **PDF selection** | `components/reader/textSelection.ts`: pdf.js end-of-content technique; pages and viewer memoised | Exact selection; long books stay smooth |
 

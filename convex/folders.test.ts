@@ -213,3 +213,43 @@ describe("nested folders", () => {
     expect((await s.asA.query(api.folders.list, {})).find((f) => f._id === sub)).toMatchObject({ parentId: back, name: "Same" });
   });
 });
+
+describe("playlists become folders", () => {
+  const videos = [
+    { videoId: "aaaaaaaaaaa", title: "One", channel: "Ch" },
+    { videoId: "bbbbbbbbbbb", title: "Two", channel: "Ch" },
+    { videoId: "ccccccccccc", title: "Three", channel: "Ch" },
+  ];
+  test("a folder with its videos in playlist order; adding it again updates the same folder", async () => {
+    const s = await setup();
+    const first = await s.t.mutation(internal.links.savePlaylist, { userId: s.userA, listId: "PL1234567890", name: "LLM course", videos: videos.slice(0, 2) });
+    expect(first).toMatchObject({ name: "LLM course", added: 2, alreadyHad: 0, updated: false });
+    const inFolder = (await s.asA.query(api.documents.list, {})).filter((d) => d.folderId === first.folderId);
+    expect(inFolder.map((d) => d.title)).toEqual(["One", "Two"]);
+    expect(inFolder[0]).toMatchObject({ sourceType: "video", status: "ready", imageUrl: expect.stringContaining("aaaaaaaaaaa") });
+    const again = await s.t.mutation(internal.links.savePlaylist, { userId: s.userA, listId: "PL1234567890", name: "LLM course", videos });
+    expect(again).toMatchObject({ folderId: first.folderId, added: 1, alreadyHad: 2, updated: true });
+    expect(await s.asA.query(api.folders.list, {})).toHaveLength(1);
+  });
+
+  test("videos you already filed stay put; unfiled ones join; a taken name gets a number", async () => {
+    const s = await setup();
+    const mine = await s.asA.mutation(api.folders.create, { name: "LLM course" });
+    const [filed, loose] = await s.t.run(async (ctx) => {
+      const make = (videoId: string, folderId?: Id<"folders">) => ctx.db.insert("documents", { userId: s.userA, title: videoId, sourceType: "video", sourceUrl: `https://www.youtube.com/watch?v=${videoId}`, videoId, status: "ready", folderId });
+      return [await make("aaaaaaaaaaa", mine), await make("bbbbbbbbbbb")];
+    });
+    const res = await s.t.mutation(internal.links.savePlaylist, { userId: s.userA, listId: "PL1234567890", name: "LLM course", videos });
+    expect(res).toMatchObject({ name: "LLM course (2)", added: 1, alreadyHad: 2 });
+    expect(await folderOf(s, filed)).toBe(mine);
+    expect(await folderOf(s, loose)).toBe(res.folderId);
+  });
+
+  test("it can go inside a folder; another user's playlist folder is separate", async () => {
+    const s = await setup();
+    const parent = await s.asA.mutation(api.folders.create, { name: "AI" });
+    const res = await s.t.mutation(internal.links.savePlaylist, { userId: s.userA, listId: "PL1234567890", name: "Course", parentId: parent, videos });
+    expect((await s.asA.query(api.folders.list, {})).find((f) => f._id === res.folderId)?.parentId).toBe(parent);
+    expect(await s.asB.query(api.folders.list, {})).toEqual([]);
+  });
+});

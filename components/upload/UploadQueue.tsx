@@ -30,7 +30,17 @@ const STATUS: Record<QueueItem["state"], string> = {
 };
 
 // The corner queue: one line per item being added, with its state. A failed item says why.
-export function UploadQueue({ items, books, onClose }: { items: QueueItem[]; books: LibraryBook[] | undefined; onClose: () => void }) {
+export function UploadQueue({
+  items,
+  books,
+  onClose,
+  onOpenFolder,
+}: {
+  items: QueueItem[];
+  books: LibraryBook[] | undefined;
+  onClose: () => void;
+  onOpenFolder: (id: NonNullable<QueueItem["folderId"]>) => void;
+}) {
   if (!items.length) return null;
   const rows = items.map((i) => resolveItem(i, books));
   const ready = rows.filter((r) => r.state === "ready").length;
@@ -67,7 +77,11 @@ export function UploadQueue({ items, books, onClose }: { items: QueueItem[]; boo
               </span>
             )}
             <span className={`text-label ${r.state === "failed" ? "text-accent-dark" : "text-muted"}`}>
-              {r.state === "uploading" ? (
+              {r.state === "ready" && r.folderId ? (
+                <button className="font-semibold text-accent" onClick={() => onOpenFolder(r.folderId!)}>
+                  Open
+                </button>
+              ) : r.state === "uploading" ? (
                 `${r.pct ?? 0}%`
               ) : r.state === "ready" && r.book ? (
                 <Link href={openHref(r.book)} className="font-semibold text-accent">

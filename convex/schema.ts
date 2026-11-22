@@ -54,6 +54,7 @@ export default defineSchema({
     colour: v.string(),
     emoji: v.string(),
     parentId: v.optional(v.id("folders")), // inside another folder (up to 4 levels); none = top level
+    playlistId: v.optional(v.string()), // made from a YouTube playlist: adding it again updates this folder
   }).index("by_user", ["userId"]),
 
   // A highlight, with an optional comment. `locator` is its first page (where the left panel jumps).

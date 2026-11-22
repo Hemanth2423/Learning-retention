@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanArticleMarkdown, parseLink, readableEnough, splitArticle, unwrapLines } from "./linkRules";
+import { allowsFraming, cleanArticleBlocks, cleanArticleMarkdown, isPublicHost, parseLink, playlistPageVideos, readableEnough, splitArticle, unwrapLines } from "./linkRules";
 
 describe("parseLink", () => {
   it("recognises every common YouTube form as the same video", () => {
@@ -80,5 +80,73 @@ describe("article text", () => {
   it("tells a real article from a paywall stub", () => {
     expect(readableEnough("Subscribe to keep reading. [Sign in](https://x)")).toBe(false);
     expect(readableEnough("A real paragraph about learning. ".repeat(20))).toBe(true);
+  });
+});
+
+describe("cleanArticleBlocks (reader view)", () => {
+  const lenny = [
+    "SubscribeSign in\n\n# Everyone should be using Claude Code more\n\n## How to get started, and 50 ways non-technical people are using it\n\n![Lenny](https://substackcdn.com/image/fetch/w_120,h_120,c_fill/avatar.png)\n\n[Lenny Rachitsky](https://x.com/lenny)\n\nOct 14, 2025\n\n∙ Paid\n\n850\n\n25\n\n66\n\nShare",
+    "Claude Code changed how I work. In 2025 we saw 42 teams adopt it.\n\n42\n\nHere is how to start.",
+    "This post is for paid subscribers\n\nAlready a paid subscriber? Sign in",
+    "Never shown after the paywall.",
+  ].map((text, i) => ({ page: i + 1, text }));
+
+  it("removes buttons, counters, the avatar and the repeated title, and keeps the writing", () => {
+    const { blocks } = cleanArticleBlocks(lenny, "Everyone should be using Claude Code more");
+    const text = blocks.map((b) => b.text).join("\n");
+    for (const junk of ["SubscribeSign", "Paid", "\n850", "\n66", "Share", "avatar.png", "# Everyone should"]) expect(text).not.toContain(junk);
+    for (const keep of ["How to get started", "Lenny Rachitsky", "Oct 14, 2025", "Claude Code changed how I work", "Here is how to start."]) expect(text).toContain(keep);
+  });
+
+  it("spots a paywall, stops there, and keeps block numbers so citations and highlights still line up", () => {
+    const res = cleanArticleBlocks(lenny, "Everyone should be using Claude Code more");
+    expect(res.partial).toBe(true);
+    expect(res.blocks.map((b) => b.page)).toEqual([1, 2]);
+    expect(res.blocks.map((b) => b.text).join(" ")).not.toContain("Never shown");
+  });
+
+  it("leaves a normal article alone, including numbers and words deep in the text", () => {
+    const filler = Array.from({ length: 30 }, (_, i) => `Paragraph ${i} of the essay.`).join("\n\n");
+    const res = cleanArticleBlocks([{ page: 1, text: `${filler}\n\n1984\n\n## Notes\n\nThe end.` }], "Essay");
+    expect(res.blocks[0].text).toContain("## Notes");
+    expect(res.partial).toBe(false);
+    expect(res.blocks[0].text).toContain("1984");
+    expect(res.blocks[0].text).toContain("The end.");
+  });
+
+  it("stops where the site's own page takes over", () => {
+    const res = cleanArticleBlocks([{ page: 1, text: "Real ending.\n\n## Discussion about this post\n\nA comment" }]);
+    expect(res.blocks[0].text).toBe("Real ending.");
+    expect(res.partial).toBe(false);
+  });
+});
+
+describe("showing the original page", () => {
+  it("only looks at public web hosts", () => {
+    for (const h of ["paulgraham.com", "www.lennysnewsletter.com"]) expect(isPublicHost(h)).toBe(true);
+    for (const h of ["localhost", "169.254.169.254", "10.0.0.1", "127.0.0.1", "[::1]", "printer.local", "db.internal"]) expect(isPublicHost(h)).toBe(false);
+  });
+  it("reads the site's framing rules", () => {
+    expect(allowsFraming({})).toBe(true);
+    expect(allowsFraming({ xFrameOptions: "SAMEORIGIN" })).toBe(false);
+    expect(allowsFraming({ csp: "default-src 'self'; frame-ancestors 'none'" })).toBe(false);
+    expect(allowsFraming({ csp: "frame-ancestors https://a.com" })).toBe(false);
+    expect(allowsFraming({ csp: "frame-ancestors *" })).toBe(true);
+    expect(allowsFraming({ csp: "default-src 'self'" })).toBe(true);
+  });
+});
+
+describe("YouTube playlists", () => {
+  it("recognises a playlist page; a video opened from a playlist stays that video", () => {
+    const list = "PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj";
+    for (const u of [`https://www.youtube.com/playlist?list=${list}`, `youtube.com/playlist?list=${list}&si=abc`, `https://m.youtube.com/playlist/?list=${list}`])
+      expect(parseLink(u)).toEqual({ kind: "playlist", url: `https://www.youtube.com/playlist?list=${list}`, listId: list });
+    expect(parseLink(`https://www.youtube.com/watch?v=5MgBikgcWnY&list=${list}`)).toMatchObject({ kind: "video", videoId: "5MgBikgcWnY" });
+    expect(parseLink("https://www.youtube.com/playlist?list=<bad>")).toBeNull();
+  });
+  it("keeps watchable videos and leaves out private and deleted ones", () => {
+    const v = (videoId: string, title: string, privacyStatus = "public") => ({ snippet: { title, videoOwnerChannelTitle: "Karpathy - Topic", resourceId: { videoId } }, status: { privacyStatus } });
+    const res = playlistPageVideos({ nextPageToken: "n2", items: [v("aaaaaaaaaaa", "Intro"), v("bbbbbbbbbbb", "Private video"), v("ccccccccccc", "Deleted video"), v("ddddddddddd", "Hidden", "private"), v("short", "Bad id")] });
+    expect(res).toEqual({ videos: [{ videoId: "aaaaaaaaaaa", title: "Intro", channel: "Karpathy" }], hidden: 4, next: "n2" });
   });
 });

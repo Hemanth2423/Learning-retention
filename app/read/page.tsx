@@ -82,7 +82,7 @@ function AddCard({ onOpen, into }: { onOpen: (files?: File[]) => void; into?: st
         onOpen(Array.from(e.dataTransfer.files));
       }}
       // The page's primary action: the one solid terracotta surface on Home.
-      className={`flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-2.5 rounded-[18px] border-2 border-ink p-5 text-center text-white shadow-[0_5px_0_var(--ink)] transition active:translate-y-[3px] active:shadow-[0_2px_0_var(--ink)] ${
+      className={`flex h-full min-h-[200px] w-full min-w-0 flex-col items-center justify-center gap-2.5 rounded-[18px] border-2 border-ink p-5 text-center text-white shadow-[0_5px_0_var(--ink)] transition active:translate-y-[3px] active:shadow-[0_2px_0_var(--ink)] ${
         dragging ? "bg-accent-dark ring-4 ring-ochre" : "bg-accent hover:bg-accent-dark"
       }`}
     >
@@ -93,7 +93,7 @@ function AddCard({ onOpen, into }: { onOpen: (files?: File[]) => void; into?: st
       <span className="text-meta text-white/90">{FILE_KINDS.join(" · ")}</span>
       <span className="text-meta text-white/90">or paste article, YouTube and playlist links</span>
       {into && (
-        <span className="mt-0.5 max-w-full truncate rounded-full bg-white/15 px-2.5 py-0.5 text-meta">
+        <span className="mt-0.5 block max-w-full truncate rounded-full bg-white/15 px-2.5 py-0.5 text-meta">
           Goes into <b>{into}</b>
         </span>
       )}
@@ -325,11 +325,11 @@ function Library() {
 
   return (
     <div className="flex-1">
-      <header className="sticky top-0 z-10 flex items-center gap-4 bg-paper/90 px-4 py-3.5 backdrop-blur md:px-8">
+      <header className="sticky top-0 z-10 flex items-center gap-x-4 gap-y-2 bg-paper/90 px-4 py-3.5 backdrop-blur max-md:flex-wrap md:px-8">
         <span className="font-serif text-h2 font-bold">
           Ingrain<span className="text-accent">.</span>
         </span>
-        <label className="flex max-w-sm flex-1 items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted">
+        <label className="flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted max-md:order-last max-md:w-full md:max-w-sm md:flex-1">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="shrink-0">
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.8-3.8" />
@@ -341,7 +341,7 @@ function Library() {
               if (!search.trim() && e.target.value.trim()) setFilter("all");
               setSearch(e.target.value);
             }}
-            placeholder="Search your library" aria-label="Search your library" className="flex-1 bg-transparent text-ink outline-none" />
+            placeholder="Search your library" aria-label="Search your library" className="min-w-0 flex-1 bg-transparent text-ink outline-none" />
         </label>
         <div className="ml-auto">
           <XpStats />
@@ -353,7 +353,7 @@ function Library() {
 
       <main className="mx-auto max-w-[1120px] px-4 pb-20 md:px-8">
         <h2 className="mb-4 mt-8 font-serif text-h2 font-bold">{books === undefined ? " " : latest ? "Continue reading" : "Start your library"}</h2>
-        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 md:grid-cols-[minmax(0,1fr)_300px]">
           {books === undefined ? (
             <div className="h-[230px] animate-pulse rounded-[18px] bg-card/60" />
           ) : latest ? (
@@ -372,7 +372,7 @@ function Library() {
 
         {!!books?.length && (
           // Phones: heading, then the folder chips, then the shelf. Wide screens: the rail spans heading and shelf.
-          <div className="mt-12 grid gap-x-8 gap-y-4 md:grid-cols-[250px_minmax(0,1fr)] md:grid-rows-[auto_1fr]">
+          <div className="mt-12 grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-4 md:grid-cols-[250px_minmax(0,1fr)] md:grid-rows-[auto_1fr]">
             <div className="max-md:order-2 md:col-start-1 md:row-span-2 md:row-start-1">
               <FolderRail
                 folders={folders}
@@ -414,7 +414,7 @@ function Library() {
                     ))}
                   </nav>
                 )}
-                <div className="flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2 max-md:flex-wrap">
                   {renaming !== null && openFolder ? (
                     <form
                       onSubmit={(e) => {
@@ -435,7 +435,7 @@ function Library() {
                       />
                     </form>
                   ) : (
-                    <h2 className="min-w-0 truncate font-serif text-h2 font-bold" title={viewTitle}>
+                    <h2 className="min-w-0 max-w-[calc(100%-44px)] truncate font-serif text-h2 font-bold md:max-w-none" title={viewTitle}>
                       {viewTitle}
                     </h2>
                   )}
@@ -497,7 +497,7 @@ function Library() {
                       )}
                     </div>
                   )}
-                  <div role="group" aria-label="Sort" className="seg ml-auto shrink-0">
+                  <div role="group" aria-label="Sort" className="seg shrink-0 md:ml-auto">
                     {(["recent", "title", "progress"] as const).map((s) => (
                       <button key={s} aria-pressed={sort === s} onClick={() => setSort(s)} className="px-3 py-1 capitalize">
                         {s}
@@ -618,7 +618,16 @@ function Library() {
           }}
         />
       )}
-      <UploadQueue items={queue.items} books={books} onClose={queue.clearFinished} />
+      <UploadQueue
+        items={queue.items}
+        books={books}
+        onClose={queue.clearFinished}
+        onOpenFolder={(id) => {
+          setView(id);
+          setSearch("");
+          setFilter("all");
+        }}
+      />
       <ConfirmDialog
         open={!!removing}
         title={`Remove this ${removing?.sourceType === "article" ? "article" : removing?.sourceType === "video" ? "video" : "book"}?`}

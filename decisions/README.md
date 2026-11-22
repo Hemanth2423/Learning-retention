@@ -35,3 +35,4 @@ One file per architectural decision: `NNN-short-name.md`. Read one only when you
 | [014](014-notebook.md) | One Notebook: many notes per book, saved questions, text highlights; old notes moved |
 | [015](015-epub-word-powerpoint-in-the-browser.md) | EPUB, Word and PowerPoint read in the browser into text blocks; EPUB is a book |
 | [016](016-library-folders.md) | Library folders: one folder per item; deleting a folder keeps its items |
+| [017](017-nested-folders-playlists-reader-copy.md) | Nested folders, playlists as folders (YouTube Data API), cleaned reader copy + Original view |

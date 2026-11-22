@@ -5,10 +5,14 @@ export const MAX_BLOCK_CHARS = 1500; // one "block" of an article ≈ a short pa
 export const MAX_ARTICLE_CHARS = 300_000; // longer pages are cut (a long essay is ~70k)
 export const MIN_ARTICLE_CHARS = 300; // less readable text than this = paywall or a script-only page
 
-export type ParsedLink = { kind: "video"; url: string; videoId: string } | { kind: "article"; url: string; host: string };
+export type ParsedLink =
+  | { kind: "video"; url: string; videoId: string }
+  | { kind: "playlist"; url: string; listId: string }
+  | { kind: "article"; url: string; host: string };
 
 const YOUTUBE_HOSTS = new Set(["youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com", "youtu.be"]);
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+const PLAYLIST_ID = /^[A-Za-z0-9_-]{10,64}$/;
 // Tracking parameters that don't change the page; removed so the same article isn't added twice.
 const TRACKING = /^(utm_.+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|ref|ref_src|ref_url|s_cid|si|_hsenc|_hsmi|mkt_tok)$/i;
 
@@ -35,6 +39,9 @@ export function parseLink(raw: string): ParsedLink | null {
   if (!host.includes(".") || u.username || u.password) return null;
 
   if (YOUTUBE_HOSTS.has(host)) {
+    // A playlist page. (A video watched from a playlist, watch?v=…&list=…, stays that one video.)
+    const list = u.searchParams.get("list");
+    if (u.pathname.replace(/\/+$/, "") === "/playlist" && list && PLAYLIST_ID.test(list)) return { kind: "playlist", url: `https://www.youtube.com/playlist?list=${list}`, listId: list };
     const id = youtubeId(u, host);
     if (!id || !VIDEO_ID.test(id)) return null;
     return { kind: "video", url: `https://www.youtube.com/watch?v=${id}`, videoId: id };
@@ -130,6 +137,105 @@ export function splitArticle(md: string, max = MAX_BLOCK_CHARS): string[] {
 export function readableEnough(md: string): boolean {
   const words = md.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[#>*_`|-]/g, " ");
   return words.replace(/\s+/g, " ").trim().length >= MIN_ARTICLE_CHARS;
+}
+
+// ---- Reader view: what a site wraps around the article ----
+
+// Whole lines that are buttons or counters, not writing.
+const BUTTON_LINE = /^(subscribe( now)?|sign ?in|subscribe ?sign ?in|share( this post)?|read in app|open in app|upgrade to paid|get the app)$/i; // anywhere
+// Ordinary words ("Notes", "Top") that are only buttons near the top of the page.
+const HEAD_CHROME = /^(log ?in|sign ?up|like|likes|comment|comments|restack|restacks|save|listen|follow|following|copy link|facebook|email|notes?|more|top|latest|discussion|[·∙•]?\s*(paid|free)|[·∙•]?\s*\d+\s*min read)$/i;
+const BARE_COUNT = /^[\d.,]+\s*[kKmM]?$/;
+// Small profile pictures (Substack sizes them in the URL), or anything named as an avatar.
+const AVATAR = /!\[[^\]]*\]\([^)]*(?:[,/]w_(?:\d{1,2}|1[01]\d|120)[,/]|avatar|profile[-_]?(?:pic|photo|image))[^)]*\)/i;
+// Where the free part of a paywalled post stops.
+const PAYWALL =
+  /(this post is for (paid )?subscribers|this (post|article|story) is (only )?(for|available to) (paid )?(subscribers|members)|keep reading with a \d+-day free trial|subscribe to .{1,60} to (keep|continue) reading|already a paid subscriber|continue reading with a|subscribe to (read|continue|unlock)|you('|’)ve reached your (free )?(article|story) limit|member-only story)/i;
+// Where the article has ended and the site's own page carries on.
+const PAGE_TAIL = /^#*\s*\**(discussion about this post|ready for more\?|recommended for you|more from .{1,50}|related (posts|articles|stories)|you might also like)\**\s*$/i;
+const HEAD_LINES = 25; // counters and buttons only count as chrome near the top, so a "42" in the article survives
+
+const plain = (t: string) => t.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[#*_`>]/g, "").replace(/\s+/g, " ").trim();
+
+// The article's blocks as a reader should see them: no buttons, counters, profile pictures, repeated title, or the
+// site's page after the article. `partial` = the site only gave the free part. Runs when reading, so the stored text
+// is never changed and articles added earlier are cleaned too.
+export function cleanArticleBlocks<T extends { page: number; text: string }>(blocks: T[], title = ""): { blocks: T[]; partial: boolean } {
+  const out: T[] = [];
+  const wanted = plain(title).toLowerCase();
+  let seen = 0;
+  let partial = false;
+  let ended = false;
+  for (const block of blocks) {
+    if (ended) break;
+    const lines: string[] = [];
+    for (const line of block.text.split("\n")) {
+      const t = plain(line);
+      if (!t && !/!\[/.test(line)) {
+        lines.push(line);
+        continue;
+      }
+      if (PAYWALL.test(t)) {
+        partial = true;
+        ended = true;
+        break;
+      }
+      if (PAGE_TAIL.test(t)) {
+        ended = true;
+        break;
+      }
+      const head = seen < HEAD_LINES;
+      seen++;
+      if (BUTTON_LINE.test(t)) continue;
+      if (head && (HEAD_CHROME.test(t) || BARE_COUNT.test(t) || AVATAR.test(line))) continue;
+      if (head && wanted && t.toLowerCase() === wanted) continue; // the page already shows the title
+      lines.push(line);
+    }
+    const text = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    if (text) out.push({ ...block, text });
+  }
+  return { blocks: out, partial };
+}
+
+// ---- Showing the original page inside the app ----
+
+// Only public web hosts: this is what lets the server look at a reader-supplied link's headers safely.
+export function isPublicHost(host: string): boolean {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, "");
+  if (!h.includes(".") || h.includes(":")) return false; // no single-label names, no IPv6 literals
+  if (/\.(local|internal|localhost|intranet|lan|home|corp)$/.test(h)) return false;
+  return !/^\d{1,3}(\.\d{1,3}){3}$/.test(h); // real sites have names; IP literals could point inside a network
+}
+
+// Does this response let another site show the page in a frame?
+export function allowsFraming(headers: { xFrameOptions?: string | null; csp?: string | null }): boolean {
+  if (headers.xFrameOptions?.trim()) return false; // DENY or SAMEORIGIN
+  const directive = (headers.csp ?? "")
+    .split(";")
+    .map((d) => d.trim().toLowerCase())
+    .find((d) => d.startsWith("frame-ancestors"));
+  if (!directive) return true;
+  return directive.split(/\s+/).slice(1).includes("*");
+}
+
+// ---- YouTube playlists (Data API) ----
+
+export const MAX_PLAYLIST_VIDEOS = 200;
+export type PlaylistVideo = { videoId: string; title: string; channel: string };
+
+// One page of playlistItems → the videos a reader can watch (private and deleted ones are left out).
+export function playlistPageVideos(page: unknown): { videos: PlaylistVideo[]; hidden: number; next?: string } {
+  const p = page as { nextPageToken?: string; items?: { snippet?: { title?: string; videoOwnerChannelTitle?: string; resourceId?: { videoId?: string } }; status?: { privacyStatus?: string } }[] };
+  const videos: PlaylistVideo[] = [];
+  let hidden = 0;
+  for (const item of p.items ?? []) {
+    const id = item.snippet?.resourceId?.videoId;
+    const title = (item.snippet?.title ?? "").trim();
+    const gone = !id || !VIDEO_ID.test(id) || !title || /^(private|deleted) video$/i.test(title) || item.status?.privacyStatus === "private";
+    if (gone) hidden++;
+    else videos.push({ videoId: id, title: title.slice(0, 120), channel: (item.snippet?.videoOwnerChannelTitle ?? "YouTube").replace(/ - Topic$/, "").trim() || "YouTube" });
+  }
+  return { videos, hidden, next: p.nextPageToken };
 }
 
 export const youtubeThumb = (videoId: string) => `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
