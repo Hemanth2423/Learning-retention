@@ -1,6 +1,8 @@
 import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
+import { PLAYLIST_MAX_UNITS, YOUTUBE_DAILY_BUDGET, YOUTUBE_DAILY_QUOTA, YOUTUBE_QUOTA_TIME_ZONE, YOUTUBE_USER_DAILY_BUDGET, youtubeBudgetProblem } from "./linkRules";
+import { dayKey } from "./xpRules";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
@@ -11,7 +13,7 @@ const item = (n: number) => ({ snippet: { title: `Video ${n}`, videoOwnerChannel
 async function setup() {
   const t = convexTest(schema, modules);
   const userId = await t.run((ctx) => ctx.db.insert("users", { email: "a@test.com" }));
-  return { t, as: t.withIdentity({ subject: userId }) };
+  return { t, userId, as: t.withIdentity({ subject: userId }) };
 }
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -60,5 +62,54 @@ describe("links.addPlaylist", () => {
     vi.stubGlobal("fetch", vi.fn(async () => json({ error: {} }, 403)));
     expect(await as.action(api.links.addPlaylist, { url: URL_ })).toMatchObject({ ok: false, message: expect.stringMatching(/reach YouTube/) });
     expect(await as.query(api.folders.list, {})).toEqual([]);
+  });
+});
+
+describe("YouTube budget (under 10% of the daily quota)", () => {
+  const today = () => dayKey(Date.now(), YOUTUBE_QUOTA_TIME_ZONE);
+  const units = async (t: Awaited<ReturnType<typeof setup>>["t"], scope: string) =>
+    (await t.run((ctx) => ctx.db.query("apiUsage").withIndex("by_api_day_scope", (q) => q.eq("api", "youtube").eq("day", today()).eq("scope", scope)).first()))?.units ?? 0;
+  const smallPlaylist = () =>
+    vi.fn(async (input: string | URL) => (new URL(String(input)).pathname.endsWith("/playlists") ? json({ items: [{ snippet: { title: "Small" } }] }) : json({ items: [item(1)] })));
+
+  test("the cap is 10% of Google's quota, and one reader can't use it all", () => {
+    expect(YOUTUBE_DAILY_BUDGET).toBeLessThanOrEqual(YOUTUBE_DAILY_QUOTA * 0.1);
+    expect(YOUTUBE_USER_DAILY_BUDGET).toBeLessThan(YOUTUBE_DAILY_BUDGET);
+    expect(PLAYLIST_MAX_UNITS).toBe(5);
+    expect(youtubeBudgetProblem({ all: 995, user: 0 }, 5)).toBeUndefined();
+    expect(youtubeBudgetProblem({ all: 996, user: 0 }, 5)).toMatch(/today's limit/);
+    expect(youtubeBudgetProblem({ all: 0, user: 46 }, 5)).toMatch(/a lot of playlists/);
+  });
+
+  test("only the calls actually made are counted", async () => {
+    const { t, userId, as } = await setup();
+    process.env.YOUTUBE_API_KEY = "test-key";
+    const fetchMock = smallPlaylist();
+    vi.stubGlobal("fetch", fetchMock);
+    await as.action(api.links.addPlaylist, { url: URL_ });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(await units(t, "all")).toBe(2);
+    expect(await units(t, userId)).toBe(2);
+  });
+
+  test("failed calls still count, because YouTube charges for them", async () => {
+    const { t, as } = await setup();
+    process.env.YOUTUBE_API_KEY = "test-key";
+    vi.stubGlobal("fetch", vi.fn(async () => json({ error: {} }, 403)));
+    await as.action(api.links.addPlaylist, { url: URL_ });
+    expect(await units(t, "all")).toBe(1);
+  });
+
+  test("at the app's cap or a reader's cap, YouTube is not called at all", async () => {
+    const { t, userId, as } = await setup();
+    process.env.YOUTUBE_API_KEY = "test-key";
+    const fetchMock = smallPlaylist();
+    vi.stubGlobal("fetch", fetchMock);
+    const id = await t.run((ctx) => ctx.db.insert("apiUsage", { api: "youtube", day: today(), scope: "all", units: YOUTUBE_DAILY_BUDGET - 4 }));
+    expect(await as.action(api.links.addPlaylist, { url: URL_ })).toMatchObject({ ok: false, message: expect.stringMatching(/today's limit/) });
+    await t.run((ctx) => ctx.db.patch(id, { units: 0 }));
+    await t.run((ctx) => ctx.db.insert("apiUsage", { api: "youtube", day: today(), scope: userId, units: YOUTUBE_USER_DAILY_BUDGET - 4 }));
+    expect(await as.action(api.links.addPlaylist, { url: URL_ })).toMatchObject({ ok: false, message: expect.stringMatching(/a lot of playlists/) });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

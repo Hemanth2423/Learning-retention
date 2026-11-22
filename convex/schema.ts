@@ -149,6 +149,14 @@ export default defineSchema({
     finished: v.boolean(),
   }).index("by_document_chapter", ["documentId", "chapterKey"]),
 
+  // Units spent per day on a metered outside API, overall (`scope: "all"`) and per reader (ADR 018).
+  apiUsage: defineTable({
+    api: v.string(),
+    day: v.string(),
+    scope: v.string(),
+    units: v.number(),
+  }).index("by_api_day_scope", ["api", "day", "scope"]),
+
   // XP, level and streak (ADR 009): one row per user, started fresh (not the legacy profiles). XP is only added by
   // server mutations; `awarded` holds the key of every award paid, so each action on a chapter pays once.
   learnerStats: defineTable({

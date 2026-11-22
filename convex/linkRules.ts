@@ -238,5 +238,20 @@ export function playlistPageVideos(page: unknown): { videos: PlaylistVideo[]; hi
   return { videos, hidden, next: p.nextPageToken };
 }
 
+// ---- Staying well inside YouTube's quota (ADR 018) ----
+
+export const YOUTUBE_DAILY_QUOTA = 10_000; // Google's default units per day
+export const YOUTUBE_DAILY_BUDGET = 1_000; // our hard cap: 10% of the quota, for the whole app
+export const YOUTUBE_USER_DAILY_BUDGET = 50; // one reader can't use up the app's budget (10 of the largest playlists)
+export const YOUTUBE_QUOTA_TIME_ZONE = "America/Los_Angeles"; // Google resets the quota at midnight Pacific
+// The most one add can cost: 1 unit for the playlist + 1 per page of 50 videos.
+export const PLAYLIST_MAX_UNITS = 1 + Math.ceil(MAX_PLAYLIST_VIDEOS / 50);
+
+export function youtubeBudgetProblem(spent: { all: number; user: number }, units: number): string | undefined {
+  if (spent.all + units > YOUTUBE_DAILY_BUDGET) return "Playlists have reached today's limit. Try again tomorrow.";
+  if (spent.user + units > YOUTUBE_USER_DAILY_BUDGET) return "You've added a lot of playlists today. Try again tomorrow.";
+  return undefined;
+}
+
 export const youtubeThumb = (videoId: string) => `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 export const siteNameOf = (host: string) => host.replace(/^www\./, "");

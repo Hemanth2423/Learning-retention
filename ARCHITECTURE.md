@@ -114,4 +114,5 @@ See [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebo
 | ⚠ **Nesting + playlists** | `folders.parentId` (4 levels), `folders.playlistId`; `links.addPlaylist` calls the **YouTube Data API** (`YOUTUBE_API_KEY`, server only) (ADR 017) | Playlists reuse folders; nothing new to learn |
 | **Article view** | `linkRules.cleanArticleBlocks` runs when reading (stored text unchanged); `links.canEmbed` decides if the Original tab can frame the page | Cleans old articles at no cost; safe header check |
 | **PDF selection** | `components/reader/textSelection.ts`: pdf.js end-of-content technique; pages and viewer memoised | Exact selection; long books stay smooth |
+| ⚠ **YouTube budget** | `apiUsage` table; `links.reserveYoutube` / `refundYoutube` cap the app at 1,000 units/day (10% of quota) and a reader at 50 (ADR 018) | The limit holds regardless of traffic |
 

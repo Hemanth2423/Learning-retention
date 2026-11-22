@@ -31,7 +31,7 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 
 ## Next action
 
-0. **Folders + UX round** are on `feat/folders` (stacked on `feat/feature-3-rest`), committed, not pushed: `tasks/feature-4-folders.md`, ADRs 016–017. **To switch playlists on:** create a YouTube Data API key, then `npx convex env set YOUTUBE_API_KEY <key>` (dev and prod). Open its PR after the Feature 3 PR. Mockups 006–008 are in the gitignored `.context/compound-engineering/ce-prototype/2026-11-21-folders-and-practice/`; the practice ladder (007) is parked.
+0. **Folders + UX round** are on `feat/folders` (stacked on `feat/feature-3-rest`), committed, not pushed: `tasks/feature-4-folders.md`, ADRs 016–017. **To switch playlists on:** `YOUTUBE_API_KEY` is not on the dev deployment yet (app reports it missing, 2026-11-22); run `npx convex env set YOUTUBE_API_KEY <key>` from the repo, then test one real playlist. Usage is capped in code at 1,000 units/day (ADR 018). Open its PR after the Feature 3 PR. Mockups 006–008 are in the gitignored `.context/compound-engineering/ce-prototype/2026-11-21-folders-and-practice/`; the practice ladder (007) is parked.
 
 1. **Merge PR #82** (Feature 3 spec + slice 1) after a teammate approves, deploy production, then rebase `feat/feature-3-rest` onto `main` and open its PR (slices 2–6, all committed locally, not pushed).
 2. **After deploying slice 5 anywhere:** run `npx convex run notebook:migrateReflections` until it returns 0 (moves old chapter notes into the Notebook; done on dev: 7 notes).

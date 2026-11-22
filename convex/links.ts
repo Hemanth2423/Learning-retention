@@ -5,9 +5,10 @@ import { MAX_TEXT_BLOCKS } from "./textSourceRules";
 import { ConvexError, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { action, internalMutation, query } from "./_generated/server";
+import { action, internalMutation, MutationCtx, query } from "./_generated/server";
+import { dayKey } from "./xpRules";
 import { getOwnDocument, requireUser } from "./helpers";
-import { allowsFraming, cleanArticleMarkdown, isPublicHost, MAX_PLAYLIST_VIDEOS, parseLink, playlistPageVideos, PlaylistVideo, readableEnough, siteNameOf, splitArticle, youtubeThumb } from "./linkRules";
+import { allowsFraming, cleanArticleMarkdown, isPublicHost, MAX_PLAYLIST_VIDEOS, parseLink, PLAYLIST_MAX_UNITS, YOUTUBE_QUOTA_TIME_ZONE, youtubeBudgetProblem, playlistPageVideos, PlaylistVideo, readableEnough, siteNameOf, splitArticle, youtubeThumb } from "./linkRules";
 
 // Adding an article or a YouTube video by link (Feature 3, slice 1). All network calls happen here, on the server:
 // Firecrawl reads the article once; YouTube oEmbed gives the video's title and channel. Nothing is re-fetched later.
@@ -220,6 +221,39 @@ export const savePlaylist = internalMutation({
   },
 });
 
+const usageRow = (ctx: MutationCtx, day: string, scope: string) =>
+  ctx.db.query("apiUsage").withIndex("by_api_day_scope", (q) => q.eq("api", "youtube").eq("day", day).eq("scope", scope)).first();
+
+async function addUnits(ctx: MutationCtx, day: string, scope: string, units: number) {
+  const row = await usageRow(ctx, day, scope);
+  if (row) await ctx.db.patch(row._id, { units: Math.max(0, row.units + units) });
+  else if (units > 0) await ctx.db.insert("apiUsage", { api: "youtube", day, scope, units });
+}
+
+// Holds the most an add can cost BEFORE any call to YouTube, in one transaction, so parallel adds can't overshoot.
+export const reserveYoutube = internalMutation({
+  args: { userId: v.id("users"), units: v.number() },
+  handler: async (ctx, { userId, units }) => {
+    const day = dayKey(Date.now(), YOUTUBE_QUOTA_TIME_ZONE);
+    const [all, user] = await Promise.all([usageRow(ctx, day, "all"), usageRow(ctx, day, userId)]);
+    const problem = youtubeBudgetProblem({ all: all?.units ?? 0, user: user?.units ?? 0 }, units);
+    if (problem) return { ok: false as const, message: problem };
+    await addUnits(ctx, day, "all", units);
+    await addUnits(ctx, day, userId, units);
+    return { ok: true as const, day };
+  },
+});
+
+// Gives back what an add reserved but didn't use. If an add crashes nothing is returned: it errs toward counting more.
+export const refundYoutube = internalMutation({
+  args: { userId: v.id("users"), day: v.string(), units: v.number() },
+  handler: async (ctx, { userId, day, units }) => {
+    if (units <= 0) return;
+    await addUnits(ctx, day, "all", -units);
+    await addUnits(ctx, day, userId, -units);
+  },
+});
+
 // A YouTube playlist link → a folder with its videos (up to 200). Uses the YouTube Data API on the server.
 export const addPlaylist = action({
   args: { url: v.string(), folderId: v.optional(v.id("folders")) },
@@ -230,7 +264,11 @@ export const addPlaylist = action({
     if (link?.kind !== "playlist") return { ok: false, message: "That doesn't look like a YouTube playlist link." };
     const key = process.env.YOUTUBE_API_KEY;
     if (!key) return { ok: false, message: "Playlists aren't switched on yet (the YouTube key is missing)." };
+    const reserved = await ctx.runMutation(internal.links.reserveYoutube, { userId, units: PLAYLIST_MAX_UNITS });
+    if (!reserved.ok) return { ok: false, message: reserved.message };
+    let used = 0;
     const get = async (path: string, params: Record<string, string>) => {
+      used++; // every list call costs 1 unit, whatever the answer
       const q = new URLSearchParams({ ...params, key });
       const res = await fetch(`${YOUTUBE_API}/${path}?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
       return { status: res.status, body: (await res.json().catch(() => ({}))) as Record<string, unknown> };
@@ -265,6 +303,8 @@ export const addPlaylist = action({
       console.error("[links] playlist failed", err);
       const message = err instanceof ConvexError && typeof err.data === "string" ? err.data : "We couldn't add that playlist just now. Try again.";
       return { ok: false, message };
+    } finally {
+      await ctx.runMutation(internal.links.refundYoutube, { userId, day: reserved.day, units: PLAYLIST_MAX_UNITS - used });
     }
   },
 });
