@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { buildExport, exportFileName, ExportNote, noteToMarkdown, toMarkdown, toPrintHtml } from "./exportRules";
+import { describe, expect, it, test } from "vitest";
+import { BEFORE_FIRST_CHAPTER, buildExport, buildNotebookExport, exportFileName, ExportNote, GENERAL_NOTES, noteToMarkdown, toMarkdown, toPrintHtml } from "./exportRules";
 
 const doc = (...content: object[]) => JSON.stringify({ type: "doc", content });
 const p = (text: string, marks: string[] = []) => ({ type: "paragraph", content: [{ type: "text", text, marks: marks.map((type) => ({ type })) }] });
@@ -95,4 +95,77 @@ describe("noteToMarkdown", () => {
 test("exportFileName drops characters file systems reject", () => {
   expect(exportFileName('A/B: "C"?')).toBe("A B C.md");
   expect(exportFileName("  ")).toBe("Notes.md");
+});
+
+const chapter = (key: string, title: string, page: number) => ({ key, title, level: 1, locator: { kind: "pdf" as const, page } });
+const highlight = (page: number, text: string, y = 0) => ({
+  locator: { page }, text, segments: [{ page, rects: [{ x: 0, y }] }],
+});
+
+it("keeps highlights from before the first chapter, under their own heading first", () => {
+  const { chapters } = buildNotebookExport({
+    title: "A book", pageCount: 8, notes: [],
+    sections: [chapter("a", "One", 3), chapter("b", "Two", 5)],
+    highlights: [highlight(4, "In chapter one"), highlight(1, "In the preface")],
+  });
+
+  expect(chapters.map(({ heading }) => heading)).toEqual([BEFORE_FIRST_CHAPTER, "One"]);
+  expect(chapters[0].highlights.map(({ quote }) => quote)).toEqual(["In the preface"]);
+});
+
+it("orders highlights by page, then top to bottom, whatever order they were made in", () => {
+  const { chapters } = buildNotebookExport({
+    title: "A book", pageCount: 8, notes: [],
+    sections: [chapter("a", "One", 1)],
+    highlights: [highlight(4, "Page 4"), highlight(3, "Page 3 lower", 0.8), highlight(3, "Page 3 upper", 0.2)],
+  });
+
+  expect(chapters[0].highlights.map(({ quote }) => quote)).toEqual(["Page 3 upper", "Page 3 lower", "Page 4"]);
+});
+
+it("puts a highlight in one chapter when two chapters start on the same page", () => {
+  const { chapters } = buildNotebookExport({
+    title: "A book", pageCount: 8, notes: [],
+    sections: [chapter("a", "One", 5), chapter("b", "Two", 5)],
+    highlights: [highlight(5, "Shared page")],
+  });
+
+  expect(chapters.flatMap(({ highlights }) => highlights)).toHaveLength(1);
+});
+
+it("exports notes and highlights in book order and skips empty chapters", () => {
+  const notebook = buildNotebookExport({
+    title: "A book",
+    sections: [],
+    pageCount: 60,
+    notes: [
+      { sectionKey: "part-3", plainText: "My last note" },
+      { sectionKey: "part-1", plainText: "My first note" },
+    ],
+    highlights: [{ locator: { page: 20 }, text: "A passage", comment: "Worth revisiting" }],
+  });
+
+  expect(notebook).toEqual({
+    title: "A book",
+    chapters: [
+      {
+        heading: "Part 1 · pages 1–20",
+        note: "My first note",
+        highlights: [{ quote: "A passage", comment: "Worth revisiting", page: 20 }],
+      },
+      { heading: "Part 3 · pages 41–60", note: "My last note", highlights: [] },
+    ],
+  });
+});
+
+it("keeps every note in a chapter and puts notes without a chapter under General notes", () => {
+  const { chapters } = buildNotebookExport({
+    title: "A book", pageCount: 8, highlights: [],
+    sections: [chapter("a", "One", 1)],
+    notes: [{ sectionKey: "a", plainText: "First" }, { sectionKey: "a", plainText: "Second" }, { plainText: "Overall" }, { sectionKey: "gone", plainText: "Old chapter" }],
+  });
+  expect(chapters).toEqual([
+    { heading: GENERAL_NOTES, note: "Overall\n\nOld chapter", highlights: [] },
+    { heading: "One", note: "First\n\nSecond", highlights: [] },
+  ]);
 });

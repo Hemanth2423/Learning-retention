@@ -277,7 +277,10 @@ export const addPlaylist = action({
       const info = await get("playlists", { part: "snippet", id: link.listId, maxResults: "1" });
       const snippet = (info.body.items as { snippet?: { title?: string } }[] | undefined)?.[0]?.snippet;
       if (info.status !== 200) {
-        console.error("[links] playlist lookup failed", info.status);
+        // Google's short reason only (e.g. accessNotConfigured); never the request URL, which holds the key.
+        const error = info.body.error as { errors?: { reason?: string }[]; details?: { reason?: string }[] } | undefined;
+        const reason = error?.details?.find((d) => d.reason)?.reason ?? error?.errors?.[0]?.reason;
+        console.error("[links] playlist lookup failed", info.status, reason ?? "no reason given");
         return { ok: false, message: "We couldn't reach YouTube just now. Try again." };
       }
       if (!snippet) return { ok: false, message: "We couldn't find that playlist. It may be private." };

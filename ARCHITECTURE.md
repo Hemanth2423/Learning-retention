@@ -116,3 +116,12 @@ See [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebo
 | **PDF selection** | `components/reader/textSelection.ts`: pdf.js end-of-content technique; pages and viewer memoised | Exact selection; long books stay smooth |
 | ⚠ **YouTube budget** | `apiUsage` table; `links.reserveYoutube` / `refundYoutube` cap the app at 1,000 units/day (10% of quota) and a reader at 50 (ADR 018) | The limit holds regardless of traffic |
 
+## Notebook exports
+
+| Table | Purpose | Index |
+|---|---|---|
+| `integrations` | Per-reader provider connection with server-only tokens and a workspace name | `by_user_provider` |
+| `oauthStates` | Single-use OAuth state with the requesting reader and return path, expired after 10 minutes | `by_state` |
+| `exportTargets` | Selected parent, remote page ID and link, and last successful send for each book and provider | `by_document_provider` |
+
+Convex actions use the shared notebook builder to export saved chapter notes and highlights. Retrying an export uses the saved Notion page so its link stays stable.

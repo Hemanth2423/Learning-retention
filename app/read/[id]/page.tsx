@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { SendToNotion } from "@/components/export/SendToNotion";
 import { Bulb } from "@/components/icons/Bulb";
 import { BookCover } from "@/components/library/BookCover";
 import { ExportSheet } from "@/components/notebook/ExportSheet";
@@ -115,6 +116,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
             </button>
           </div>
           {exporting && <ExportSheet documentId={doc._id} onClose={() => setExporting(false)} />}
+          <SendToNotion documentId={doc._id} />
           <p className="mt-4 text-label leading-relaxed text-muted">
             📖 Read · ✏️ Notes · <Bulb size={14} /> Test
             <br />
