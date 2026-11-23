@@ -11,6 +11,7 @@ import { kindOfFile } from "./textSourceRules";
 import { folderForNewItem } from "./folders";
 import { awardXp } from "./xp";
 import { awardKey, XP } from "./xpRules";
+import { purgeConcepts } from "./concepts";
 
 export const generateUploadUrl = mutation({
   args: {},
@@ -200,13 +201,14 @@ export const purge = internalMutation({
       ctx.db.query("quizzes").withIndex("by_document_chapter", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("quizAttempts").withIndex("by_document_chapter", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
     ]);
+    const conceptsLeft = await purgeConcepts(ctx, documentId, PURGE_BATCH);
     const rows = batches.flat();
     for (const r of rows) {
       if ("storageId" in r) await ctx.storage.delete(r.storageId).catch(() => {}); // the image file itself
       await ctx.db.delete(r._id);
     }
     // Anything left over goes in the next batch.
-    if (batches.some((b) => b.length === PURGE_BATCH)) await ctx.scheduler.runAfter(0, internal.documents.purge, { documentId });
+    if (conceptsLeft || batches.some((b) => b.length === PURGE_BATCH)) await ctx.scheduler.runAfter(0, internal.documents.purge, { documentId });
   },
 });
 

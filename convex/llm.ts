@@ -59,6 +59,37 @@ export async function askJson<T>(messages: Message[], opts: AskOptions = {}): Pr
   return parseJson<T>(text);
 }
 
+// Concept checks: DeepSeek V4 Pro with thinking off, falling back to Groq when DeepSeek is unavailable or rate limited.
+export async function askConceptJson<T>(messages: Message[], opts: { label: string; maxTokens: number }): Promise<{ data: T; model: string; tokensIn: number; tokensOut: number }> {
+  const deepseek = process.env.DEEPSEEK_API_KEY;
+  if (deepseek) {
+    const res = await fetch(DEEPSEEK_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${deepseek}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "deepseek-v4-pro", messages, max_tokens: opts.maxTokens, temperature: 0.3, thinking: { type: "disabled" }, response_format: { type: "json_object" } }),
+    }).catch(() => null);
+    if (res?.ok) {
+      const body = await res.json();
+      const u = body.usage ?? {};
+      console.log(`[tokens] ${opts.label} provider=deepseek model=deepseek-v4-pro in=${u.prompt_tokens} (cached ${u.prompt_cache_hit_tokens ?? 0}) out=${u.completion_tokens}`);
+      if (body.choices?.[0]?.finish_reason === "length") throw new Error("The AI's reply was cut off.");
+      return { data: parseJson<T>(body.choices?.[0]?.message?.content ?? ""), model: "deepseek-v4-pro", tokensIn: u.prompt_tokens ?? 0, tokensOut: u.completion_tokens ?? 0 };
+    }
+    if (res && res.status !== 429 && res.status < 500) throw new Error(`deepseek error: ${res.status}`);
+  }
+  const groq = pickProvider({ LLM_PROVIDER: "groq", GROQ_API_KEY: process.env.GROQ_API_KEY, GROQ_MODEL: process.env.GROQ_MODEL }, "");
+  const res = await fetch(groq.url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${groq.key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: groq.model, messages, temperature: 0.3, response_format: { type: "json_object" } }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(`groq error: ${body?.error?.message ?? res.status}`);
+  const u = body.usage ?? {};
+  console.log(`[tokens] ${opts.label} provider=groq model=${groq.model} in=${u.prompt_tokens} out=${u.completion_tokens}`);
+  return { data: parseJson<T>(body.choices?.[0]?.message?.content ?? ""), model: groq.model, tokensIn: u.prompt_tokens ?? 0, tokensOut: u.completion_tokens ?? 0 };
+}
+
 // Tolerates code fences or stray text around the JSON.
 export function parseJson<T>(text: string): T {
   const start = text.indexOf("{");

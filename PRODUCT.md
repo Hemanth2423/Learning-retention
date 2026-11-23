@@ -30,9 +30,11 @@ Read this at the start of every feature. If a feature doesn't serve the target u
 
 | # | Feature | Status | Spec |
 |---|---|---|---|
-| 1 | Reading experience: upload, reader, highlights, notes, cited chat | Live (merged in PR #66) | [tasks/feature-1-reading.md](tasks/feature-1-reading.md) |
-| 2 | Library, chapter path, 5-question tests, XP, new reader layout | Live (merged in PR #66) | [tasks/feature-2-library-and-path.md](tasks/feature-2-library-and-path.md) |
-| 3 | More sources (EPUB, articles, Word, PowerPoint, YouTube), one Notebook, export to Notion / Google Docs | Building, slice 1 next | [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebook.md) |
+| 1 | Reading experience: upload, reader, highlights, notes, cited chat | Live (merged in PR #66) | [feature-1-reading.md](docs/archive/tasks/feature-1-reading.md) |
+| 2 | Library, chapter path, 5-question tests, XP, new reader layout | Live (merged in PR #66) | [feature-2-library-and-path.md](docs/archive/tasks/feature-2-library-and-path.md) |
+| 3 | More sources (EPUB, articles, Word, PowerPoint, YouTube), one Notebook, export to Notion / Google Docs | Built, not merged | [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebook.md) |
+| 4 | Library folders, nesting, playlists | Built, not merged (playlists blocked on API key) | [tasks/feature-4-folders.md](tasks/feature-4-folders.md) |
+| 5 | Concept check: recall to application, per idea | Spec draft | [tasks/feature-5-concept-check/README.md](tasks/feature-5-concept-check/README.md) |
 
 ## Non-goals
 

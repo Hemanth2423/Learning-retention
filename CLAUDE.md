@@ -10,10 +10,19 @@
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System map, modules, data ownership, contracts | Before changing those components |
 | [AGENTS.md](AGENTS.md) | Commands, conventions, testing, prohibited changes | Every session (imported above) |
 | [decisions/](decisions/) | Short architectural decisions and why | Only when relevant |
-| `tasks/<feature>.md` | Acceptance criteria, constraints, files, status | During that task |
+| `tasks/<feature>.md` | Active specs (finished ones are in `docs/archive/tasks/`) | During that task |
 | [HANDOFF.md](HANDOFF.md) | Last verified state, open problems, next action | Start and end of every session |
 | [LEARNINGS.md](LEARNINGS.md) | What Hemanth has learned building this | When planning a feature |
 | `research/` (local only) | Competitive research companions + figures | When writing a task or designing UX |
+
+## Token budget (every session)
+- **One slice per session.** Finish, update HANDOFF, then start a new session. Never carry on after a slice is done.
+- **Start small:** read HANDOFF and the active spec only. Open other docs only if the task needs them.
+- **Search, then read ranges.** Use `grep` and `sed -n`. Never read a whole file over 300 lines, a mockup, or `docs/archive/`.
+- **Ignore legacy** unless asked: `app/{achievements,courses,dashboard,find,starred,today,topics}` and their backend.
+- **Browser:** one end-to-end check per slice. Prefer page text; screenshot only for visual checks, at low scale.
+- **Tests:** run targeted tests while building, and the full suite once before committing. Print only the summary.
+- **No subagents or broad audits** unless Hemanth asks.
 
 ## Central rule: competitive research never goes into git
 

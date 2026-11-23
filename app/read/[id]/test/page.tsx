@@ -4,6 +4,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { ConceptCheck } from "@/components/concept/ConceptCheck";
 import { Bulb } from "@/components/icons/Bulb";
 import { ReadingShell } from "@/components/ReadingShell";
 import { XpStats } from "@/components/XpStats";
@@ -179,14 +180,37 @@ function TestView({ documentId, chapterKey }: { documentId: Id<"documents">; cha
   );
 }
 
+// The concept check for one chapter. The earlier 5-question test stays available as the fallback.
+function ConceptView({ documentId, chapterKey }: { documentId: Id<"documents">; chapterKey: string }) {
+  const doc = useQuery(api.documents.get, { documentId });
+  const scores = useQuery(api.quizzes.bestScores, { documentId });
+  if (doc === undefined || scores === undefined) return <p className="m-auto text-muted">Loading…</p>;
+  const ranges = doc ? chapterRanges(doc.sections ?? [], doc.pageCount ?? 0) : [];
+  const index = ranges.findIndex((r) => r.key === chapterKey);
+  if (!doc || index < 0) return <TestView documentId={documentId} chapterKey={chapterKey} />; // shows the not-found state
+  if (doc.hasText === false) return <TestView documentId={documentId} chapterKey={chapterKey} />;
+  const range = ranges[index];
+  const isParts = !doc.sections?.length;
+  const split = splitChapterTitle(range.title);
+  return (
+    <ConceptCheck
+      documentId={documentId}
+      chapterKey={chapterKey}
+      eyebrow={isParts ? `PART ${index + 1}` : split.number ? `CHAPTER ${split.number}` : "THIS CHAPTER"}
+      title={`${readableTitle(doc.title)} · ${isParts ? `Pages ${range.startPage}–${range.endPage}` : readableTitle(split.title)}`}
+      isPdf={doc.sourceType === "pdf"}
+      pageLabel={doc.sourceType === "pdf" ? "p." : "§"}
+      oldBest={scores[chapterKey] ?? null}
+    />
+  );
+}
+
 function TestRoute() {
   const { id } = useParams<{ id: string }>();
-  const chapterKey = useSearchParams().get("chapter") ?? "";
-  return (
-    <ReadingShell chrome={false}>
-      <TestView documentId={id as Id<"documents">} chapterKey={chapterKey} />
-    </ReadingShell>
-  );
+  const params = useSearchParams();
+  const chapterKey = params.get("chapter") ?? "";
+  const documentId = id as Id<"documents">;
+  return <ReadingShell chrome={false}>{params.get("classic") ? <TestView documentId={documentId} chapterKey={chapterKey} /> : <ConceptView documentId={documentId} chapterKey={chapterKey} />}</ReadingShell>;
 }
 
 export default function TestPage() {
