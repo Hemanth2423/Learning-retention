@@ -14,9 +14,37 @@ export const quizQuestion = v.object({
   page: v.optional(v.number()),
 });
 
+const exportProvider = v.union(v.literal("notion"), v.literal("google"));
+
 export default defineSchema({
   // users (+ sessions/accounts) come from Convex Auth.
   ...authTables,
+
+  integrations: defineTable({
+    userId: v.id("users"),
+    provider: exportProvider,
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    accountName: v.string(),
+  }).index("by_user_provider", ["userId", "provider"]),
+
+  oauthStates: defineTable({
+    state: v.string(),
+    userId: v.id("users"),
+    provider: exportProvider,
+    returnTo: v.string(),
+  }).index("by_state", ["state"]),
+
+  exportTargets: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    provider: exportProvider,
+    parentId: v.string(),
+    remoteId: v.string(),
+    url: v.string(),
+    lastSentAt: v.number(),
+  }).index("by_document_provider", ["documentId", "provider"]),
 
   // ---- Reading experience (Feature 1). See ARCHITECTURE.md and decisions/004. ----
 
