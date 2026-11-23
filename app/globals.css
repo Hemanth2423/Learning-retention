@@ -106,6 +106,10 @@ body {
   .chunky:active { transform: translateY(4px); box-shadow: 0 0 0 var(--ink); }
   .chunky-light { @apply bg-card text-ink hover:bg-panel; }
   .chunky.sm { @apply rounded-[10px] px-3 py-1.5 text-meta; box-shadow: 0 3px 0 var(--ink); }
+  /* Smaller chunky button for secondary actions (Send to Notion) */
+  .chunky-sm { @apply rounded-lg px-3 py-2 text-sm; box-shadow: 0 3px 0 var(--ink); }
+  .chunky-sm:hover:not(:disabled) { transform: translateY(1px); box-shadow: 0 2px 0 var(--ink); }
+  .chunky-sm:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
   /* Quiet buttons for secondary actions */
   .quiet {
     @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[10px] border border-line bg-card px-[11px] py-1.5 text-meta font-semibold text-ink transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-50;

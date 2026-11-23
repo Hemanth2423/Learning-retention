@@ -6,6 +6,8 @@
 
 | File | What's in it | Read it |
 |---|---|---|
+| [ASSIGNMENT.md](ASSIGNMENT.md) | Course rules: team workflow, tests, required docs, grading | **Before any contribution** |
+| [TEAM-PLAN.md](TEAM-PLAN.md) | Who builds which API feature, tests, done-when | Before any feature work |
 | [PRODUCT.md](PRODUCT.md) | Target user, core outcome, non-goals | At the start of a feature |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System map, modules, data ownership, contracts | Before changing those components |
 | [AGENTS.md](AGENTS.md) | Commands, conventions, testing, prohibited changes | Every session (imported above) |

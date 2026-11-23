@@ -1,7 +1,8 @@
 // The one export builder (TEAM-PLAN.md): a book → its chapters in book order, each with notes, highlights (with
 // comments) and saved questions. Markdown download, Copy all and Print use it; Notion and Google Docs can too.
 // Pure, so it runs in the browser or in a Convex action, and is tested in exportRules.test.ts.
-import { ChapterRange, SectionLike } from "./chapters";
+import { readableTitle } from "../components/reader/text";
+import { ChapterRange, chapterRanges, SectionLike } from "./chapters";
 import { chapterParts } from "./notebookRules";
 
 export type ExportOptions = { notes: boolean; highlights: boolean; saved: boolean };
@@ -220,4 +221,79 @@ section{break-inside:auto}h2{break-after:avoid}
 export function exportFileName(title: string, ext = "md"): string {
   const base = title.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Notes";
   return `${base}.${ext}`;
+}
+
+// ---- Notion: the same notebook as chapters of plain text ----
+
+export const BEFORE_FIRST_CHAPTER = "Before the first chapter";
+export const GENERAL_NOTES = "General notes";
+
+type NotebookHighlight = {
+  locator: { page: number };
+  text: string;
+  comment?: string;
+  segments?: { page: number; rects: { x: number; y: number }[] }[];
+};
+
+type NotebookInput = {
+  title: string;
+  sections: (SectionLike & { title: string })[];
+  pageCount: number;
+  notes: { sectionKey?: string | null; plainText?: string }[];
+  highlights: NotebookHighlight[];
+};
+
+// Where a highlight starts on its page, so highlights read top to bottom.
+function startOnPage({ locator, segments }: NotebookHighlight) {
+  return segments?.find(({ page }) => page === locator.page)?.rects[0] ?? { x: 0, y: 0 };
+}
+
+function inReadingOrder(a: NotebookHighlight, b: NotebookHighlight) {
+  const [first, second] = [startOnPage(a), startOnPage(b)];
+  return a.locator.page - b.locator.page || first.y - second.y || first.x - second.x;
+}
+
+function exportedHighlight({ locator, text, comment }: NotebookHighlight) {
+  return { quote: text, comment: comment ?? "", page: locator.page };
+}
+
+export function buildNotebookExport({
+  title,
+  sections,
+  pageCount,
+  notes,
+  highlights,
+}: NotebookInput) {
+  const ranges = chapterRanges(sections, pageCount);
+  const known = new Set(ranges.map(({ key }) => key));
+  // A chapter can hold several notes. Notes with no chapter (or a chapter that no longer exists) stay as general notes.
+  const notesByChapter = new Map<string, string[]>();
+  for (const { sectionKey, plainText } of notes) {
+    const text = plainText?.trim();
+    if (!text) continue;
+    const key = sectionKey && known.has(sectionKey) ? sectionKey : GENERAL_NOTES;
+    notesByChapter.set(key, [...(notesByChapter.get(key) ?? []), text]);
+  }
+
+  // Each highlight belongs to the last chapter starting on or before its page (-1: before them all).
+  const byChapter = new Map<number, NotebookHighlight[]>();
+  for (const highlight of [...highlights].sort(inReadingOrder)) {
+    const index = ranges.reduce((found, { startPage }, i) => (startPage <= highlight.locator.page ? i : found), -1);
+    byChapter.set(index, [...(byChapter.get(index) ?? []), highlight]);
+  }
+
+  const chapters = ranges.flatMap((chapter, index) => {
+    const note = notesByChapter.get(chapter.key)?.join("\n\n") ?? "";
+    const chapterHighlights = (byChapter.get(index) ?? []).map(exportedHighlight);
+
+    if (!note && chapterHighlights.length === 0) return [];
+    return [{ heading: readableTitle(chapter.title), note, highlights: chapterHighlights }];
+  });
+  const early = byChapter.get(-1);
+  if (early) chapters.unshift({ heading: BEFORE_FIRST_CHAPTER, note: "", highlights: early.map(exportedHighlight) });
+
+  const general = notesByChapter.get(GENERAL_NOTES);
+  if (general) chapters.unshift({ heading: GENERAL_NOTES, note: general.join("\n\n"), highlights: [] });
+
+  return { title, chapters };
 }

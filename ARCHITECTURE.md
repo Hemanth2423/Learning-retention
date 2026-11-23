@@ -85,4 +85,14 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 ## Added since Feature 1
 - **Library:** progress, tests, XP, covers, folders. **Sources:** EPUB, Word, PowerPoint, articles, video. **Notebook:** notes, saved questions, export.
 - Details and reasons: [docs/archive/architecture-history.md](docs/archive/architecture-history.md) and ADRs 008–018.
-- **Proposed:** concept check, [ADR 019](decisions/019-concept-check-ladder.md).
+- **Concept check:** built, [ADR 019](decisions/019-concept-check-ladder.md).
+
+## Notebook exports
+
+| Table | Purpose | Index |
+|---|---|---|
+| `integrations` | Per-reader provider connection with server-only tokens and a workspace name | `by_user_provider` |
+| `oauthStates` | Single-use OAuth state with the requesting reader and return path, expired after 10 minutes | `by_state` |
+| `exportTargets` | Selected parent, remote page ID and link, and last successful send for each book and provider | `by_document_provider` |
+
+Convex actions use the shared notebook builder to export saved chapter notes and highlights. Retrying an export uses the saved Notion page so its link stays stable.
