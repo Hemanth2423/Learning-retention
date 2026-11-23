@@ -2,7 +2,7 @@
 
 Keep under 40 lines and only the latest state. Git keeps history.
 
-**Updated:** 2026-11-23 · **Branch:** `feat/concept-check` (on `feat/folders`, `feat/feature-3-rest`, PR #82) · Demo Dec 2
+**Updated:** 2026-11-23 · **Branch:** `feat/concept-check` (PR #89, on `feat/ux-enhancements`, PR #88) · Demo Dec 2
 
 ## Verified state
 - Features 1–2 are on `main`. Feature 3 (sources, Notebook) and 4 (folders) are built and committed locally.
@@ -15,10 +15,11 @@ Keep under 40 lines and only the latest state. Git keeps history.
 - Repo is still public. Non-goals and the success measure are open in PRODUCT.md.
 
 ## Next action
-1. **Concept check V1 is on `feat/concept-check`.** Verified on a real PDF: generate, answer, resume, finish, standing, phone width. Spend: at most $0.274 of the $0.30 test cap. **Get a new cap before more paid test runs.**
-2. Known quality gaps are in [spike-results.md](tasks/feature-5-concept-check/spike-results.md): rerun the article, add hard questions for essays, test a narrative, then Hemanth and a teammate score 20 questions each.
-3. Not built: vision questions and tight figure crops. Production needs `DEEPSEEK_API_KEY`, or it uses Groq.
-4. Notion fixes are uncommitted on `fix/notion-export-ux` in their own session.
+1. **Hemanth tests at http://localhost:3000** (branch `feat/concept-check`, dev backend).
+2. **Open PRs, not merged:** [#88 UX enhancements](https://github.com/Hemanth2423/Learning-retention/pull/88) into `main`; [#89 Concept check](https://github.com/Hemanth2423/Learning-retention/pull/89) stacked on it. Retarget #89 to `main` after #88 merges.
+3. Each PR still needs an issue (`closes #N`), a screenshot and a teammate approval. #88 includes #82.
+4. Notion on this dev backend isn't configured. Its fixes were checked on the separate test deployment; reading from `notes` is covered by tests only.
+5. Concept quality gaps are in [spike-results.md](tasks/feature-5-concept-check/spike-results.md). Test spend is $0.274 of $0.30, so **get a new cap before more paid test runs.**
 
 ## Waiting, only when Hemanth asks
 - Merge #82, deploy, rebase `feat/feature-3-rest`, open its PR, then the folders PR.
