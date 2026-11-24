@@ -58,3 +58,4 @@
 
 - 2026-11-24: Confirmed Notion PR #85 merged into `main`; shared tables, notebook builder, and server OAuth pattern are available. Baseline is 169 passing tests and 0 lint errors.
 - 2026-11-24: Created the feature branch and wrote this specification before implementation. Google Cloud project, Drive API, Docs API, and external-testing consent configuration already exist; no OAuth client or secret has been created yet.
+- 2026-11-24: Added pure Google Docs formatting and replacement-request rules. Targeted tests verify chapter order, highlight comments/page numbers, literal HTML-like note text, title/chapter styles, and replacement of an existing document body.

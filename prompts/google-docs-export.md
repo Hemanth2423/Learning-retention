@@ -15,4 +15,5 @@
 - Ran the merged baseline: 169 tests in 34 files pass; lint has 0 errors and 22 known warnings.
 - Created the feature branch from the latest `main` and wrote the task specification before implementation.
 - Kept the existing ten-minute, single-use OAuth-state pattern. Planned an additional Google cross-user ownership test because the shared foundation does not yet test that boundary.
-- Paused before API implementation; no credentials, environment variables, deployment settings, or production data were changed.
+- Added a pure Google document formatter and batch-update request builder before any network code. The targeted tests pass and lint reports no errors for the new files.
+- No credentials, environment variables, deployment settings, or production data were changed.
