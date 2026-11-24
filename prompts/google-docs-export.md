@@ -19,4 +19,6 @@
 - Built the server-only Google OAuth and export path, including single-use state, `drive.file` scope, token refresh, revoked-token cleanup, folder/Doc creation, same-Doc updates, stored links, and plain-language reconnect/unavailable results.
 - Added four integration tests covering create-and-update behavior, token refresh, revoked access, least-privilege scope, and cross-user ownership. The full suite now passes 175 tests in 36 files; lint remains at 0 errors and the same 22 pre-existing warnings.
 - Tried official Convex code generation, but this checkout does not have `CONVEX_DEPLOYMENT` access. I did not fake or hand-edit generated files. The backend uses supported named function references until Hemanth grants deployment access and codegen can run.
+- Read the installed Next.js client-component guide before changing the UI, then added a Google Docs control beside the existing Notion export. It shows connection state, send/send-again progress, the last-sent time, errors, and the saved Google Doc link.
+- TypeScript reports no Google feature errors. Its only remaining project error is the pre-existing missing generated `LayoutProps` type in `app/layout.tsx`.
 - No credentials, environment variables, deployment settings, or production data were changed.
