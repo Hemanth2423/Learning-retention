@@ -16,4 +16,7 @@
 - Created the feature branch from the latest `main` and wrote the task specification before implementation.
 - Kept the existing ten-minute, single-use OAuth-state pattern. Planned an additional Google cross-user ownership test because the shared foundation does not yet test that boundary.
 - Added a pure Google document formatter and batch-update request builder before any network code. The targeted tests pass and lint reports no errors for the new files.
+- Built the server-only Google OAuth and export path, including single-use state, `drive.file` scope, token refresh, revoked-token cleanup, folder/Doc creation, same-Doc updates, stored links, and plain-language reconnect/unavailable results.
+- Added four integration tests covering create-and-update behavior, token refresh, revoked access, least-privilege scope, and cross-user ownership. The full suite now passes 175 tests in 36 files; lint remains at 0 errors and the same 22 pre-existing warnings.
+- Tried official Convex code generation, but this checkout does not have `CONVEX_DEPLOYMENT` access. I did not fake or hand-edit generated files. The backend uses supported named function references until Hemanth grants deployment access and codegen can run.
 - No credentials, environment variables, deployment settings, or production data were changed.
