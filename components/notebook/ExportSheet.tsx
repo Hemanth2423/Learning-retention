@@ -5,13 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { chapterRanges } from "@/convex/chapters";
-import { buildExport, exportFileName, ExportOptions, isEmptyExport, toMarkdown, toPrintHtml } from "@/convex/exportRules";
+import { SendToNotion } from "@/components/export/SendToNotion";
+import { buildBookExport, exportFileName, ExportOptions, isEmptyExport, toMarkdown, toPrintHtml } from "@/convex/exportRules";
 
 const today = () => new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 
 // Export: choose what to include, then download Markdown, print / save as PDF, or copy everything.
-// Built in the browser from what's already loaded (convex/exportRules.ts); nothing is sent anywhere.
+// Built in the browser from what's already loaded (convex/exportRules.ts). Only "Send to Notion" leaves the browser.
 export function ExportSheet({ documentId, onClose }: { documentId: Id<"documents">; onClose: () => void }) {
   const doc = useQuery(api.documents.get, { documentId });
   const notebook = useQuery(api.notebook.list, { documentId });
@@ -34,24 +34,7 @@ export function ExportSheet({ documentId, onClose }: { documentId: Id<"documents
 
   const book = useMemo(() => {
     if (!doc || !notebook || !highlights) return null;
-    const ranges = chapterRanges(doc.sections ?? [], doc.pageCount ?? 0);
-    const kind = doc.sourceType === "article" ? "Article" : doc.sourceType === "video" ? "Video" : null;
-    return buildExport({
-      title: doc.title,
-      source: kind ? [kind, doc.siteName, doc.sourceUrl].filter(Boolean).join(" · ") : undefined,
-      ranges,
-      sections: doc.sections ?? [],
-      notes: notebook.notes.map((n) => ({ sectionKey: n.sectionKey, content: n.content, plainText: n.plainText, seconds: n.seconds, createdAt: n._creationTime })),
-      highlights: highlights.map((h) => ({
-        page: h.locator.page,
-        text: h.text,
-        comment: h.comment,
-        order: h.locator.page * 1e6 + (h.range ? h.range.startOffset : (h.segments[0]?.rects[0]?.y ?? 0) * 1e5),
-      })),
-      saved: notebook.saved.map((s) => ({ ...s, createdAt: s._creationTime })),
-      options,
-      pageLabel: doc.sourceType === "article" ? "§" : "p.",
-    });
+    return buildBookExport({ book: doc, notes: notebook.notes, highlights, saved: notebook.saved, options });
   }, [doc, notebook, highlights, options]);
 
   const counts = { notes: notebook?.notes.length ?? 0, highlights: highlights?.length ?? 0, saved: notebook?.saved.length ?? 0 };
@@ -145,8 +128,8 @@ export function ExportSheet({ documentId, onClose }: { documentId: Id<"documents
 
         <p className="mt-2 text-label font-bold uppercase tracking-[0.08em] text-muted">Send to</p>
         <ul className="mt-1.5 grid gap-1.5 text-meta">
+          <SendToNotion documentId={documentId} options={options} nothingToSend={empty} />
           {[
-            ["Notion", "Coming soon"],
             ["Google Docs", "Coming soon"],
             ["Obsidian", "Soon · the Markdown file opens in Obsidian today"],
           ].map(([name, note]) => (

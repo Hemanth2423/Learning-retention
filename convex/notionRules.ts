@@ -1,11 +1,12 @@
-import type { buildNotebookExport } from "./exportRules";
+import { readableTitle } from "../components/reader/text";
+import { formatTime, type ExportBook } from "./exportRules";
 
-type Notebook = ReturnType<typeof buildNotebookExport>;
 type RichText = { type: "text"; text: { content: string } };
 type NotionBlock = {
   object: "block";
 } & (
   | { type: "heading_2"; heading_2: { rich_text: RichText[] } }
+  | { type: "heading_3"; heading_3: { rich_text: RichText[] } }
   | { type: "paragraph"; paragraph: { rich_text: RichText[] } }
   | { type: "quote"; quote: { rich_text: RichText[] } }
 );
@@ -52,27 +53,42 @@ function paragraphs(text: string): NotionBlock[] {
   );
 }
 
-export const EMPTY_NOTEBOOK_TEXT = "No notes or highlights yet. Add some in Ingrain, then send again.";
+export const EMPTY_NOTEBOOK_TEXT = "Nothing to show yet. Add notes or highlights in Ingrain, then send again.";
 
-export function notebookBlocks(notebook: Notebook): NotionBlock[] {
+function heading(type: "heading_2" | "heading_3", text: string): NotionBlock[] {
+  return splitText(readableTitle(text)).map((part) => (
+    type === "heading_2"
+      ? { object: "block", type, heading_2: { rich_text: richText(part) } }
+      : { object: "block", type, heading_3: { rich_text: richText(part) } }
+  ));
+}
+
+export function notebookBlocks(book: ExportBook): NotionBlock[] {
   // A blank page looks like a failed send, so say why it's empty.
-  if (notebook.chapters.length === 0) return paragraphs(EMPTY_NOTEBOOK_TEXT);
-  return notebook.chapters.flatMap(({ heading, note, highlights }) => [
-    ...splitText(heading).map((part): NotionBlock => ({
-      object: "block",
-      type: "heading_2",
-      heading_2: { rich_text: richText(part) },
-    })),
-    ...paragraphs(note),
-    ...highlights.flatMap(({ quote, comment, page }) => [
-      ...splitText(quote).map((part): NotionBlock => ({
-        object: "block",
-        type: "quote",
-        quote: { rich_text: richText(part) },
-      })),
-      ...paragraphs(comment ? `${comment}\np.${page}` : `p.${page}`),
-    ]),
-  ]);
+  if (book.sections.length === 0) return paragraphs(EMPTY_NOTEBOOK_TEXT);
+  const hasParts = book.sections.some(({ part }) => part);
+  let lastPart: string | undefined;
+  const body = book.sections.flatMap(({ key, title, part, notes, highlights, saved }) => {
+    const partHeading = hasParts && part && part !== lastPart ? heading("heading_2", part) : [];
+    if (hasParts && part) lastPart = part;
+    const nested = hasParts && key !== "general" && key !== "before";
+    return [
+      ...partHeading,
+      ...heading(nested ? "heading_3" : "heading_2", title),
+      ...notes.flatMap(({ text, seconds }) => paragraphs(seconds === undefined ? text : `[${formatTime(seconds)}] ${text}`)),
+      ...highlights.flatMap(({ text, comment, where }) => [
+        ...splitText(text).map((part): NotionBlock => ({
+          object: "block",
+          type: "quote",
+          quote: { rich_text: richText(part) },
+        })),
+        ...paragraphs(comment ? `${comment}\n${where}` : where),
+      ]),
+      ...saved.flatMap(({ question, yourAnswer, rightAnswer }) =>
+        paragraphs(`Q: ${question}\nYour answer: ${yourAnswer}\nRight answer: ${rightAnswer}`)),
+    ];
+  });
+  return [...(book.source ? paragraphs(book.source) : []), ...body];
 }
 
 export function notionBlockBatches(blocks: NotionBlock[]): NotionBlock[][] {
