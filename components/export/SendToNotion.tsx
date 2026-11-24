@@ -4,12 +4,17 @@ import { useEffect, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { ExportOptions } from "@/convex/exportRules";
 import { PAGE_GONE } from "@/convex/notionRules";
 
 const RECONNECT = "Reconnect Notion";
 const button = "chunky chunky-light chunky-sm mt-2 w-full";
 
-export function SendToNotion({ documentId }: { documentId: Id<"documents"> }) {
+export function SendToNotion({ documentId, options, nothingToSend }: {
+  documentId: Id<"documents">;
+  options: ExportOptions;
+  nothingToSend: boolean;
+}) {
   const connection = useQuery(api.notionData.connection);
   const target = useQuery(api.notionData.savedTarget, { documentId });
   const connect = useAction(api.notion.connect);
@@ -26,8 +31,9 @@ export function SendToNotion({ documentId }: { documentId: Id<"documents"> }) {
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (!url.searchParams.has("notion")) return;
+    if (!url.searchParams.has("notion") && !url.searchParams.has("export")) return;
     url.searchParams.delete("notion");
+    url.searchParams.delete("export");
     window.history.replaceState(null, "", url);
   }, []);
 
@@ -44,7 +50,9 @@ export function SendToNotion({ documentId }: { documentId: Id<"documents"> }) {
     }
   }
 
-  if (!connection || target === undefined) return null;
+  if (!connection || target === undefined) {
+    return <li className="rounded-[10px] border border-line px-3 py-2 font-semibold">Notion <span className="font-normal text-muted">Loading…</span></li>;
+  }
   const needsConnection = !connection.connected || message === RECONNECT;
 
   const connectButton = (
@@ -58,8 +66,8 @@ export function SendToNotion({ documentId }: { documentId: Id<"documents"> }) {
   );
 
   return (
-    <div className="mt-4 border-t border-line pt-4 text-sm">
-      <p className="font-medium">Send to Notion</p>
+    <li className="rounded-[10px] border border-line px-3 py-2">
+      <p className="font-semibold">Notion</p>
       {connection.connected && connection.workspaceName && !needsConnection && (
         <p className="text-xs text-muted">Connected to {connection.workspaceName}</p>
       )}
@@ -94,9 +102,9 @@ export function SendToNotion({ documentId }: { documentId: Id<"documents"> }) {
           )}
 
           {(target || (pages && pages.length > 0)) && (
-            <button type="button" className={button} disabled={busy !== "" || (!target && !parentId)}
+            <button type="button" className={button} disabled={busy !== "" || nothingToSend || (!target && !parentId)}
               onClick={() => void run("send", async () => {
-                const result = await send({ documentId, parentId: parentId || undefined });
+                const result = await send({ documentId, parentId: parentId || undefined, options });
                 setMessage(result.ok ? "Sent to Notion." : result.message);
                 if (!result.ok && (result.message === RECONNECT || result.message === PAGE_GONE)) {
                   setPages(null);
@@ -114,6 +122,6 @@ export function SendToNotion({ documentId }: { documentId: Id<"documents"> }) {
         </p>
       )}
       {message && message !== RECONNECT && <p className="mt-2 text-xs text-muted" role="status">{message}</p>}
-    </div>
+    </li>
   );
 }

@@ -142,8 +142,12 @@ async function listBlocks(pageId: string, authorization: string) {
 }
 
 export const send = action({
-  args: { documentId: v.id("documents"), parentId: v.optional(v.string()) },
-  handler: async (ctx, { documentId, parentId }): Promise<{ ok: false; message: string } | { ok: true; url: string }> => {
+  args: {
+    documentId: v.id("documents"),
+    parentId: v.optional(v.string()),
+    options: v.optional(v.object({ notes: v.boolean(), highlights: v.boolean(), saved: v.boolean() })),
+  },
+  handler: async (ctx, { documentId, parentId, options }): Promise<{ ok: false; message: string } | { ok: true; url: string }> => {
     const userId = await requireUser(ctx);
     let existing = await ctx.runQuery(internal.notionData.bookTarget, { userId, documentId });
     const connection = await ctx.runQuery(internal.notionData.connectionFor, { userId });
@@ -155,7 +159,7 @@ export const send = action({
     }
     if (!existing && !parentId) return { ok: false, message: "Choose a Notion page first." };
 
-    const notebook = await ctx.runQuery(internal.exports.notebookFor, { documentId });
+    const notebook = await ctx.runQuery(internal.exports.notebookFor, { documentId, options });
     const batches = notionBlockBatches(notebookBlocks(notebook));
     const authorization = `Bearer ${connection.accessToken}`;
     const id = existing?._id ?? await ctx.runMutation(internal.notionData.claimTarget, {

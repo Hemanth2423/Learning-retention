@@ -3,8 +3,9 @@
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { ReadingShell } from "@/components/ReadingShell";
+import { ExportSheet } from "@/components/notebook/ExportSheet";
 import { Reader } from "@/components/reader/Reader";
 import { TextReader } from "@/components/source/TextReader";
 import { VideoView } from "@/components/source/VideoView";
@@ -21,6 +22,9 @@ function ReaderRoute() {
   const documentId = id as Id<"documents">;
   const doc = useQuery(api.documents.get, { documentId });
   const url = useQuery(api.documents.fileUrl, { documentId });
+  // Back from connecting Notion: reopen Export where the reader left it.
+  const [exporting, setExporting] = useState(params.get("export") === "notion");
+  const exportSheet = exporting && doc?.status === "ready" && <ExportSheet documentId={documentId} onClose={() => setExporting(false)} />;
 
   let body;
   if (doc && doc.status === "ready" && doc.sourceType !== "pdf") {
@@ -31,6 +35,7 @@ function ReaderRoute() {
         ) : (
           <TextReader key={doc._id} doc={doc} startPage={startPage} startNotes={startNotes} startNotebook={startNotebook} />
         )}
+        {exportSheet}
       </ReadingShell>
     );
   }
@@ -61,6 +66,7 @@ function ReaderRoute() {
     return (
       <ReadingShell chrome={false}>
         <Reader key={doc._id} doc={doc} url={url} startPage={startPage} startNotes={startNotes} startNotebook={startNotebook} />
+        {exportSheet}
       </ReadingShell>
     );
   }

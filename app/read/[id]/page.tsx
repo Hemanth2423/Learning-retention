@@ -4,7 +4,6 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { SendToNotion } from "@/components/export/SendToNotion";
 import { Bulb } from "@/components/icons/Bulb";
 import { BookCover } from "@/components/library/BookCover";
 import { ExportSheet } from "@/components/notebook/ExportSheet";
@@ -24,11 +23,13 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
   const notebook = useQuery(api.notebook.list, { documentId });
   const notes = notebook?.notes;
   const scores = useQuery(api.quizzes.bestScores, { documentId });
-  const [exporting, setExporting] = useState(false);
+  // Notion sends the reader back with ?export=notion, so they land where they started.
+  const [exporting, setExporting] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("export") === "notion");
   const router = useRouter();
   const notABook = !!doc && doc.sourceType !== "pdf" && doc.sourceType !== "epub"; // EPUBs get a path too
   useEffect(() => {
-    if (notABook) router.replace(`/read/${documentId}/book`);
+    if (notABook) router.replace(`/read/${documentId}/book${window.location.search}`);
   }, [notABook, router, documentId]);
 
   const view = useMemo(() => {
@@ -115,8 +116,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
               ⤓ Export notes
             </button>
           </div>
-          {exporting && <ExportSheet documentId={doc._id} onClose={() => setExporting(false)} />}
-          <SendToNotion documentId={doc._id} />
+          {exporting && !notABook && <ExportSheet documentId={doc._id} onClose={() => setExporting(false)} />}
           <p className="mt-4 text-label leading-relaxed text-muted">
             📖 Read · ✏️ Notes · <Bulb size={14} /> Test
             <br />
