@@ -11,14 +11,14 @@
 
 "Done" means the reader's notes arrive in the same Google Doc safely and predictably.
 
-- [ ] Given a signed-in reader with a book, when they connect Google, then OAuth uses the server-only `drive.file` scope and returns them to that book.
-- [ ] Given a connected reader, when they send a book for the first time, then Ingrain creates or reuses an `Ingrain notes` folder and creates one Google Doc named after the book.
-- [ ] Given notes and highlights in different chapters, when the reader sends the book, then the Doc lists chapters in book order and places each note, highlight, comment, and page number under the correct chapter.
-- [ ] Given a book already sent to Google Docs, when the reader edits a note and sends again, then Ingrain updates the same Doc instead of creating a duplicate, keeps the same link, and advances the last-sent time.
-- [ ] Given an expired access token with a valid refresh token, when the reader sends again, then Ingrain refreshes access on the server and completes the send.
-- [ ] Given revoked Google access, when the reader sends again, then Ingrain shows **Reconnect Google** without losing their Ingrain notes.
-- [ ] Given User B, when they try to use User A's Google connection or export User A's book, then the server refuses the operation.
-- [ ] HTML-like text typed into a note is exported as text, never interpreted as markup.
+- [x] Given a signed-in reader with a book, when they connect Google, then OAuth uses the server-only `drive.file` scope and returns them to that book.
+- [x] Given a connected reader, when they send a book for the first time, then Ingrain creates or reuses an `Ingrain notes` folder and creates one Google Doc named after the book.
+- [x] Given notes and highlights in different chapters, when the reader sends the book, then the Doc lists chapters in book order and places each note, highlight, comment, and page number under the correct chapter.
+- [x] Given a book already sent to Google Docs, when the reader edits a note and sends again, then Ingrain updates the same Doc instead of creating a duplicate, keeps the same link, and advances the last-sent time.
+- [x] Given an expired access token with a valid refresh token, when the reader sends again, then Ingrain refreshes access on the server and completes the send.
+- [x] Given revoked Google access, when the reader sends again, then Ingrain shows **Reconnect Google** without losing their Ingrain notes.
+- [x] Given User B, when they try to use User A's Google connection or export User A's book, then the server refuses the operation.
+- [x] HTML-like text typed into a note is exported as text, never interpreted as markup.
 
 ## Design
 
@@ -47,12 +47,12 @@
 
 ## Verification
 
-- [ ] **Required feature test:** A Chapter 2 note and a Chapter 1 highlight/comment export in Chapter 1 → Chapter 2 order; HTML-like note text remains text; the Doc ID/link are saved.
-- [ ] **Update test:** Editing a note and sending again updates the original Doc and advances `lastSentAt` without creating another Doc.
-- [ ] **Security test:** User B cannot use User A's integration or export User A's document.
-- [ ] **Token test:** An expired access token refreshes; revoked refresh access returns **Reconnect Google**.
-- [ ] `npm test` and `npm run lint` pass.
-- [ ] Browser-check connect, first send, edit-and-send-again, open-link, and reconnect behavior with a real PDF and a Google test account.
+- [x] **Required feature test:** A Chapter 2 note and a Chapter 1 highlight/comment export in Chapter 1 → Chapter 2 order; HTML-like note text remains text; the Doc ID/link are saved.
+- [x] **Update test:** Editing a note and sending again updates the original Doc and advances `lastSentAt` without creating another Doc.
+- [x] **Security test:** User B cannot use User A's integration or export User A's document.
+- [x] **Token test:** An expired access token refreshes; revoked refresh access returns **Reconnect Google**.
+- [x] `npm test` and `npm run lint` pass.
+- [ ] Browser-check connect, first send, edit-and-send-again, open-link, and reconnect behavior with a real PDF and a Google test account. Connect, first send, open-link, and same-Doc update are verified; real revoked-access reconnect remains.
 
 ## Status log
 
@@ -63,3 +63,4 @@
 - 2026-11-24: Backend verification is green: 175 tests in 36 files pass and full lint has 0 errors (22 pre-existing warnings). Convex code generation still requires access to Hemanth's deployment, so the new server functions temporarily use supported named function references; no generated file was edited by hand.
 - 2026-11-24: Added the book-page Google Docs controls using the app's existing export style: connect/reconnect, send/send again, last-sent time, status messages, and an open-Doc link. The UI lint and Google types pass; the full suite remains at 175 passing tests and 0 lint errors.
 - 2026-11-24: Accepted access to Hemanth's `recall` Convex project, provisioned Erin's personal development deployment, ran official code generation, replaced the temporary named references with generated API references, and deployed the Google functions successfully. `.env.local` is ignored and contains no committed secrets.
+- 2026-11-24: Completed a real development OAuth/export test with a synthetic PDF and Google test account. Google displayed only the `drive.file` permission. The first send created a Doc, literal HTML-like text stayed text, and an edited note updated the same Doc and advanced the last-sent time. No Doc link, token, or OAuth credential was added to git.
