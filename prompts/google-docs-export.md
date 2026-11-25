@@ -21,4 +21,5 @@
 - Tried official Convex code generation, but this checkout does not have `CONVEX_DEPLOYMENT` access. I did not fake or hand-edit generated files. The backend uses supported named function references until Hemanth grants deployment access and codegen can run.
 - Read the installed Next.js client-component guide before changing the UI, then added a Google Docs control beside the existing Notion export. It shows connection state, send/send-again progress, the last-sent time, errors, and the saved Google Doc link.
 - TypeScript reports no Google feature errors. Its only remaining project error is the pre-existing missing generated `LayoutProps` type in `app/layout.tsx`.
-- No credentials, environment variables, deployment settings, or production data were changed.
+- After the Convex invitation was accepted, linked the checkout to Hemanth's existing `recall` project and Erin's personal development deployment. Official code generation succeeded, so I replaced the temporary references with generated `api`/`internal` references and redeployed. All 175 tests still pass and lint has 0 errors.
+- No OAuth credentials, shared production settings, or production data were changed. Convex wrote the ignored local variables that select Erin's personal development deployment.

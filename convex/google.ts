@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { makeFunctionReference } from "convex/server";
 import type { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { action, httpAction, type ActionCtx } from "./_generated/server";
 import { requireUser } from "./helpers";
 import { googleBatchUpdate, googleDocumentBody } from "./googleRules";
@@ -11,22 +11,6 @@ const tokenUrl = "https://oauth2.googleapis.com/token";
 const driveFileScope = "https://www.googleapis.com/auth/drive.file";
 const reconnect = { ok: false as const, message: "Reconnect Google" };
 const unavailable = { ok: false as const, message: "Google Docs isn’t available. Try again." };
-
-// These supported references keep the new module testable before this checkout is
-// connected to Hemanth's Convex deployment. `convex codegen` will expose the same
-// functions to the generated client API once deployment access is configured.
-const googleData = {
-  begin: makeFunctionReference<"mutation">("googleData:begin"),
-  consumeState: makeFunctionReference<"mutation">("googleData:consumeState"),
-  storeConnection: makeFunctionReference<"mutation">("googleData:storeConnection"),
-  forgetConnection: makeFunctionReference<"mutation">("googleData:forgetConnection"),
-  connectionFor: makeFunctionReference<"query">("googleData:connectionFor"),
-  bookTarget: makeFunctionReference<"query">("googleData:bookTarget"),
-  claimTarget: makeFunctionReference<"mutation">("googleData:claimTarget"),
-  saveTarget: makeFunctionReference<"mutation">("googleData:saveTarget"),
-  forgetTarget: makeFunctionReference<"mutation">("googleData:forgetTarget"),
-};
-const notebookFor = makeFunctionReference<"query">("exports:notebookFor");
 
 class GoogleError extends Error {
   constructor(readonly status: number) {
@@ -71,7 +55,7 @@ export const connect = action({
     const config = oauthConfiguration();
     if (!config || !process.env.SITE_URL) return { message: "Google Docs isn’t set up yet." };
     const state = crypto.randomUUID();
-    await ctx.runMutation(googleData.begin, { state, userId, documentId });
+    await ctx.runMutation(internal.googleData.begin, { state, userId, documentId });
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     url.search = new URLSearchParams({
       client_id: config.clientId,
@@ -90,7 +74,7 @@ export const connect = action({
 export const callback = httpAction(async (ctx, req) => {
   const params = new URL(req.url).searchParams;
   const state = params.get("state");
-  const pending = state && await ctx.runMutation(googleData.consumeState, { state });
+  const pending = state && await ctx.runMutation(internal.googleData.consumeState, { state });
   const config = oauthConfiguration();
   const site = process.env.SITE_URL;
   if (!pending || !config || !site) return new Response("Please reconnect Google from Ingrain.", { status: 400 });
@@ -102,7 +86,7 @@ export const callback = httpAction(async (ctx, req) => {
       const tokens = await tokenRequest(config, {
         grant_type: "authorization_code", code, redirect_uri: config.redirectUri,
       });
-      await ctx.runMutation(googleData.storeConnection, {
+      await ctx.runMutation(internal.googleData.storeConnection, {
         userId: pending.userId,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
@@ -134,14 +118,14 @@ async function accessTokenFor(
 ) {
   if (!connection.expiresAt || connection.expiresAt > Date.now() + 60_000) return connection.accessToken;
   if (!connection.refreshToken) {
-    await ctx.runMutation(googleData.forgetConnection, { userId, accessToken: connection.accessToken });
+    await ctx.runMutation(internal.googleData.forgetConnection, { userId, accessToken: connection.accessToken });
     return null;
   }
   try {
     const tokens = await tokenRequest(config, {
       grant_type: "refresh_token", refresh_token: connection.refreshToken,
     });
-    await ctx.runMutation(googleData.storeConnection, {
+    await ctx.runMutation(internal.googleData.storeConnection, {
       userId,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
@@ -151,7 +135,7 @@ async function accessTokenFor(
     return tokens.access_token;
   } catch (error) {
     if (error instanceof GoogleError && [400, 401].includes(error.status)) {
-      await ctx.runMutation(googleData.forgetConnection, { userId, accessToken: connection.accessToken });
+      await ctx.runMutation(internal.googleData.forgetConnection, { userId, accessToken: connection.accessToken });
       return null;
     }
     throw error;
@@ -191,8 +175,8 @@ export const send = action({
   args: { documentId: v.id("documents") },
   handler: async (ctx, { documentId }): Promise<typeof reconnect | typeof unavailable | { ok: true; url: string }> => {
     const userId = await requireUser(ctx);
-    const existing = await ctx.runQuery(googleData.bookTarget, { userId, documentId });
-    const connection = await ctx.runQuery(googleData.connectionFor, { userId });
+    const existing = await ctx.runQuery(internal.googleData.bookTarget, { userId, documentId });
+    const connection = await ctx.runQuery(internal.googleData.connectionFor, { userId });
     if (!connection) return reconnect;
     if (existing && !existing.remoteId) return { ok: false, message: "An export is already in progress." };
     const config = oauthConfiguration();
@@ -206,38 +190,38 @@ export const send = action({
     }
     if (!accessToken) return reconnect;
 
-    const notebook = await ctx.runQuery(notebookFor, { documentId });
+    const notebook = await ctx.runQuery(internal.exports.notebookFor, { documentId });
     let id = existing?._id;
     let remoteId = existing?.remoteId;
     let url = existing?.url;
     try {
       if (!id) {
         const parentId = await folderFor(accessToken);
-        const claimed = await ctx.runMutation(googleData.claimTarget, { userId, documentId, parentId });
+        const claimed = await ctx.runMutation(internal.googleData.claimTarget, { userId, documentId, parentId });
         if (!claimed) return { ok: false, message: "An export is already in progress." };
         id = claimed;
       }
       const isNew = !remoteId;
       if (!remoteId || !url) {
-        const row = await ctx.runQuery(googleData.bookTarget, { userId, documentId });
+        const row = await ctx.runQuery(internal.googleData.bookTarget, { userId, documentId });
         const document = await createDocument(notebook.title, row?.parentId ?? "", accessToken);
         remoteId = document.id;
         url = document.webViewLink ?? `https://docs.google.com/document/d/${encodeURIComponent(remoteId)}/edit`;
-        await ctx.runMutation(googleData.saveTarget, { id, remoteId, url, lastSentAt: 0 });
+        await ctx.runMutation(internal.googleData.saveTarget, { id, remoteId, url, lastSentAt: 0 });
       }
       const endIndex = isNew ? 1 : await documentEndIndex(remoteId, accessToken);
       const update = googleBatchUpdate(googleDocumentBody(notebook), endIndex);
       await googleRequest(`${docsRoot}/documents/${encodeURIComponent(remoteId)}:batchUpdate`, accessToken, "POST", update);
-      await ctx.runMutation(googleData.saveTarget, { id, remoteId, url, lastSentAt: Date.now() });
+      await ctx.runMutation(internal.googleData.saveTarget, { id, remoteId, url, lastSentAt: Date.now() });
       return { ok: true, url };
     } catch (error) {
-      if (!remoteId && id) await ctx.runMutation(googleData.forgetTarget, { id });
+      if (!remoteId && id) await ctx.runMutation(internal.googleData.forgetTarget, { id });
       if (error instanceof GoogleError && error.status === 401) {
-        await ctx.runMutation(googleData.forgetConnection, { userId, accessToken });
+        await ctx.runMutation(internal.googleData.forgetConnection, { userId, accessToken });
         return reconnect;
       }
       if (error instanceof GoogleError && error.status === 404 && id) {
-        await ctx.runMutation(googleData.forgetTarget, { id });
+        await ctx.runMutation(internal.googleData.forgetTarget, { id });
       }
       return unavailable;
     }

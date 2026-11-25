@@ -2,29 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useAction, useQuery } from "convex/react";
-import { makeFunctionReference } from "convex/server";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-
-type Connection = { connected: boolean; accountName: string | null };
-type Target = { url: string; lastSentAt: number } | null;
-type ConnectResult = { url: string } | { message: string };
-type SendResult = { ok: true; url: string } | { ok: false; message: string };
-
-// Replace these references with generated `api.google...` references after the
-// feature branch is connected to Hemanth's Convex deployment and codegen runs.
-const connectionRef = makeFunctionReference<"query", Record<never, never>, Connection>("googleData:connection");
-const targetRef = makeFunctionReference<"query", { documentId: Id<"documents"> }, Target>("googleData:savedTarget");
-const connectRef = makeFunctionReference<"action", { documentId: Id<"documents"> }, ConnectResult>("google:connect");
-const sendRef = makeFunctionReference<"action", { documentId: Id<"documents"> }, SendResult>("google:send");
 
 const RECONNECT = "Reconnect Google";
 const button = "chunky chunky-light chunky-sm mt-2 w-full";
 
 export function SendToGoogleDocs({ documentId }: { documentId: Id<"documents"> }) {
-  const connection = useQuery(connectionRef);
-  const target = useQuery(targetRef, { documentId });
-  const connect = useAction(connectRef);
-  const send = useAction(sendRef);
+  const connection = useQuery(api.googleData.connection);
+  const target = useQuery(api.googleData.savedTarget, { documentId });
+  const connect = useAction(api.google.connect);
+  const send = useAction(api.google.send);
   const [message, setMessage] = useState(() =>
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("google") === "error"
       ? "Couldn’t connect to Google. Try again." : "");

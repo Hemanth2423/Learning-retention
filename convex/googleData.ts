@@ -1,11 +1,10 @@
 import { v } from "convex/values";
-import { makeFunctionReference } from "convex/server";
+import { internal } from "./_generated/api";
 import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getOwnDocument, requireUser } from "./helpers";
 
 const STATE_TTL = 10 * 60 * 1000;
-const expireStateRef = makeFunctionReference<"mutation">("googleData:expireState");
 
 function integration(ctx: Pick<QueryCtx, "db">, userId: Id<"users">) {
   return ctx.db.query("integrations").withIndex("by_user_provider", (q) =>
@@ -63,7 +62,7 @@ export const begin = internalMutation({
     const id = await ctx.db.insert("oauthStates", {
       state, userId, provider: "google", returnTo: `/read/${documentId}`,
     });
-    await ctx.scheduler.runAfter(STATE_TTL, expireStateRef, { id });
+    await ctx.scheduler.runAfter(STATE_TTL, internal.googleData.expireState, { id });
   },
 });
 
