@@ -79,19 +79,18 @@ function AddCard({ onOpen, into }: { onOpen: (files?: File[]) => void; into?: st
         setDragging(false);
         onOpen(Array.from(e.dataTransfer.files));
       }}
-      // The page's primary action: the one solid terracotta surface on Home.
-      className={`flex h-full min-h-[200px] w-full min-w-0 flex-col items-center justify-center gap-2.5 rounded-[18px] border-2 border-ink p-5 text-center text-white shadow-[0_5px_0_var(--ink)] transition active:translate-y-[3px] active:shadow-[0_2px_0_var(--ink)] ${
-        dragging ? "bg-accent-dark ring-4 ring-ochre" : "bg-accent hover:bg-accent-dark"
+      className={`flex h-full min-h-[200px] w-full min-w-0 flex-col items-center justify-center gap-2.5 rounded-[18px] border-2 border-dashed p-5 text-center transition ${
+        dragging ? "border-accent bg-card" : "border-[#b9a88f] bg-card/55 hover:border-accent hover:bg-card"
       }`}
     >
-      <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-full bg-white text-h1 leading-none text-accent-dark">
+      <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-full bg-accent text-h1 leading-none text-white">
         +
       </span>
       <b className="font-serif text-h2">Add to your library</b>
-      <span className="text-meta text-white/90">{FILE_KINDS.join(" · ")}</span>
-      <span className="text-meta text-white/90">or paste article, YouTube and playlist links</span>
+      <span className="text-meta text-muted">{FILE_KINDS.join(" · ")}</span>
+      <span className="text-meta text-muted">or paste article, YouTube and playlist links</span>
       {into && (
-        <span className="mt-0.5 block max-w-full truncate rounded-full bg-white/15 px-2.5 py-0.5 text-meta">
+        <span className="mt-0.5 block max-w-full truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-meta text-accent-dark">
           Goes into <b>{into}</b>
         </span>
       )}
