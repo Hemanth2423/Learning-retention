@@ -31,6 +31,8 @@ import type * as highlightRules from "../highlightRules.js";
 import type * as highlights from "../highlights.js";
 import type * as http from "../http.js";
 import type * as ingest from "../ingest.js";
+import type * as insightRules from "../insightRules.js";
+import type * as insights from "../insights.js";
 import type * as lessonRules from "../lessonRules.js";
 import type * as lessonTypes from "../lessonTypes.js";
 import type * as lessons from "../lessons.js";
@@ -97,6 +99,8 @@ declare const fullApi: ApiFromModules<{
   highlights: typeof highlights;
   http: typeof http;
   ingest: typeof ingest;
+  insightRules: typeof insightRules;
+  insights: typeof insights;
   lessonRules: typeof lessonRules;
   lessonTypes: typeof lessonTypes;
   lessons: typeof lessons;

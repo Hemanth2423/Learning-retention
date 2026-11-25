@@ -413,3 +413,61 @@ export function placeOptions(c: Pick<Candidate, "question" | "correct" | "wrong"
   }
   return { options, whyWrong, answer };
 }
+
+// ---- Concept map links (Part 7) ----
+// Each link is a typed property between two ideas. The types come from standard vocabularies, so the model can't
+// invent vague ones: RDFS/SKOS for hierarchy and association, the OBO Relation Ontology and BFO for parts, causes,
+// dependencies and order.
+export const RELATIONS = {
+  is_a: { label: "is a kind of", source: "RDFS subClassOf / SKOS broader" },
+  part_of: { label: "is part of", source: "OBO RO part_of (BFO_0000050)" },
+  causes: { label: "causes", source: "OBO RO causally upstream of (RO_0002411)" },
+  enables: { label: "makes possible", source: "OBO RO enables" },
+  requires: { label: "depends on", source: "OBO RO has prerequisite" },
+  precedes: { label: "comes before", source: "BFO precedes (BFO_0000063)" },
+  contrasts: { label: "contrasts with", source: "SKOS related, narrowed to opposition" },
+} as const;
+export type Relation = keyof typeof RELATIONS;
+export type Link = { from: string; to: string; type: Relation; note: string };
+export const MAX_LINKS = 8;
+
+// Keeps only links between known ideas, with a known type, no self-links and no repeats (either direction).
+export function cleanLinks(raw: unknown, ideaIds: string[]): Link[] {
+  const list = (raw as { links?: unknown })?.links;
+  if (!Array.isArray(list)) return [];
+  const ids = new Set(ideaIds);
+  const seen = new Set<string>();
+  const out: Link[] = [];
+  for (const r of list as Record<string, unknown>[]) {
+    const from = str(r?.from, 12);
+    const to = str(r?.to, 12);
+    const type = r?.type as Relation;
+    if (!ids.has(from) || !ids.has(to) || from === to || !Object.hasOwn(RELATIONS, type)) continue;
+    const pair = [from, to].sort().join("|");
+    if (seen.has(pair)) continue;
+    seen.add(pair);
+    out.push({ from, to, type, note: str(r?.note, 160) });
+    if (out.length === MAX_LINKS) break;
+  }
+  return out;
+}
+
+// ---- Over time ----
+// One point per finished session: how many ideas were solid at each level once it ended, and what it asked.
+export type HistoryPoint = { at: number; solid: Record<Mode, number>; asked: Record<Mode, number>; right: number; total: number };
+
+export function sessionHistory(ideaIds: string[], bank: BankQuestion[], answers: (Answer & { sessionId: string })[], sessions: { id: string; endedAt: number }[]): HistoryPoint[] {
+  const zero = () => Object.fromEntries(MODES.map((m) => [m, 0])) as Record<Mode, number>;
+  return [...sessions]
+    .sort((a, b) => a.endedAt - b.endedAt)
+    .map((s) => {
+      const cells = standing(ideaIds, bank, answers.filter((a) => a.at <= s.endedAt), s.endedAt);
+      const solid = zero();
+      for (const c of cells) if (c.status === "solid") solid[c.mode]++;
+      const mine = answers.filter((a) => a.sessionId === s.id);
+      const asked = zero();
+      for (const a of mine) asked[a.mode]++;
+      return { at: s.endedAt, solid, asked, right: mine.filter((a) => a.correct).length, total: mine.length };
+    })
+    .filter((p) => p.total > 0);
+}

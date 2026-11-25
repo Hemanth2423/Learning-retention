@@ -9,10 +9,12 @@ import { XpStats } from "@/components/XpStats";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import type { Cell, Mode } from "@/convex/conceptRules";
+import { ConceptMap } from "./ConceptMap";
 import { ConceptSession } from "./ConceptSession";
-import { dayLabel, MODE_INFO, MODE_LIST, statusLabel, StatusPill } from "./shared";
+import { OverTime } from "./OverTime";
+import { dayLabel, MODE_INFO, MODE_LIST, statusLabel, StatusLegend, StatusPill } from "./shared";
 
-type Tab = "ideas" | "practice" | "stand";
+type Tab = "ideas" | "practice" | "stand" | "map" | "time";
 const STAGES = ["Finding the key ideas", "Checking each question against the book", "Choosing the best mix"];
 
 export function ConceptCheck({
@@ -84,6 +86,8 @@ export function ConceptCheck({
     { id: "ideas", label: "Ideas", show: true },
     { id: "practice", label: "Practice", show: !!activeSession },
     { id: "stand", label: "Where you stand", show: ready },
+    { id: "map", label: "Concept map", show: ready },
+    { id: "time", label: "Over time", show: ready },
   ];
 
   return (
@@ -113,6 +117,20 @@ export function ConceptCheck({
         <ConceptSession sessionId={activeSession} documentId={documentId} isPdf={isPdf} pageHref={pageHref} pageLabel={pageLabel} onDone={onDone} />
       ) : tab === "stand" && check ? (
         <Standing check={check} finished={finished} pageHref={pageHref} pageLabel={pageLabel} busy={busy} onStart={begin} oldBest={oldBest} />
+      ) : tab === "map" && check ? (
+        <ConceptMap
+          checkId={check.checkId}
+          ideas={check.ideas}
+          cells={check.cells}
+          links={check.links}
+          canMapLinks={check.canMapLinks}
+          pageHref={pageHref}
+          pageLabel={pageLabel}
+          busy={busy}
+          onPractice={() => (check.openSessionId ? (setSessionId(check.openSessionId), setTab("practice")) : void begin(check.nextCount > 0 ? "today" : "anyway"))}
+        />
+      ) : tab === "time" && check ? (
+        <OverTime history={check.history} ideas={check.ideas.length} />
       ) : (
         <main className="mx-auto max-w-[1040px] px-4 pb-16 pt-3 md:px-7">
           <p className="font-game text-label tracking-wider text-accent-dark">TEST YOURSELF · {eyebrow}</p>
@@ -252,7 +270,7 @@ function IdeaGrid({ ideas, cells }: { ideas: { id: string; name: string; objecti
                 </th>
                 {MODE_LIST.map((m) => (
                   <td key={m} title={detail(cell(i.id, m))}>
-                    <StatusPill status={cell(i.id, m).status} />
+                    <StatusPill status={cell(i.id, m).status} block />
                   </td>
                 ))}
               </tr>
@@ -311,44 +329,71 @@ function Standing({
   oldBest: { best: number; total: number } | null;
 }) {
   const ideas = check.ideas.length;
+  const nameOf = (id: string) => check.ideas.find((i) => i.id === id)?.name ?? "";
+  const listOf = (ids: string[]) => (ids.length > 2 ? `${ids.slice(0, 2).map(nameOf).join(", ")} and ${ids.length - 2} more` : ids.map(nameOf).join(" and "));
+  const [sure, think] = check.confidence;
   return (
-    <main className="mx-auto max-w-[1040px] px-4 pb-16 pt-3 md:px-7">
+    <main className="mx-auto max-w-[1080px] px-4 pb-16 pt-3 md:px-7">
       {finished && <SessionResult sessionId={finished} pageHref={pageHref} pageLabel={pageLabel} />}
       <p className="font-game text-label tracking-wider text-accent-dark">WHERE YOU STAND</p>
       <h1 className="mt-1 font-serif text-h1 font-bold leading-tight">{summary(check.cells, ideas)}</h1>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {MODE_LIST.map((m) => {
           const inMode = check.cells.filter((c) => c.mode === m);
-          const solid = inMode.filter((c) => c.status === "solid").length;
+          const solid = inMode.filter((c) => c.status === "solid").map((c) => c.ideaId);
+          const practice = inMode.filter((c) => c.status === "needs_practice").map((c) => c.ideaId);
           const checked = inMode.filter((c) => c.status !== "not_checked").length;
           return (
             <article key={m} className="rounded-2xl border border-line bg-card p-4" style={{ borderTop: `5px solid ${MODE_INFO[m].colour}` }}>
               <h2 className="text-label font-bold uppercase tracking-[0.08em] text-muted">{MODE_INFO[m].label}</h2>
-              <p className="mt-1 font-serif text-h2 font-bold">
-                {solid} of {ideas}
+              <p className="mt-1 font-serif text-[30px] font-bold leading-none">
+                {solid.length}
+                <span className="text-h3 font-semibold text-muted"> of {ideas} solid</span>
               </p>
-              <p className="text-meta text-muted">ideas solid · {checked} checked</p>
+              <p className="mt-2 text-meta text-muted">
+                {checked === 0 ? (
+                  "Not checked yet. That isn't a gap."
+                ) : (
+                  <>
+                    {solid.length > 0 && <>Solid on {listOf(solid)}. </>}
+                    {practice.length > 0 && <b className="text-accent-dark">Needs practice: {listOf(practice)}.</b>}
+                    {solid.length === 0 && practice.length === 0 && `${checked} checked, building up.`}
+                  </>
+                )}
+              </p>
             </article>
           );
         })}
       </div>
-      <section className="mt-4 rounded-2xl border border-line bg-cream p-4">
-        <h2 className="font-serif text-h3 font-bold">Each idea, level by level</h2>
+      <section className="mt-4 rounded-2xl border border-line bg-card p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-serif text-h3 font-bold">Each idea, level by level</h2>
+          <p className="text-meta text-muted">Across all your sessions</p>
+        </div>
         <IdeaGrid ideas={check.ideas} cells={check.cells} />
+        <StatusLegend />
       </section>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className="mt-4 grid gap-3 md:grid-cols-[1.2fr_1fr]">
         <section className="rounded-2xl border border-line bg-card p-4">
-          <h2 className="text-label font-bold uppercase tracking-[0.08em] text-muted">Your confidence</h2>
-          <p className="mt-1">{check.sureTotal ? `Correct on ${check.sureRight} of ${check.sureTotal} Sure answers so far.` : "No Sure answers yet."}</p>
-          <p className="mt-1 text-meta text-muted">
+          <h2 className="text-label font-bold uppercase tracking-[0.08em] text-muted">How well your confidence matched</h2>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <Tile big={sure.total ? `${sure.right} of ${sure.total}` : "—"} text={<>right when <i>sure</i></>} />
+            <Tile big={think.total ? `${think.right} of ${think.total}` : "—"} text={<>right when you <i>thought so</i></>} />
+            <Tile big={String(sure.total - sure.right)} text="sure but wrong: these come back first" warn={sure.total - sure.right > 0} />
+          </div>
+          <p className="mt-2 text-meta text-muted">
             Based on {check.coverage.pagesUsed} of {check.coverage.pagesTotal} pages.
+            {oldBest ? ` Quick test best: ${oldBest.best}/${oldBest.total}, a separate score.` : ""}
           </p>
-          {oldBest && <p className="mt-1 text-meta text-muted">Quick test best: {oldBest.best}/{oldBest.total}.</p>}
         </section>
-        <section className="rounded-2xl border border-line bg-card p-4">
-          <h2 className="text-label font-bold uppercase tracking-[0.08em] text-muted">Next check</h2>
-          <p className="mt-1 font-semibold">{check.nextCheckAt ? (check.dueNow ? "Ready now" : `Come back ${dayLabel(check.nextCheckAt)}`) : "Answer a few questions first"}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
+        <section className="flex flex-col rounded-2xl border border-line bg-card p-4">
+          <h2 className="text-label font-bold uppercase tracking-[0.08em] text-muted">Next session</h2>
+          <p className="mt-1 font-serif text-h2 font-bold">
+            {check.nextCheckAt ? (check.dueNow ? "Ready now" : `Come back ${dayLabel(check.nextCheckAt)}`) : "Answer a few questions first"}
+            {check.nextCount > 0 ? <span className="text-ui font-normal text-muted"> · about {Math.max(2, Math.round(check.nextCount * 0.75))} min</span> : null}
+          </p>
+          <p className="mt-1 text-meta text-muted">{check.missCount > 0 ? `Your ${check.missCount} miss${check.missCount === 1 ? "" : "es"} come back first, then new levels.` : "Due ideas come first, then new levels."}</p>
+          <div className="mt-auto flex flex-wrap gap-2 pt-3">
             {check.nextCount > 0 ? (
               <button className="chunky sm" disabled={busy} onClick={() => onStart("today")}>
                 {check.dueNow ? "Review now" : "Keep practicing"}
@@ -368,6 +413,15 @@ function Standing({
       </div>
       <HowItWorks />
     </main>
+  );
+}
+
+function Tile({ big, text, warn = false }: { big: string; text: React.ReactNode; warn?: boolean }) {
+  return (
+    <div className="rounded-xl border border-line bg-paper/40 p-2.5 text-meta">
+      <b className={`block font-serif text-[20px] ${warn ? "text-accent" : ""}`}>{big}</b>
+      {text}
+    </div>
   );
 }
 

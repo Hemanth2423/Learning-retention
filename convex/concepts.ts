@@ -2,8 +2,9 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
-import { BLIND_PROMPT, generationPrompt, PROMPT_VERSION, REPAIR_PROMPT } from "./conceptPrompts";
+import { action, internalAction, internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
+import { BLIND_PROMPT, generationPrompt, linksPrompt, PROMPT_VERSION, REPAIR_PROMPT } from "./conceptPrompts";
+import { chapterRanges } from "./chapters";
 import {
   Answer,
   applyRepair,
@@ -13,14 +14,17 @@ import {
   cellKey,
   cleanCandidate,
   cleanIdeas,
+  cleanLinks,
   correctIsLongest,
   fitPages,
   Idea,
   nextCheckAt,
   Page,
   placeOptions,
+  RELATIONS,
   RULES,
   selectQuestions,
+  sessionHistory,
   sourceProfile,
   standing,
   statusOf,
@@ -35,6 +39,7 @@ const MAX_CHAPTER_CHARS = 24000;
 const MAX_BATCHES = 3;
 const MAX_FAILS_PER_DAY = 2;
 const LOCK_MS = 2 * 60_000;
+const MAX_LINK_TRIES = 2;
 const utcDay = (t: number) => new Date(t).toISOString().slice(0, 10);
 
 const hashText = (s: string) => {
@@ -48,8 +53,8 @@ const checkFor = (ctx: QueryCtx, documentId: Id<"documents">, chapterKey: string
 const bankOf = (ctx: QueryCtx, checkId: Id<"conceptChecks">) => ctx.db.query("conceptQuestions").withIndex("by_check_mode", (q) => q.eq("checkId", checkId)).collect();
 const answersOf = (ctx: QueryCtx, checkId: Id<"conceptChecks">) => ctx.db.query("conceptAnswers").withIndex("by_check_at", (q) => q.eq("checkId", checkId)).collect();
 
-const toBank = (rows: Doc<"conceptQuestions">[]): BankQuestion[] => rows.filter((q) => q.active).map((q) => ({ id: q._id, ideaId: q.ideaId, mode: q.mode, difficulty: q.difficulty }));
-const toAnswer = (a: Doc<"conceptAnswers">): Answer => ({ questionId: a.questionId, ideaId: a.ideaId, mode: a.mode, correct: a.correct, confidence: a.confidence, at: a.at });
+export const toBank = (rows: Doc<"conceptQuestions">[]): BankQuestion[] => rows.filter((q) => q.active).map((q) => ({ id: q._id, ideaId: q.ideaId, mode: q.mode, difficulty: q.difficulty }));
+export const toAnswer = (a: Doc<"conceptAnswers">): Answer => ({ questionId: a.questionId, ideaId: a.ideaId, mode: a.mode, correct: a.correct, confidence: a.confidence, at: a.at });
 
 async function ownCheck(ctx: QueryCtx, userId: Id<"users">, checkId: Id<"conceptChecks">) {
   const c = await ctx.db.get(checkId);
@@ -113,10 +118,27 @@ export const get = query({
       answered: answers.length,
       sureRight: sure.filter((a) => a.correct).length,
       sureTotal: sure.length,
+      confidence: (["sure", "think", "guess"] as const).map((level) => {
+        const mine = answers.filter((a) => a.confidence === level);
+        return { level, right: mine.filter((a) => a.correct).length, total: mine.length };
+      }),
       bankSize: bank.length,
+      links: check.links ?? null,
+      canMapLinks: !check.links && (check.linkTries ?? 0) < MAX_LINK_TRIES,
+      history: await historyOf(ctx, check._id, check.ideas.map((i) => i.id), bank, answers),
     };
   },
 });
+
+// One point per finished session, ended at its last answer.
+async function historyOf(ctx: QueryCtx, checkId: Id<"conceptChecks">, ideaIds: string[], bank: BankQuestion[], answers: Doc<"conceptAnswers">[]) {
+  const done = await ctx.db.query("conceptSessions").withIndex("by_check_finished", (q) => q.eq("checkId", checkId).eq("finished", true)).collect();
+  const ended = done.flatMap((s) => {
+    const at = answers.filter((a) => a.sessionId === s._id).reduce((m, a) => Math.max(m, a.at), 0);
+    return at ? [{ id: s._id as string, endedAt: at }] : [];
+  });
+  return sessionHistory(ideaIds, bank, answers.map((a) => ({ ...toAnswer(a), sessionId: a.sessionId as string })), ended);
+}
 
 export const current = query({
   args: { sessionId: v.id("conceptSessions") },
@@ -447,6 +469,7 @@ export const prepare = action({
       console.log(`[concept] batch=${batch} raw=${written.stats.raw} valid=${written.stats.valid} served=${questions.length}`);
       const saved = await ctx.runMutation(internal.concepts.saveBatch, { checkId, batch, sourceHash: claimed.sourceHash, ideas: keptIdeas, questions, model: written.model });
       if (!saved) throw new Error("The chapter changed while writing questions.");
+      if (batch === 1) await ctx.scheduler.runAfter(0, internal.concepts.linkIdeas, { checkId });
       return { ok: true };
     } catch (err) {
       console.error("[concept] failed", err);
@@ -578,3 +601,74 @@ export async function purgeConcepts(ctx: MutationCtx, documentId: Id<"documents"
   }
   return checks.length === limit;
 }
+
+// ---- Concept map links (Part 7) ----
+// One small call maps how the chapter's ideas relate. New checks get it right after their first batch; older checks
+// ask for it when the map opens. Each check gets MAX_LINK_TRIES tries, so a failing call can't repeat forever.
+export const mapLinks = action({
+  args: { checkId: v.id("conceptChecks") },
+  handler: async (ctx, { checkId }): Promise<{ ok: boolean }> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { ok: false };
+    const mine = await ctx.runQuery(internal.concepts.linkSource, { checkId, userId });
+    if (!mine) return { ok: false };
+    await ctx.runAction(internal.concepts.linkIdeas, { checkId });
+    return { ok: true };
+  },
+});
+
+export const linkSource = internalQuery({
+  args: { checkId: v.id("conceptChecks"), userId: v.optional(v.id("users")) },
+  handler: async (ctx, { checkId, userId }) => {
+    const c = await ctx.db.get(checkId);
+    if (!c || (userId && c.userId !== userId) || c.links || (c.linkTries ?? 0) >= MAX_LINK_TRIES || c.ideas.length < 2) return null;
+    const doc = await ctx.db.get(c.documentId);
+    const range = doc && chapterRanges(doc.sections ?? [], doc.pageCount ?? 0).find((r) => r.key === c.chapterKey);
+    if (!range) return null;
+    return { documentId: c.documentId, ideas: c.ideas, from: range.startPage, to: range.endPage };
+  },
+});
+
+export const linkIdeas = internalAction({
+  args: { checkId: v.id("conceptChecks") },
+  handler: async (ctx, { checkId }) => {
+    const src = await ctx.runQuery(internal.concepts.linkSource, { checkId });
+    if (!src) return;
+    if (!(await ctx.runMutation(internal.concepts.startLinks, { checkId }))) return;
+    const pages = fitPages(await ctx.runQuery(internal.chat.pagesInRange, { documentId: src.documentId, from: src.from, to: src.to }), MAX_CHAPTER_CHARS);
+    const block = pages.map((p) => `[page ${p.page}]\n${p.text}`).join("\n\n");
+    try {
+      const res = await askConceptJson<{ links?: unknown }>(
+        [
+          { role: "system", content: `${linksPrompt(src.ideas, RELATIONS)}\n\nPAGES:\n${block}` },
+          { role: "user", content: "Map the links." },
+        ],
+        { label: "concept-links", maxTokens: 900 }
+      );
+      const links = cleanLinks(res.data, src.ideas.map((i) => i.id));
+      console.log(`[concept] links kept=${links.length}`);
+      if (links.length) await ctx.runMutation(internal.concepts.saveLinks, { checkId, links });
+    } catch (err) {
+      console.error("[concept] links failed", err);
+    }
+  },
+});
+
+export const startLinks = internalMutation({
+  args: { checkId: v.id("conceptChecks") },
+  handler: async (ctx, { checkId }) => {
+    const c = await ctx.db.get(checkId);
+    if (!c || c.links || (c.linkTries ?? 0) >= MAX_LINK_TRIES) return false;
+    await ctx.db.patch(checkId, { linkTries: (c.linkTries ?? 0) + 1 });
+    return true;
+  },
+});
+
+export const saveLinks = internalMutation({
+  args: { checkId: v.id("conceptChecks"), links: v.array(v.object({ from: v.string(), to: v.string(), type: v.string(), note: v.string() })) },
+  handler: async (ctx, { checkId, links }) => {
+    const c = await ctx.db.get(checkId);
+    if (!c || c.links) return;
+    await ctx.db.patch(checkId, { links });
+  },
+});

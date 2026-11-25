@@ -6,6 +6,7 @@ import {
   buildSession,
   Candidate,
   cleanCandidate,
+  cleanLinks,
   correctIsLongest,
   dueAtOf,
   echoesSource,
@@ -17,6 +18,7 @@ import {
   placeOptions,
   quoteOnPage,
   selectQuestions,
+  sessionHistory,
   sourceProfile,
   standing,
   statusOf,
@@ -247,4 +249,55 @@ test("source profile", () => {
   expect(sourceProfile("article", [])).toBe("article");
   expect(sourceProfile("pdf", [{ page: 1, text: "Figure 1 shows it.\nTable 2 too.\nfunction go() {" }])).toBe("technical");
   expect(sourceProfile("pdf", [{ page: 1, text: "It was a quiet morning when she left." }])).toBe("prose");
+});
+
+describe("concept map links", () => {
+  const ids = ["cue", "craving", "reward"];
+  test("keeps typed links between known ideas", () => {
+    const links = cleanLinks({ links: [{ from: "cue", to: "craving", type: "causes", note: "A cue sparks a craving." }] }, ids);
+    expect(links).toEqual([{ from: "cue", to: "craving", type: "causes", note: "A cue sparks a craving." }]);
+  });
+  test("drops unknown ideas, self-links, made-up types and repeats in either direction", () => {
+    const links = cleanLinks(
+      {
+        links: [
+          { from: "cue", to: "ghost", type: "causes" },
+          { from: "cue", to: "cue", type: "causes" },
+          { from: "cue", to: "reward", type: "inspires" },
+          { from: "cue", to: "reward", type: "precedes" },
+          { from: "reward", to: "cue", type: "requires" },
+          { from: "toString", to: "cue", type: "constructor" },
+        ],
+      },
+      ids
+    );
+    expect(links.map((l) => `${l.from}-${l.type}-${l.to}`)).toEqual(["cue-precedes-reward"]);
+  });
+  test("caps the number of links and survives junk", () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ from: `a${i}`, to: `b${i}`, type: "is_a" }));
+    const all = many.flatMap((l) => [l.from, l.to]);
+    expect(cleanLinks({ links: many }, all)).toHaveLength(8);
+    expect(cleanLinks(null, ids)).toEqual([]);
+    expect(cleanLinks({ links: "nope" }, ids)).toEqual([]);
+  });
+});
+
+describe("session history", () => {
+  const bank: BankQuestion[] = [
+    { id: "q1", ideaId: "i1", mode: "remember", difficulty: "core" },
+    { id: "q2", ideaId: "i1", mode: "remember", difficulty: "stretch" },
+    { id: "q3", ideaId: "i1", mode: "apply", difficulty: "core" },
+  ];
+  const s = (sessionId: string, x: Answer) => ({ ...x, sessionId });
+  test("counts ideas solid after each session, in time order, and skips empty sessions", () => {
+    const answers = [s("s1", a("q1", 0, true)), s("s1", a("q3", 1000, false, "think", "apply")), s("s2", a("q2", D, true))];
+    const points = sessionHistory(["i1"], bank, answers, [
+      { id: "s2", endedAt: D },
+      { id: "s1", endedAt: 1000 },
+      { id: "s3", endedAt: 2 * D },
+    ]);
+    expect(points).toHaveLength(2);
+    expect(points[0]).toMatchObject({ at: 1000, right: 1, total: 2, asked: { remember: 1, apply: 1 }, solid: { remember: 0 } });
+    expect(points[1]).toMatchObject({ at: D, right: 1, total: 1, solid: { remember: 1, apply: 0 } });
+  });
 });

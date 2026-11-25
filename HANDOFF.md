@@ -2,11 +2,12 @@
 
 Keep under 40 lines and only the latest state. Git keeps history.
 
-**Updated:** 2026-11-23 · **Branch:** `feat/concept-check` (PR #89, on `feat/ux-enhancements`, PR #88) · Demo Dec 2
+**Updated:** 2026-11-24 · **Branch:** `feat/concept-check` (PR #89, on `feat/ux-enhancements`, PR #88) · Demo Dec 2
 
 ## Verified state
 - Features 1–2 are on `main`. Feature 3 (sources, Notebook) and 4 (folders) are built and committed locally.
-- 261 tests pass, lint has 0 errors and 22 known warnings.
+- 322 tests pass, lint has 0 errors and 22 known warnings, and the build passes.
+- **Part 7 built** ([spec](tasks/feature-5-concept-check/7-map-and-dashboard.md), ADR 020): the concept check has Where you stand, Concept map (typed ontology links, d3-force) and Over time. The library has a top nav (Library · Dashboard · Settings). `/dashboard` has Reading and Testing tabs, and `/settings` covers account, Notion and sign out. Browser-checked at 1200 px and 375 px.
 - AI default is Groq (ADR 011). `DEEPSEEK_API_KEY` is on dev, used only by the spike. Rotate that key before anything public.
 
 ## Open problems

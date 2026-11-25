@@ -60,6 +60,7 @@ Highlights, reflections and citations all store **locators**, never PDF-only fie
 | `convex/xp.ts`, `xpRules.ts` | XP, level and streak: `awardXp` (called only from saveProgress, notes save and test answers), `stats`, `setTimeZone`; pure rules for award keys, levels, the reader's day and streaks |
 | `convex/links.ts`, `linkRules.ts` | Add an article (Firecrawl, server only) or YouTube video (oEmbed) by link: duplicate check, fetch once, save text blocks; pure rules for link parsing, URL cleaning, Markdown cleaning and block splitting |
 | `convex/concepts.ts`, `conceptRules.ts`, `conceptPrompts.ts` | Concept check (ADR 019): generation pipeline, server grading, sessions, computed status, schedule and question checks. Tables: `conceptChecks`, `conceptQuestions`, `conceptSessions`, `conceptAnswers` |
+| `convex/insights.ts`, `insightRules.ts` | Dashboard (`/dashboard`): reading per book and chapter, testing per concept check. Reads only; no tables. Concept map links on `conceptChecks.links` (ADR 020) |
 | `convex/quizzes.ts`, `quizRules.ts` | Test yourself: make a chapter's test once (`prepare`), start a round (full or missed only), grade each answer on the server, best scores for the path; pure rules for a usable question, shuffling and scores |
 | `convex/llm.ts`, `auth.ts`, `helpers.ts` | Every LLM call (DeepSeek, or Gemini when `LLM_PROVIDER=gemini`), sign-in, access |
 | `app/` + `components/reader/` | Upload page, `/read/[id]`, `/read/[id]/test`; viewer, left overlay (Contents, Highlights), resizable right panel (Chat, Reflections), test tab |

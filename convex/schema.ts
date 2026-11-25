@@ -195,6 +195,9 @@ export default defineSchema({
     coverage: v.object({ pagesUsed: v.number(), pagesTotal: v.number() }),
     solidAwarded: v.array(v.string()),
     nextCheckAt: v.optional(v.number()),
+    // Concept map (Part 7): typed links between ideas, types from conceptRules.RELATIONS. Missing on older checks.
+    links: v.optional(v.array(v.object({ from: v.string(), to: v.string(), type: v.string(), note: v.string() }))),
+    linkTries: v.optional(v.number()),
   })
     .index("by_document_chapter", ["documentId", "chapterKey"])
     .index("by_user", ["userId"]),

@@ -15,9 +15,33 @@ const STATUS: Record<Status, { label: string; className: string }> = {
   not_checked: { label: "Not checked", className: "border-dashed border-line bg-transparent text-muted" },
 };
 
-export function StatusPill({ status }: { status: Status }) {
+const HATCH = "repeating-linear-gradient(45deg, var(--panel), var(--panel) 6px, var(--cream) 6px, var(--cream) 12px)";
+
+// `block` is the grid version: a taller filled cell, with Not checked hatched so it never reads as a failure.
+export function StatusPill({ status, block = false }: { status: Status; block?: boolean }) {
   const s = STATUS[status];
-  return <span className={`inline-flex min-h-7 w-full items-center justify-center rounded-lg border px-1.5 py-0.5 text-center text-label font-semibold ${s.className}`}>{s.label}</span>;
+  return (
+    <span
+      className={`inline-flex w-full items-center justify-center border px-1.5 text-center font-semibold ${block ? "min-h-10 rounded-[10px] text-meta" : "min-h-7 rounded-lg py-0.5 text-label"} ${s.className}`}
+      style={block && status === "not_checked" ? { background: HATCH, borderStyle: "solid", fontWeight: 500 } : undefined}
+    >
+      {s.label}
+    </span>
+  );
+}
+
+export function StatusLegend() {
+  return (
+    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-meta text-muted">
+      {(["solid", "shaky", "needs_practice", "not_checked"] as Status[]).map((st) => (
+        <span key={st} className="inline-flex items-center gap-1.5">
+          <i className={`size-3.5 rounded border ${STATUS[st].className}`} style={st === "not_checked" ? { background: HATCH, borderStyle: "solid" } : undefined} />
+          {STATUS[st].label}
+          {st === "solid" ? ": passes on 2+ days" : st === "not_checked" ? ": not asked yet, not a gap" : ""}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export const statusLabel = (s: Status) => STATUS[s].label;

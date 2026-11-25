@@ -45,7 +45,7 @@ const generated = {
 function stubAI() {
   const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
     const system = JSON.parse(init.body as string).messages[0].content as string;
-    const content = system.startsWith("Answer each") ? { answers: [] } : generated;
+    const content = system.startsWith("Answer each") ? { answers: [] } : system.startsWith("You map") ? { links: [{ from: "i1", to: "i2", type: "requires", note: "Balancing needs a pool." }, { from: "i1", to: "i9", type: "causes" }] } : generated;
     return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }], usage: { prompt_tokens: 10, completion_tokens: 10 } }), { status: 200 });
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -142,6 +142,19 @@ describe("concept check", () => {
     const third = await asA.action(api.concepts.prepare, { documentId, chapterKey: "s0" });
     expect(third).toMatchObject({ ok: false, message: expect.stringContaining("tomorrow") });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("map links: typed, cleaned, owner only, and one call per check", async () => {
+    const { asA, asB, check, documentId } = await ready();
+    const fetchMock = stubAI();
+    expect(await asB.action(api.concepts.mapLinks, { checkId: check.checkId })).toEqual({ ok: false });
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+    await asA.action(api.concepts.mapLinks, { checkId: check.checkId });
+    const after = (await asA.query(api.concepts.get, { documentId, chapterKey: "s0" }))!;
+    expect(after.links).toEqual([{ from: "i1", to: "i2", type: "requires", note: "Balancing needs a pool." }]);
+    expect(after.canMapLinks).toBe(false);
+    await asA.action(api.concepts.mapLinks, { checkId: check.checkId });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   test("deleting a book removes all concept data", async () => {

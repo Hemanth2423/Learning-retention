@@ -1,10 +1,8 @@
 "use client";
 
-import { XpStats } from "@/components/XpStats";
-import { useAuthActions } from "@convex-dev/auth/react";
+import { TopNav } from "@/components/TopNav";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BookCover } from "@/components/library/BookCover";
@@ -168,8 +166,6 @@ function ResumeCard({ book }: { book: LibraryBook }) {
 function Library() {
   const books = useQuery(api.documents.list) as LibraryBook[] | undefined;
   const removeBook = useMutation(api.documents.remove);
-  const { signOut } = useAuthActions();
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>("recent");
   const [filter, setFilter] = useState<Filter>("all");
@@ -325,11 +321,8 @@ function Library() {
 
   return (
     <div className="flex-1">
-      <header className="sticky top-0 z-10 flex items-center gap-x-4 gap-y-2 bg-paper/90 px-4 py-3.5 backdrop-blur max-md:flex-wrap md:px-8">
-        <span className="font-serif text-h2 font-bold">
-          Ingrain<span className="text-accent">.</span>
-        </span>
-        <label className="flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted max-md:order-last max-md:w-full md:max-w-sm md:flex-1">
+      <TopNav>
+        <label className="flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted max-md:order-last max-md:w-full md:max-w-xs md:flex-1">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="shrink-0">
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.8-3.8" />
@@ -343,13 +336,7 @@ function Library() {
             }}
             placeholder="Search your library" aria-label="Search your library" className="min-w-0 flex-1 bg-transparent text-ink outline-none" />
         </label>
-        <div className="ml-auto">
-          <XpStats />
-        </div>
-        <button onClick={() => void signOut().then(() => router.replace("/"))} className="quiet">
-          Sign out
-        </button>
-      </header>
+      </TopNav>
 
       <main className="mx-auto max-w-[1120px] px-4 pb-20 md:px-8">
         <h2 className="mb-4 mt-8 font-serif text-h2 font-bold">{books === undefined ? " " : latest ? "Continue reading" : "Start your library"}</h2>
