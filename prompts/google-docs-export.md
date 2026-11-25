@@ -1,0 +1,27 @@
+# Google Docs export prompt log
+
+## Session 1 — 2026-11-24
+
+### Prompt
+
+> Read PLAN.md and TEAM-PLAN.md. In this repository, use PRODUCT.md as the owner's current plan, then read ARCHITECTURE.md, ASSIGNMENT.md, and AGENTS.md. Today I'm building the Google Docs export from issue #78.
+>
+> First verify that Abby's Notion export foundation is merged into the latest `main`, that its shared tables and notebook builder are reusable, and that the full test suite and lint pass. Before writing API code, create `tasks/google-docs-export.md` with user-outcome acceptance criteria, security constraints, and verification steps. Work only on `api/google-docs-export`; never commit or push to `main`; never put OAuth credentials in git, prompts, logs, screenshots, or browser code.
+
+### Agent response and decisions
+
+- Verified PR #85 is the tip of `main` at `85b7901`.
+- Confirmed the shared `integrations`, `oauthStates`, and `exportTargets` tables and `buildNotebookExport` are available for Google to reuse.
+- Ran the merged baseline: 169 tests in 34 files pass; lint has 0 errors and 22 known warnings.
+- Created the feature branch from the latest `main` and wrote the task specification before implementation.
+- Kept the existing ten-minute, single-use OAuth-state pattern. Planned an additional Google cross-user ownership test because the shared foundation does not yet test that boundary.
+- Added a pure Google document formatter and batch-update request builder before any network code. The targeted tests pass and lint reports no errors for the new files.
+- Built the server-only Google OAuth and export path, including single-use state, `drive.file` scope, token refresh, revoked-token cleanup, folder/Doc creation, same-Doc updates, stored links, and plain-language reconnect/unavailable results.
+- Added four integration tests covering create-and-update behavior, token refresh, revoked access, least-privilege scope, and cross-user ownership. The full suite now passes 175 tests in 36 files; lint remains at 0 errors and the same 22 pre-existing warnings.
+- Tried official Convex code generation, but this checkout does not have `CONVEX_DEPLOYMENT` access. I did not fake or hand-edit generated files. The backend uses supported named function references until Hemanth grants deployment access and codegen can run.
+- Read the installed Next.js client-component guide before changing the UI, then added a Google Docs control beside the existing Notion export. It shows connection state, send/send-again progress, the last-sent time, errors, and the saved Google Doc link.
+- TypeScript reports no Google feature errors. Its only remaining project error is the pre-existing missing generated `LayoutProps` type in `app/layout.tsx`.
+- After the Convex invitation was accepted, linked the checkout to Hemanth's existing `recall` project and Erin's personal development deployment. Official code generation succeeded, so I replaced the temporary references with generated `api`/`internal` references and redeployed. All 175 tests still pass and lint has 0 errors.
+- Created the development OAuth client with only Erin's Convex callback, stored its values directly in the private development environment, and added Erin as the sole Google test user. A real synthetic-PDF test confirmed the displayed scope was limited to files used with the app, the first send created a correctly formatted Doc, and editing then sending again updated that same Doc rather than making a duplicate.
+- Recorded two-way Google Docs import/sync as a possible future improvement rather than expanding this PR beyond its approved one-way export scope.
+- No OAuth credential values were logged or committed, and no shared production settings or production data were changed. Convex wrote the ignored local variables that select Erin's personal development deployment.

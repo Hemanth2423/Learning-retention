@@ -23,9 +23,9 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
   const notebook = useQuery(api.notebook.list, { documentId });
   const notes = notebook?.notes;
   const scores = useQuery(api.quizzes.bestScores, { documentId });
-  // Notion sends the reader back with ?export=notion, so they land where they started.
+  // Notion and Google send the reader back with ?export=notion|google, so they land where they started.
   const [exporting, setExporting] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("export") === "notion");
+    typeof window !== "undefined" && ["notion", "google"].includes(new URLSearchParams(window.location.search).get("export") ?? ""));
   const router = useRouter();
   const notABook = !!doc && doc.sourceType !== "pdf" && doc.sourceType !== "epub"; // EPUBs get a path too
   useEffect(() => {
