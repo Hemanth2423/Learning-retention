@@ -18,11 +18,13 @@
   --ochre: #f3d27f; /* highlights */
   --bad: #a8352a;
   --canvas: #fbfbf9; /* the reading canvas: one soft white around the page (like Notes on Mac) */
+  --desk: #d6d4d0; /* PDF desk: neutral grey around the pages, like Acrobat, so the white page stands out */
 }
 
 @theme inline {
   --color-paper: var(--paper);
   --color-canvas: var(--canvas);
+  --color-desk: var(--desk);
   --color-card: var(--card);
   --color-ink: var(--ink);
   --color-muted: var(--muted);

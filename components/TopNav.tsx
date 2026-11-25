@@ -3,24 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
-import { XpStats } from "./XpStats";
 
 const LINKS = [
-  { href: "/read", label: "Library", icon: "📚" },
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
+  { href: "/read", label: "Library" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/settings", label: "Settings" },
 ];
 
-// The main pages' top bar: brand, Library · Dashboard · Settings, an optional slot (the library's search) and XP.
+// The main pages' top bar: brand, Library · Dashboard · Settings, and an optional slot on the right (the library's search).
 export function TopNav({ children }: { children?: ReactNode }) {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-10 border-b border-line bg-paper/90 backdrop-blur">
-      <div className="mx-auto flex max-w-[1120px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 md:px-8">
+    <header className="sticky top-0 z-10 border-b border-line bg-cream/95 backdrop-blur">
+      <div className="mx-auto flex max-w-[1120px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:gap-x-6 md:px-8">
         <Link href="/read" className="font-serif text-h2 font-bold" aria-label="Ingrain home">
           Ingrain<span className="text-accent">.</span>
         </Link>
-        <nav aria-label="Main" className="flex gap-1 rounded-xl bg-panel p-1">
+        <nav aria-label="Main" className="flex gap-1">
           {LINKS.map((l) => {
             const on = pathname === l.href || (l.href !== "/read" && pathname.startsWith(l.href));
             return (
@@ -28,18 +27,14 @@ export function TopNav({ children }: { children?: ReactNode }) {
                 key={l.href}
                 href={l.href}
                 aria-current={on ? "page" : undefined}
-                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-meta font-semibold ${on ? "bg-card text-accent-dark shadow-[0_1px_2px_rgba(42,34,27,.08)]" : "text-muted hover:text-ink"}`}
+                className={`whitespace-nowrap rounded-lg px-2.5 py-1.5 text-ui md:px-3.5 md:py-2 font-semibold ${on ? "bg-accent-soft text-accent-dark" : "text-muted hover:bg-panel hover:text-ink"}`}
               >
-                <span aria-hidden="true">{l.icon}</span>
                 {l.label}
               </Link>
             );
           })}
         </nav>
-        {children}
-        <div className="ml-auto">
-          <XpStats />
-        </div>
+        {children && <div className="flex justify-end max-md:order-last max-md:w-full md:ml-auto md:flex-1">{children}</div>}
       </div>
     </header>
   );

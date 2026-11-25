@@ -140,6 +140,17 @@ async function historyOf(ctx: QueryCtx, checkId: Id<"conceptChecks">, ideaIds: s
   return sessionHistory(ideaIds, bank, answers.map((a) => ({ ...toAnswer(a), sessionId: a.sessionId as string })), ended);
 }
 
+// The ideas found in each chapter of a book, for the reader's mind map (chapters whose check exists).
+export const bookIdeas = query({
+  args: { documentId: v.id("documents") },
+  handler: async (ctx, { documentId }) => {
+    const userId = await requireUser(ctx);
+    if (!(await getOwnDocument(ctx, userId, documentId))) return [];
+    const checks = await ctx.db.query("conceptChecks").withIndex("by_document_chapter", (q) => q.eq("documentId", documentId)).collect();
+    return checks.filter((c) => c.ideas.length).map((c) => ({ chapterKey: c.chapterKey, ideas: c.ideas.map((i) => ({ id: i.id, name: i.name, page: i.page })) }));
+  },
+});
+
 export const current = query({
   args: { sessionId: v.id("conceptSessions") },
   handler: async (ctx, { sessionId }) => {

@@ -322,7 +322,7 @@ function Library() {
   return (
     <div className="flex-1">
       <TopNav>
-        <label className="flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted max-md:order-last max-md:w-full md:max-w-xs md:flex-1">
+        <label className="flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-muted w-full md:max-w-xs">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="shrink-0">
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.8-3.8" />

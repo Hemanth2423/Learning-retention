@@ -157,6 +157,14 @@ describe("concept check", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test("book ideas for the mind map: owner only", async () => {
+    const { asA, asB, documentId } = await ready();
+    expect(await asA.query(api.concepts.bookIdeas, { documentId })).toEqual([
+      { chapterKey: "s0", ideas: [{ id: "i1", name: "Balancing", page: 1 }, { id: "i2", name: "Pools", page: 2 }] },
+    ]);
+    expect(await asB.query(api.concepts.bookIdeas, { documentId })).toEqual([]);
+  });
+
   test("deleting a book removes all concept data", async () => {
     const { t, asA, check, documentId } = await ready();
     const sessionId = await asA.mutation(api.concepts.start, { checkId: check.checkId, kind: "today" });

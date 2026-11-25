@@ -8,6 +8,7 @@ Keep under 40 lines and only the latest state. Git keeps history.
 - Features 1–2 are on `main`. Feature 3 (sources, Notebook) and 4 (folders) are built and committed locally.
 - 322 tests pass, lint has 0 errors and 22 known warnings, and the build passes.
 - **Part 7 built** ([spec](tasks/feature-5-concept-check/7-map-and-dashboard.md), ADR 020): the concept check has Where you stand, Concept map (typed ontology links, d3-force) and Over time. The library has a top nav (Library · Dashboard · Settings). `/dashboard` has Reading and Testing tabs, and `/settings` covers account, Notion and sign out. Browser-checked at 1200 px and 375 px.
+- **Polish after Part 7:** the top nav drops streak/XP and puts search on the right, on a cream bar. The PDF reader has a grey desk with shadowed pages and a cream top bar. In Study tools → More, **Practice questions** opens the current chapter's check and **Mind map** opens a book map: chapters, then each chapter's check ideas or sub-sections (new `concepts.bookIdeas`). 323 tests pass. Browser-checked on the habits PDF.
 - AI default is Groq (ADR 011). `DEEPSEEK_API_KEY` is on dev, used only by the spike. Rotate that key before anything public.
 
 ## Open problems
