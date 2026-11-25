@@ -21,12 +21,12 @@ All calls happen on the server (Convex actions and HTTP routes). Keys live in Co
 
 | Field | Firecrawl | YouTube oEmbed | Notion | Google Docs |
 |---|---|---|---|---|
-| API and docs | Firecrawl Scrape API, docs.firecrawl.dev | YouTube oEmbed (`youtube.com/oembed`), oembed.com; thumbnails at `i.ytimg.com` | Notion API (public integration, OAuth), developers.notion.com | Google Drive API v3 + OAuth 2.0, developers.google.com/drive |
+| API and docs | Firecrawl Scrape API, docs.firecrawl.dev | YouTube oEmbed (`youtube.com/oembed`), oembed.com; thumbnails at `i.ytimg.com` | Notion API (public integration, OAuth), developers.notion.com | Google Drive API v3 + Google Docs API v1 + OAuth 2.0, developers.google.com/workspace |
 | What it gives us | An article's clean text (Markdown), title, site, preview image | A video's title, channel, thumbnail | A page in the user's workspace holding the book's notes and highlights | A Google Doc per book (notes and highlights) in an "Ingrain notes" folder |
-| Key needed? | Yes (API key) | No | Yes: OAuth client ID and secret; each user signs in | Yes: OAuth client from a Google Cloud project; scope `drive.file` |
-| Free limit | Limited free credits, 1 per page scraped (check current plan) | No published limit | Free; a few requests per second (check docs); 100 blocks per request | Free; generous per-project quotas; Testing mode allows up to 100 test users |
-| Cost at 1,000 users | ~1 credit per article added; beyond the free credits a paid plan (check current pricing) | $0 | $0 | $0 |
-| What we store vs fetch fresh | Store the text, title, site, image link once when added; never re-fetch | Store title, channel, thumbnail link when added; never re-fetch | Store token (server only), chosen parent page, created page ID and URL, last sent time; nothing is read back | Store refresh token (server only), folder ID, Doc ID and link, last sent time; nothing is read back |
+| Key needed? | Yes (API key) | No | Yes: OAuth client ID and secret; each user signs in | Yes: OAuth client ID and client secret from a Google Cloud project; non-sensitive scope `drive.file` |
+| Free limit | Limited free credits, 1 per page scraped (check current plan) | No published limit | Free; a few requests per second (check docs); 100 blocks per request | Free within Google's quotas; External Testing limits test users and refresh tokens may expire after 7 days (check current console) |
+| Cost at 1,000 users | ~1 credit per article added; beyond the free credits a paid plan (check current pricing) | $0 | $0 | Expected $0 in direct API charges at normal usage within quotas |
+| What we store vs fetch fresh | Store the text, title, site, image link once when added; never re-fetch | Store title, channel, thumbnail link when added; never re-fetch | Store token (server only), chosen parent page, created page ID and URL, last sent time; nothing is read back | Store the encrypted refresh token (server only), per-user folder ID, per-book Doc ID and link, and last sent time or export hash; nothing is read back |
 | If it disappeared tomorrow | Already-added articles still open; new links are "saved as a link" | Videos still play (embed); new ones show the link as the title | Notes stay in Ingrain; Send shows "Notion isn't available" | Notes stay in Ingrain; Send shows "Google Docs isn't available" |
 
 ## 4. Database changes (Convex, `convex/schema.ts`)

@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
+import { SendToNotion } from "@/components/export/SendToNotion";
 import { Bulb } from "@/components/icons/Bulb";
 import { BookCover } from "@/components/library/BookCover";
 import { ChapterPath, Stop } from "@/components/path/ChapterPath";
@@ -94,6 +95,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
           <Link href={`/read/${doc._id}/book`} className="chunky mt-4 w-full">
             📖 {view.started ? "Continue reading" : "Start reading"}
           </Link>
+          <SendToNotion documentId={doc._id} />
           <p className="mt-4 text-xs leading-relaxed text-muted">
             📖 Read · ✏️ Notes · <Bulb size={14} /> Test
             <br />

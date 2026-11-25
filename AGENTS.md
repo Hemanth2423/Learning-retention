@@ -12,6 +12,24 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Read this every session. Product and system context live in [PRODUCT.md](PRODUCT.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Before any contribution: read ASSIGNMENT.md
+
+This repo is a graded team project. **Read [ASSIGNMENT.md](ASSIGNMENT.md) and [TEAM-PLAN.md](TEAM-PLAN.md) before writing code or opening an issue or PR.** They set the workflow, test and doc rules below. If a request would break them, say so and ask.
+
+## Team workflow (issues, branches, PRs)
+
+Every change, even a one-line doc fix, follows this loop:
+
+1. **Issue first.** Find or open a GitHub Issue for the work and assign it to the person you're working for. For an API feature, paste its user story from TEAM-PLAN.md.
+2. **Branch from the latest `main`** (`git pull` first). One branch per issue: `api/…`, `feat/…`, `fix/…` or `docs/…`.
+3. **Log key prompts** in `prompts/<feature>.md`.
+4. **Open a PR into `main`** with what changed, `closes #N`, a screenshot of it working and any merge conflict you resolved. A feature PR also includes its test, a plain-English explanation of that test and "what would break it".
+5. **Review.** At least 1 teammate approves; authors can't approve their own. Address comments by pushing to the same branch.
+6. **Merge** only when approved **and CI is green**. The human author merges; agents never merge on their own.
+7. **Never commit or push to `main`.** Never break a teammate's test to get yours green.
+
+Use the `gh` CLI for issues and PRs. Issues, PRs and review comments are visible to the whole team, so confirm the wording with the person before posting.
+
 ## Commands
 
 | What | Command |
@@ -38,8 +56,8 @@ This repo is shared by the CodeMates team. Until the demo, these rules override 
 ## How a feature gets built
 
 1. **Spec first.** A feature starts with `tasks/<feature>.md` (copy `tasks/_TEMPLATE.md`). No acceptance criteria means no code: ask for them.
-2. **One branch per feature**, named `feat/…`, `fix/…` or `docs/…`. Build and verify it **locally** first.
-3. **Merging (team assignment, temporary):** the PR's author merges once **one teammate has approved it and CI is green**. Never push to `main`.
+2. **One branch per feature**, from its issue (see Team workflow above). Build and verify it **locally** first.
+3. **Never merge a PR yourself.** The human author merges after a teammate approval and green CI.
 4. **Flag deviations.** If the build differs from the task file, say so in the task file and the PR.
 5. **Finish with HANDOFF.md:** the last verified state, open problems and the next action.
 

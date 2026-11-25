@@ -92,3 +92,13 @@ See [tasks/feature-2-library-and-path.md](tasks/feature-2-library-and-path.md). 
 | **Images in notes** | `noteImages` (userId, documentId, storageId); images ≤5 MB uploaded to Convex storage; the note holds the link | Deleted with the book by the same background purge |
 | **Library** | `documents.list` (owner's books, newest-read first), `documents.rename`, `documents.remove` | Remove deletes the file, chunks, highlights, notes, chat, tests and attempts for that book |
 | **Parts for books without contents** | `chapterRanges` falls back to 20-page parts with keys `part-1`, `part-2`… | One code path for the chapter path, % read, notes and tests (ADR 008) |
+
+## Notebook exports
+
+| Table | Purpose | Index |
+|---|---|---|
+| `integrations` | Per-reader provider connection with server-only tokens and a workspace name | `by_user_provider` |
+| `oauthStates` | Single-use OAuth state with the requesting reader and return path, expired after 10 minutes | `by_state` |
+| `exportTargets` | Selected parent, remote page ID and link, and last successful send for each book and provider | `by_document_provider` |
+
+Convex actions use the shared notebook builder to export saved chapter notes and highlights. Retrying an export uses the saved Notion page so its link stays stable.
