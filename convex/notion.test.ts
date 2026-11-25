@@ -126,3 +126,22 @@ it("doesn't offer a book's own export page as a place to send to", async () => {
 
   await expect(reader.action(api.notion.listPages, {})).resolves.toEqual({ ok: true, pages: [{ id: "chosen", title: "chosen" }] });
 });
+
+it("sends only what the reader ticked, including saved questions", async () => {
+  const { app, userId, documentIds: [documentId], reader } = await connectedReader();
+  await app.run(async (ctx) => {
+    await ctx.db.insert("notes", { userId, documentId, sectionKey: "part-1", content: "{}", plainText: "Private note", updatedAt: 1 });
+    await ctx.db.insert("savedQuestions", {
+      userId, documentId, chapterKey: "part-1", question: "Kept question?", yourAnswer: "No", rightAnswer: "Yes",
+    });
+  });
+  const fetchMock = vi.fn<(input: string, init: RequestInit) => Promise<Response>>(async (input) =>
+    Response.json(input.endsWith("/pages") ? { id: "book", url: "https://www.notion.so/book" } : {}));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await reader.action(api.notion.send, { documentId, parentId: "parent", options: { notes: false, highlights: true, saved: true } });
+
+  const body = fetchMock.mock.calls.filter(([, init]) => init.method === "PATCH").map(([, init]) => init.body).join("");
+  expect(body).toContain("Kept question?");
+  expect(body).not.toContain("Private note");
+});

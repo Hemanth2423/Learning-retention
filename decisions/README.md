@@ -37,3 +37,5 @@ One file per architectural decision: `NNN-short-name.md`. Read one only when you
 | [016](016-library-folders.md) | Library folders: one folder per item; deleting a folder keeps its items |
 | [017](017-nested-folders-playlists-reader-copy.md) | Nested folders, playlists as folders (YouTube Data API), cleaned reader copy + Original view |
 | [018](018-youtube-usage-budget.md) | Hard YouTube budget: 1,000 units/day for the app (10%), 50 per reader |
+| [019](019-concept-check-ladder.md) | Concept check: evidence per idea and practice mode, no locks |
+| [020](020-concept-map-links.md) | Concept map links: 7 relation types from RDFS/SKOS/OBO RO/BFO, laid out with d3-force |

@@ -10,6 +10,7 @@ import { useNotebook } from "@/components/notebook/useNotebook";
 import { ChatPanel, useChat } from "@/components/reader/Chat";
 import { CiteUnit } from "@/components/reader/CitedText";
 import { ContentsPanel } from "@/components/reader/ContentsPanel";
+import { BookMindMap } from "@/components/reader/BookMindMap";
 import { MoreTools } from "@/components/reader/MoreTools";
 import { ChapterEndNotice } from "@/components/reader/Reader";
 import { RightPanel, StudyTab, StudyTabSpec } from "@/components/reader/RightPanel";
@@ -98,6 +99,7 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
   const [page, setPage] = useState(initialPage);
   const [studyOpen, setStudyOpen] = useState(isArticle || !!startNotes || !!startNotebook);
   const [tab, setTab] = useState<StudyTab>(readable && !startNotes && !startNotebook ? "ask" : "notebook");
+  const [mapOpen, setMapOpen] = useState(false);
   const [contentsOpen, setContentsOpen] = useState(false);
   const [wide, setWide] = useState(false);
   const [draft, setDraft] = useState("");
@@ -276,14 +278,19 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
         />
       ),
     },
-    ...(isBook ? [{ key: "more" as const, label: "More", icon: <span aria-hidden="true">🧰</span>, content: <MoreTools /> }] : []),
+    ...(isBook ? [{ key: "more" as const, label: "More", icon: <span aria-hidden="true">🧰</span>, content: (
+            <MoreTools practiceHref={chapter ? `/read/${doc._id}/test?chapter=${encodeURIComponent(chapter.key)}` : undefined} onMindMap={() => setMapOpen(true)} />
+          ),
+        },
+      ]
+    : []),
   ];
   const chapterPct = chapterIndex >= 0 ? progress[chapterIndex].pct : 0;
 
   return (
     <CiteUnit.Provider value="part">
       <div className="flex h-screen flex-col">
-        <header className="flex shrink-0 items-center gap-2.5 border-b border-ink/[0.07] bg-canvas px-4 py-2.5">
+        <header className="flex shrink-0 items-center gap-2.5 border-b border-line bg-cream px-4 py-2.5">
           <Link href={isBook ? `/read/${doc._id}` : "/read"} className="retro">
             ← {isBook ? "Path" : "Library"}
           </Link>
@@ -439,6 +446,9 @@ export function TextReader({ doc, startPage, startNotes, startNotebook }: { doc:
                 : undefined
             }
           />
+        )}
+        {mapOpen && (
+          <BookMindMap documentId={doc._id} title={doc.title} ranges={ranges} sections={sections} currentKey={chapter?.key ?? null} onJump={jumpTo} onClose={() => setMapOpen(false)} />
         )}
         {notice && (
           <p role="alert" className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-ui text-paper shadow-lg">

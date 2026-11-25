@@ -14,6 +14,7 @@ export const quizQuestion = v.object({
   page: v.optional(v.number()),
 });
 
+const conceptMode = v.union(v.literal("remember"), v.literal("understand"), v.literal("apply"), v.literal("analyze"));
 const exportProvider = v.union(v.literal("notion"), v.literal("google"));
 
 export default defineSchema({
@@ -176,6 +177,76 @@ export default defineSchema({
     score: v.number(),
     finished: v.boolean(),
   }).index("by_document_chapter", ["documentId", "chapterKey"]),
+
+  // Concept check (ADR 019). One check per reader and chapter; questions are a finite bank; answers are append-only
+  // events, and status is always computed from them (conceptRules.ts).
+  conceptChecks: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    chapterKey: v.string(),
+    ideas: v.array(v.object({ id: v.string(), name: v.string(), objective: v.string(), page: v.number() })),
+    batchesDone: v.number(),
+    generatingBatch: v.optional(v.number()),
+    generatingAt: v.optional(v.number()),
+    generatingStage: v.optional(v.string()),
+    failedTries: v.number(),
+    failedDay: v.optional(v.string()),
+    sourceHash: v.string(),
+    coverage: v.object({ pagesUsed: v.number(), pagesTotal: v.number() }),
+    solidAwarded: v.array(v.string()),
+    nextCheckAt: v.optional(v.number()),
+    // Concept map (Part 7): typed links between ideas, types from conceptRules.RELATIONS. Missing on older checks.
+    links: v.optional(v.array(v.object({ from: v.string(), to: v.string(), type: v.string(), note: v.string() }))),
+    linkTries: v.optional(v.number()),
+  })
+    .index("by_document_chapter", ["documentId", "chapterKey"])
+    .index("by_user", ["userId"]),
+
+  conceptQuestions: defineTable({
+    checkId: v.id("conceptChecks"),
+    ideaId: v.string(),
+    mode: conceptMode,
+    difficulty: v.union(v.literal("core"), v.literal("stretch"), v.literal("hard")),
+    batch: v.number(),
+    question: v.string(),
+    code: v.optional(v.string()),
+    options: v.array(v.string()),
+    answer: v.number(),
+    explanation: v.string(),
+    whyWrong: v.array(v.string()),
+    page: v.number(),
+    excerpt: v.string(),
+    figure: v.optional(v.string()),
+    active: v.boolean(),
+    reportReason: v.optional(v.string()),
+    promptVersion: v.string(),
+    model: v.string(),
+  }).index("by_check_mode", ["checkId", "mode"]),
+
+  conceptSessions: defineTable({
+    userId: v.id("users"),
+    checkId: v.id("conceptChecks"),
+    items: v.array(v.object({ questionId: v.id("conceptQuestions"), optionOrder: v.array(v.number()), reason: v.string() })),
+    position: v.number(),
+    finished: v.boolean(),
+    startedAt: v.number(),
+    xpEarned: v.number(),
+  }).index("by_check_finished", ["checkId", "finished"]),
+
+  conceptAnswers: defineTable({
+    userId: v.id("users"),
+    checkId: v.id("conceptChecks"),
+    sessionId: v.id("conceptSessions"),
+    questionId: v.id("conceptQuestions"),
+    ideaId: v.string(),
+    mode: conceptMode,
+    option: v.number(),
+    confidence: v.union(v.literal("sure"), v.literal("think"), v.literal("guess")),
+    correct: v.boolean(),
+    at: v.number(),
+  })
+    .index("by_check_at", ["checkId", "at"])
+    .index("by_session_question", ["sessionId", "questionId"]),
 
   // Units spent per day on a metered outside API, overall (`scope: "all"`) and per reader (ADR 018).
   apiUsage: defineTable({

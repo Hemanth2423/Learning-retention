@@ -69,7 +69,7 @@ export const begin = internalMutation({
   handler: async (ctx, { state, userId, documentId }) => {
     if (!await getOwnDocument(ctx, userId, documentId)) throw new Error("Book not found.");
     const id = await ctx.db.insert("oauthStates", {
-      state, userId, provider: "notion", returnTo: `/read/${documentId}`,
+      state, userId, provider: "notion", returnTo: `/read/${documentId}?export=notion`,
     });
     await ctx.scheduler.runAfter(STATE_TTL, internal.notionData.expireState, { id });
   },

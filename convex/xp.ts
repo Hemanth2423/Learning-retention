@@ -29,6 +29,16 @@ export async function awardXp(ctx: MutationCtx, userId: Id<"users">, awards: Awa
   return gained;
 }
 
+// Concept-check XP: idempotency lives on the check (ADR 019), so nothing is added to the ever-growing `awarded` list.
+export async function addXp(ctx: MutationCtx, userId: Id<"users">, xp: number) {
+  if (xp <= 0) return;
+  const row = await statsRow(ctx, userId);
+  const today = dayKey(Date.now(), row?.timeZone);
+  const update = { xp: (row?.xp ?? 0) + xp, streak: nextStreak(row?.lastActiveDay, row?.streak ?? 0, today), lastActiveDay: today };
+  if (row) await ctx.db.patch(row._id, update);
+  else await ctx.db.insert("learnerStats", { userId, ...update, awarded: [] });
+}
+
 // XP, level and streak for Home, the path and the test.
 export const stats = query({
   args: {},

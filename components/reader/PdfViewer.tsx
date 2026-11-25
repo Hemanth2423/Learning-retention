@@ -312,7 +312,7 @@ export const PdfViewer = memo(forwardRef<PdfViewerHandle, Props>(function PdfVie
       ref={setRoot}
       tabIndex={0}
       aria-label="Book pages"
-      className="relative min-w-0 flex-1 overflow-auto bg-canvas outline-none"
+      className="relative min-w-0 flex-1 overflow-auto bg-desk outline-none"
     >
       {pdf && firstPage && scale > 0 ? (
         <div ref={columnRef} className="relative mx-auto flex w-max min-w-full flex-col items-center gap-3 px-6 pb-24 pt-16">
