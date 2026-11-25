@@ -483,17 +483,27 @@ function Library() {
                       )}
                     </div>
                   )}
-                  <div role="group" aria-label="Sort" className="seg shrink-0 md:ml-auto">
-                    {(["recent", "title", "progress"] as const).map((s) => (
-                      <button key={s} aria-pressed={sort === s} onClick={() => setSort(s)} className="px-3 py-1 capitalize">
-                        {s}
-                      </button>
-                    ))}
+                  <div className="flex shrink-0 items-center gap-2 md:ml-auto">
+                    <span id="sort-label" className="text-meta font-semibold text-muted">
+                      Sort by
+                    </span>
+                    <div role="group" aria-labelledby="sort-label" className="seg">
+                      {(["recent", "title", "progress"] as const).map((s) => (
+                        <button key={s} aria-pressed={sort === s} onClick={() => setSort(s)} className="px-3 py-1 capitalize">
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {counts.all > 0 && (
-                    <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
+                    <span id="filter-label" className="text-meta font-semibold text-muted">
+                      Filter by
+                    </span>
+                  )}
+                  {counts.all > 0 && (
+                    <div role="group" aria-labelledby="filter-label" className="flex flex-wrap gap-1.5">
                       {FILTERS.filter((f) => f.key === "all" || counts[f.key] > 0).map((f) => (
                         <button key={f.key} className="chip" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
                           {f.label} <span className="opacity-70">{counts[f.key]}</span>
