@@ -1,0 +1,126 @@
+import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { getOwnDocument, requireUser } from "./helpers";
+
+const STATE_TTL = 10 * 60 * 1000;
+
+function integration(ctx: Pick<QueryCtx, "db">, userId: Id<"users">) {
+  return ctx.db.query("integrations").withIndex("by_user_provider", (q) =>
+    q.eq("userId", userId).eq("provider", "google")).unique();
+}
+
+function target(ctx: Pick<QueryCtx, "db">, documentId: Id<"documents">) {
+  return ctx.db.query("exportTargets").withIndex("by_document_provider", (q) =>
+    q.eq("documentId", documentId).eq("provider", "google")).unique();
+}
+
+export const connection = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUser(ctx);
+    const row = await integration(ctx, userId);
+    return { connected: Boolean(row), accountName: row?.accountName ?? null };
+  },
+});
+
+export const savedTarget = query({
+  args: { documentId: v.id("documents") },
+  handler: async (ctx, { documentId }) => {
+    const userId = await requireUser(ctx);
+    if (!await getOwnDocument(ctx, userId, documentId)) return null;
+    const row = await target(ctx, documentId);
+    return row?.url ? { url: row.url, lastSentAt: row.lastSentAt } : null;
+  },
+});
+
+export const connectionFor = internalQuery({
+  args: { userId: v.id("users") },
+  handler: (ctx, { userId }) => integration(ctx, userId),
+});
+
+export const bookTarget = internalQuery({
+  args: { userId: v.id("users"), documentId: v.id("documents") },
+  handler: async (ctx, { userId, documentId }) => {
+    if (!await getOwnDocument(ctx, userId, documentId)) throw new Error("Book not found.");
+    return target(ctx, documentId);
+  },
+});
+
+export const expireState = internalMutation({
+  args: { id: v.id("oauthStates") },
+  handler: async (ctx, { id }) => {
+    if (await ctx.db.get(id)) await ctx.db.delete(id);
+  },
+});
+
+export const begin = internalMutation({
+  args: { state: v.string(), userId: v.id("users"), documentId: v.id("documents") },
+  handler: async (ctx, { state, userId, documentId }) => {
+    if (!await getOwnDocument(ctx, userId, documentId)) throw new Error("Book not found.");
+    const id = await ctx.db.insert("oauthStates", {
+      state, userId, provider: "google", returnTo: `/read/${documentId}?export=google`,
+    });
+    await ctx.scheduler.runAfter(STATE_TTL, internal.googleData.expireState, { id });
+  },
+});
+
+export const consumeState = internalMutation({
+  args: { state: v.string() },
+  handler: async (ctx, { state }) => {
+    const row = await ctx.db.query("oauthStates").withIndex("by_state", (q) => q.eq("state", state)).unique();
+    if (!row || row.provider !== "google") return null;
+    await ctx.db.delete(row._id);
+    return Date.now() - row._creationTime < STATE_TTL ? row : null;
+  },
+});
+
+export const storeConnection = internalMutation({
+  args: {
+    userId: v.id("users"), accessToken: v.string(), refreshToken: v.optional(v.string()),
+    expiresAt: v.optional(v.number()), accountName: v.string(),
+  },
+  handler: async (ctx, { userId, refreshToken, ...values }) => {
+    const row = await integration(ctx, userId);
+    const patch = { ...values, ...(refreshToken ? { refreshToken } : {}) };
+    if (row) await ctx.db.patch(row._id, patch);
+    else await ctx.db.insert("integrations", { userId, provider: "google", refreshToken, ...values });
+  },
+});
+
+export const forgetConnection = internalMutation({
+  args: { userId: v.id("users"), accessToken: v.string() },
+  handler: async (ctx, { userId, accessToken }) => {
+    const row = await integration(ctx, userId);
+    if (row?.accessToken === accessToken) await ctx.db.delete(row._id);
+  },
+});
+
+export const claimTarget = internalMutation({
+  args: { userId: v.id("users"), documentId: v.id("documents"), parentId: v.string() },
+  handler: async (ctx, values) => {
+    if (!await getOwnDocument(ctx, values.userId, values.documentId)) throw new Error("Book not found.");
+    if (await target(ctx, values.documentId)) return null;
+    return ctx.db.insert("exportTargets", {
+      ...values, provider: "google", remoteId: "", url: "", lastSentAt: 0,
+    });
+  },
+});
+
+export const saveTarget = internalMutation({
+  args: { id: v.id("exportTargets"), remoteId: v.string(), url: v.string(), lastSentAt: v.number() },
+  handler: async (ctx, { id, ...values }) => {
+    const row = await ctx.db.get(id);
+    if (!row || row.provider !== "google") throw new Error("Google export not found.");
+    await ctx.db.patch(id, values);
+  },
+});
+
+export const forgetTarget = internalMutation({
+  args: { id: v.id("exportTargets") },
+  handler: async (ctx, { id }) => {
+    const row = await ctx.db.get(id);
+    if (row?.provider === "google") await ctx.db.delete(id);
+  },
+});

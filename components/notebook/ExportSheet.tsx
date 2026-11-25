@@ -5,13 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { SendToGoogleDocs } from "@/components/export/SendToGoogleDocs";
 import { SendToNotion } from "@/components/export/SendToNotion";
 import { buildBookExport, exportFileName, ExportOptions, isEmptyExport, toMarkdown, toPrintHtml } from "@/convex/exportRules";
 
 const today = () => new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 
 // Export: choose what to include, then download Markdown, print / save as PDF, or copy everything.
-// Built in the browser from what's already loaded (convex/exportRules.ts). Only "Send to Notion" leaves the browser.
+// Built in the browser from what's already loaded (convex/exportRules.ts). Only "Send to Notion" and "Send to Google Docs" leave the browser.
 export function ExportSheet({ documentId, onClose }: { documentId: Id<"documents">; onClose: () => void }) {
   const doc = useQuery(api.documents.get, { documentId });
   const notebook = useQuery(api.notebook.list, { documentId });
@@ -129,8 +130,8 @@ export function ExportSheet({ documentId, onClose }: { documentId: Id<"documents
         <p className="mt-2 text-label font-bold uppercase tracking-[0.08em] text-muted">Send to</p>
         <ul className="mt-1.5 grid gap-1.5 text-meta">
           <SendToNotion documentId={documentId} options={options} nothingToSend={empty} />
+          <SendToGoogleDocs documentId={documentId} options={options} nothingToSend={empty} />
           {[
-            ["Google Docs", "Coming soon"],
             ["Obsidian", "Soon · the Markdown file opens in Obsidian today"],
           ].map(([name, note]) => (
             <li key={name} className="flex items-center justify-between rounded-[10px] border border-dashed border-line px-3 py-2">
