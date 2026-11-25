@@ -30,8 +30,9 @@ Read this at the start of every feature. If a feature doesn't serve the target u
 
 | # | Feature | Status | Spec |
 |---|---|---|---|
-| 1 | Reading experience: upload, reader, highlights, notes, cited chat | Built, on `feat/reading-experience` | [tasks/feature-1-reading.md](tasks/feature-1-reading.md) |
-| 2 | Library, chapter path, 5-question tests, XP, new reader layout | Spec, waiting for open questions | [tasks/feature-2-library-and-path.md](tasks/feature-2-library-and-path.md) |
+| 1 | Reading experience: upload, reader, highlights, notes, cited chat | Live (merged in PR #66) | [tasks/feature-1-reading.md](tasks/feature-1-reading.md) |
+| 2 | Library, chapter path, 5-question tests, XP, new reader layout | Live (merged in PR #66) | [tasks/feature-2-library-and-path.md](tasks/feature-2-library-and-path.md) |
+| 3 | More sources (EPUB, articles, Word, PowerPoint, YouTube), one Notebook, export to Notion / Google Docs | Building, slice 1 next | [tasks/feature-3-sources-and-notebook.md](tasks/feature-3-sources-and-notebook.md) |
 
 ## Non-goals
 

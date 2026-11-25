@@ -39,8 +39,8 @@ export function LevelBar() {
   if (!stats) return null;
   return (
     <div className="mt-4">
-      <div className="flex justify-between text-[13px]">
-        <span className="font-game text-xs">LEVEL {stats.level}</span>
+      <div className="flex justify-between text-meta">
+        <span className="font-game text-label">LEVEL {stats.level}</span>
         <span className="text-muted">
           {stats.intoLevel}/{XP_PER_LEVEL} XP
         </span>

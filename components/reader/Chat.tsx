@@ -46,7 +46,9 @@ export function ChatPanel({
   draft,
   onDraft,
   onJump,
+  noun = "book",
 }: {
+  noun?: "book" | "article" | "document"; // wording only: articles have no chapters; Word / PowerPoint have sections
   chat: ChatState;
   page: number;
   draft: string;
@@ -78,35 +80,42 @@ export function ChatPanel({
   return (
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4" aria-live="polite">
-        {messages.length === 0 && !pending && <p className="text-sm text-muted">Ask anything about this book. Answers come from its pages, with page links.</p>}
+        {messages.length === 0 && !pending && (
+          <p className="empty-note">
+            {noun === "book"
+              ? "Ask a question below, or summarize this chapter. Answers come from the book, with links to the spot."
+              : `Ask a question below, or summarize this ${noun === "article" ? "article" : "section"}. Answers link to the part they come from.`}
+          </p>
+        )}
         {messages.map((m) =>
           m.role === "user" ? (
-            <p key={m._id} className="ml-auto w-fit max-w-[85%] whitespace-pre-line rounded-2xl bg-accent-soft px-3 py-2 text-sm">
-              {m.text}
+            <p key={m._id} className="ml-auto w-fit max-w-[85%] whitespace-pre-line rounded-xl rounded-br-sm bg-accent-soft px-3 py-2 text-ui">
+              {/* The server saves summaries as "Summarize this chapter"; articles have no chapters. */}
+              {m.text === "Summarize this chapter" && noun !== "book" ? `Summarize this ${noun === "article" ? "article" : "section"}` : m.text}
             </p>
           ) : (
-            <p key={m._id} className="whitespace-pre-line text-sm leading-relaxed">
+            <p key={m._id} className="whitespace-pre-line rounded-xl rounded-bl-sm border border-line bg-card px-3 py-2 text-ui leading-relaxed">
               <CitedText text={m.text} pages={m.citations} onJump={onJump} />
             </p>
           )
         )}
-        {pending && <p className="text-sm text-muted">Thinking…</p>}
+        {pending && <p className="text-meta text-muted">Thinking…</p>}
         {error && (
-          <p role="alert" className="text-sm text-bad">
+          <p role="alert" className="text-ui text-bad">
             {error}
           </p>
         )}
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 border-t border-line p-3">
+      <div className="shrink-0 border-t border-line p-4">
         <div className="mb-2 flex flex-wrap gap-2">
           <button
             onClick={() => void send("", "summarize", page)}
             disabled={pending || noneLeft}
-            className="rounded-full border border-line px-3 py-1 text-xs font-medium hover:bg-accent-soft disabled:opacity-50"
+            className="quiet"
           >
-            Summarize this chapter
+            ✨ Summarize this {noun === "book" ? "chapter" : noun === "article" ? "article" : "section"}
           </button>
         </div>
         <textarea
@@ -122,11 +131,11 @@ export function ChatPanel({
               void submit();
             }
           }}
-          aria-label="Ask about this book"
-          placeholder={noneLeft ? "No questions left today" : "Ask about this book…"}
+          aria-label={`Ask about this ${noun}`}
+          placeholder={noneLeft ? "No questions left today" : `Ask about this ${noun}…`}
           className="input resize-none"
         />
-        <p className="mt-1.5 text-xs text-muted">
+        <p className="mt-1.5 text-label text-muted">
           {left === undefined ? "" : noneLeft ? `Out of questions for today.${quota?.resetAt ? ` The next one frees up ${whenOf(quota.resetAt)}.` : ""}` : `${left} left today`}
         </p>
       </div>

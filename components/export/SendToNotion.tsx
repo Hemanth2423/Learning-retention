@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { PAGE_GONE } from "@/convex/notionRules";
 
 const RECONNECT = "Reconnect Notion";
 const button = "chunky chunky-light chunky-sm mt-2 w-full";
@@ -97,7 +98,7 @@ export function SendToNotion({ documentId }: { documentId: Id<"documents"> }) {
               onClick={() => void run("send", async () => {
                 const result = await send({ documentId, parentId: parentId || undefined });
                 setMessage(result.ok ? "Sent to Notion." : result.message);
-                if (!result.ok && result.message === RECONNECT) {
+                if (!result.ok && (result.message === RECONNECT || result.message === PAGE_GONE)) {
                   setPages(null);
                   setParentId("");
                 }

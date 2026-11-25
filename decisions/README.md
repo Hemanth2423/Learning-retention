@@ -29,4 +29,11 @@ One file per architectural decision: `NNN-short-name.md`. Read one only when you
 | [008](008-parts-when-no-contents.md) | Books without contents get 20-page parts |
 | [009](009-simple-xp-started-fresh.md) | Simple XP, levels and streaks, started fresh |
 | [010](010-tests-generated-once-per-chapter.md) | A chapter's test is generated once and reused |
+| [012](012-articles-and-videos-by-link.md) | Articles (Firecrawl) and YouTube (oEmbed) by link; a `text` locator where page = block |
 | [011](011-groq-default-provider.md) | Groq (`openai/gpt-oss-120b`) is the default AI service; DeepSeek and Gemini via `LLM_PROVIDER` |
+| [013](013-covers-and-add-queue.md) | Covers drawn in the browser (text pages keep the colour cover); one Add sheet + queue |
+| [014](014-notebook.md) | One Notebook: many notes per book, saved questions, text highlights; old notes moved |
+| [015](015-epub-word-powerpoint-in-the-browser.md) | EPUB, Word and PowerPoint read in the browser into text blocks; EPUB is a book |
+| [016](016-library-folders.md) | Library folders: one folder per item; deleting a folder keeps its items |
+| [017](017-nested-folders-playlists-reader-copy.md) | Nested folders, playlists as folders (YouTube Data API), cleaned reader copy + Original view |
+| [018](018-youtube-usage-budget.md) | Hard YouTube budget: 1,000 units/day for the app (10%), 50 per reader |

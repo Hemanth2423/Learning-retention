@@ -7,15 +7,14 @@ export const notebookFor = internalQuery({
   handler: async (ctx, { documentId }) => {
     const book = await ctx.db.get(documentId);
     if (!book) throw new Error("Book not found.");
-    const reflections = await ctx.db.query("reflections").withIndex("by_document_section", (q) =>
-      q.eq("documentId", documentId)).collect();
+    const notes = await ctx.db.query("notes").withIndex("by_document", (q) => q.eq("documentId", documentId)).collect();
     const highlights = await ctx.db.query("highlights").withIndex("by_document", (q) =>
       q.eq("documentId", documentId)).collect();
     return buildNotebookExport({
       title: book.title,
       sections: book.sections ?? [],
       pageCount: book.pageCount ?? 0,
-      reflections,
+      notes,
       highlights,
     });
   },

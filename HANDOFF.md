@@ -2,7 +2,7 @@
 
 Update at the end of every session. Keep only the latest state, since git keeps the history.
 
-**Last updated:** 2026-11-17 · **Branch:** `feat/library-and-path` (from `feat/reading-experience`; that branch is deleted once this reaches main; no merges until Hemanth says so)
+**Last updated:** 2026-11-22 · **Working branch:** `feat/feature-3-rest` (slices 2–6, stacked on #82's `api/article-youtube-links`) · **Default:** `main` (protected: PR + 1 teammate approval + CI `test`) · CodeMates team assignment until Dec 2
 
 ## Last verified state
 
@@ -22,7 +22,21 @@ Update at the end of every session. Keep only the latest state, since git keeps 
 - **Legacy code (courses, lessons, reviews, gamification) is untouched** until a feature replaces it.
 - **Research lives only where it was created** (gitignored). Master copy is in the main checkout. 5 ambiguities are listed in companion §11.
 
+## Team setup (CodeMates assignment, demo Dec 2)
+
+- **Team:** @Hemanth2423 (owner; articles via Firecrawl + YouTube), @abbystern (Notion export), @EEBarr14 (Google Docs export). Plan: [TEAM-PLAN.md](TEAM-PLAN.md).
+- **CI:** `.github/workflows/ci.yml` (from #71) runs `npm test` + `npm run lint` on every PR. `main` requires a PR, 1 approval and the `test` check, for admins too.
+- **Open:** the repo is still **public** (the assignment wants private; branch protection on a private repo needs GitHub Pro / Education). AGENTS.md temporary team rules are #73 (approved, needs "Update branch", then merge). Revert #73 after the demo.
+- **Deploys:** Vercel isn't connected to GitHub; production is deployed by hand (`npx convex deploy`, then `vercel deploy --prod` from a clean export of `main`). Teammates' features must be live by Dec 2.
+
 ## Next action
 
-1. **Hemanth:** review slices 4–5 (Test yourself, XP), then commit slice 5.
-2. **Then:** Feature 2 is complete: a full pass with a real book, then a PR (never merged without Hemanth's OK).
+0. **Folders + UX round** are on `feat/folders` (stacked on `feat/feature-3-rest`), committed, not pushed: `tasks/feature-4-folders.md`, ADRs 016–017. **To switch playlists on:** `YOUTUBE_API_KEY` is not on the dev deployment yet (app reports it missing, 2026-11-22); run `npx convex env set YOUTUBE_API_KEY <key>` from the repo, then test one real playlist. Usage is capped in code at 1,000 units/day (ADR 018). Open its PR after the Feature 3 PR. Mockups 006–008 are in the gitignored `.context/compound-engineering/ce-prototype/2026-11-21-folders-and-practice/`; the practice ladder (007) is parked.
+
+1. **Merge PR #82** (Feature 3 spec + slice 1) after a teammate approves, deploy production, then rebase `feat/feature-3-rest` onto `main` and open its PR (slices 2–6, all committed locally, not pushed).
+2. **After deploying slice 5 anywhere:** run `npx convex run notebook:migrateReflections` until it returns 0 (moves old chapter notes into the Notebook; done on dev: 7 notes).
+3. **Tell @abbystern and @EEBarr14:** `convex/exportRules.ts` (buildExport + toMarkdown) is the shared builder; their Send buttons go in the Export sheet ("Soon" rows today).
+4. **Hemanth to review in the browser:** Notebook compose flow, EPUB with a real book (only generated samples were tried), PDF covers on real books. Download and Print in the Export sheet weren't clicked (builder is tested).
+5. Merge #73; make the repo private; revert #73 after Dec 2. Copy prototype 005 + `decisions.md` from worktree `learning-retention-d5b089/.context/` to the main checkout.
+
+**State (2026-11-20):** `feat/feature-3-rest` @ slice 6; 224 tests pass, lint 0 errors / 22 warnings, build passes. New deps: `fflate`, `mammoth`. Schema: covers, notes, savedQuestions, highlight ranges, new source types (ADRs 013–015).

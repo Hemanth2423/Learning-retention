@@ -2,11 +2,12 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, httpAction } from "./_generated/server";
 import { requireUser } from "./helpers";
-import { notebookBlocks, notionBlockBatches } from "./notionRules";
+import { PAGE_GONE, isAbandonedSend, notebookBlocks, notionBlockBatches } from "./notionRules";
 
 const apiRoot = "https://api.notion.com/v1";
 const reconnect = { ok: false as const, message: "Reconnect Notion" };
 const unavailable = { ok: false as const, message: "Notion isn’t available. Try again." };
+const inProgress = { ok: false as const, message: "A send is already running. Try again in a few minutes." };
 
 class NotionError extends Error {
   constructor(readonly status: number) {
@@ -100,6 +101,8 @@ export const listPages = action({
     const userId = await requireUser(ctx);
     const connection = await ctx.runQuery(internal.notionData.connectionFor, { userId });
     if (!connection) return reconnect;
+    // A book's own export page isn't a place to put another book.
+    const exported = new Set(await ctx.runQuery(internal.notionData.exportedPageIds, { userId }));
     const pages: { id: string; title: string }[] = [];
     let cursor: string | null = null;
     try {
@@ -109,6 +112,7 @@ export const listPages = action({
           ...(cursor ? { start_cursor: cursor } : {}),
         });
         for (const page of result.results) {
+          if (exported.has(page.id)) continue;
           const title = Object.values(page.properties).find((property) => property.type === "title");
           pages.push({ id: page.id, title: title?.title?.map((part) => part.plain_text).join("") || "Untitled page" });
         }
@@ -139,12 +143,16 @@ async function listBlocks(pageId: string, authorization: string) {
 
 export const send = action({
   args: { documentId: v.id("documents"), parentId: v.optional(v.string()) },
-  handler: async (ctx, { documentId, parentId }): Promise<typeof reconnect | { ok: true; url: string }> => {
+  handler: async (ctx, { documentId, parentId }): Promise<{ ok: false; message: string } | { ok: true; url: string }> => {
     const userId = await requireUser(ctx);
-    const existing = await ctx.runQuery(internal.notionData.bookTarget, { userId, documentId });
+    let existing = await ctx.runQuery(internal.notionData.bookTarget, { userId, documentId });
     const connection = await ctx.runQuery(internal.notionData.connectionFor, { userId });
     if (!connection) return reconnect;
-    if (existing && !existing.remoteId) return { ok: false, message: "An export is already in progress." };
+    if (existing && !existing.remoteId) {
+      if (!isAbandonedSend(existing._creationTime, Date.now())) return inProgress;
+      await ctx.runMutation(internal.notionData.forgetTarget, { id: existing._id });
+      existing = null;
+    }
     if (!existing && !parentId) return { ok: false, message: "Choose a Notion page first." };
 
     const notebook = await ctx.runQuery(internal.exports.notebookFor, { documentId });
@@ -153,7 +161,7 @@ export const send = action({
     const id = existing?._id ?? await ctx.runMutation(internal.notionData.claimTarget, {
       userId, documentId, parentId: parentId ?? "",
     });
-    if (!id) return { ok: false, message: "An export is already in progress." };
+    if (!id) return inProgress;
 
     let remoteId = existing?.remoteId;
     let url = existing?.url;
@@ -172,7 +180,10 @@ export const send = action({
         await request(`/blocks/${encodeURIComponent(remoteId)}/children`, authorization, "PATCH", { children });
       }
       for (const blockId of oldBlocks) {
-        await request(`/blocks/${encodeURIComponent(blockId)}`, authorization, "DELETE");
+        // A block the reader already removed in Notion is fine: the new content is on the page.
+        await request(`/blocks/${encodeURIComponent(blockId)}`, authorization, "DELETE").catch((error) => {
+          if (!(error instanceof NotionError && error.status === 404)) throw error;
+        });
       }
       await ctx.runMutation(internal.notionData.saveTarget, { id, remoteId, url, lastSentAt: Date.now() });
       return { ok: true, url };
@@ -183,9 +194,9 @@ export const send = action({
         return reconnect;
       }
       if (error instanceof NotionError && [403, 404].includes(error.status)) {
+        // Only this page is out of reach, so the reader's other books stay connected.
         await ctx.runMutation(internal.notionData.forgetTarget, { id });
-        await ctx.runMutation(internal.notionData.forgetConnection, { userId, accessToken: connection.accessToken });
-        return reconnect;
+        return { ok: false, message: PAGE_GONE };
       }
       if (!remoteId) await ctx.runMutation(internal.notionData.forgetTarget, { id });
       return unavailable;

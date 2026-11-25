@@ -2,25 +2,34 @@
 
 import { useQuery } from "convex/react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { SendToNotion } from "@/components/export/SendToNotion";
 import { Bulb } from "@/components/icons/Bulb";
 import { BookCover } from "@/components/library/BookCover";
+import { ExportSheet } from "@/components/notebook/ExportSheet";
 import { ChapterPath, Stop } from "@/components/path/ChapterPath";
 import { ReadingShell } from "@/components/ReadingShell";
 import { LevelBar, XpStats } from "@/components/XpStats";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { chapterRanges } from "@/convex/chapters";
+import { chapterParts } from "@/convex/notebookRules";
 import { bookProgress, chapterProgress, resumePage } from "@/convex/readingRules";
 import { chapterBadge } from "@/components/reader/text";
 
 // The chapter path: the main view of one book.
 function PathView({ documentId }: { documentId: Id<"documents"> }) {
   const doc = useQuery(api.documents.get, { documentId });
-  const notes = useQuery(api.reflections.list, { documentId });
+  const notebook = useQuery(api.notebook.list, { documentId });
+  const notes = notebook?.notes;
   const scores = useQuery(api.quizzes.bestScores, { documentId });
+  const [exporting, setExporting] = useState(false);
+  const router = useRouter();
+  const notABook = !!doc && doc.sourceType !== "pdf" && doc.sourceType !== "epub"; // EPUBs get a path too
+  useEffect(() => {
+    if (notABook) router.replace(`/read/${documentId}/book`);
+  }, [notABook, router, documentId]);
 
   const view = useMemo(() => {
     if (!doc || doc.status !== "ready") return null;
@@ -36,7 +45,8 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       currentIndex = next;
     }
     if (currentIndex < 0) currentIndex = progress.findIndex((p) => !p.read);
-    const withNotes = new Set((notes ?? []).filter((n) => n.plainText?.trim() || n.content?.includes('"type":"image"')).map((n) => n.sectionKey));
+    const withNotes = new Set((notes ?? []).map((n) => n.sectionKey));
+    const parts = chapterParts(doc.sections ?? [], ranges.map((r) => r.key));
     const stops: Stop[] = ranges.map((r, i) => ({
       ...r,
       pct: progress[i].pct,
@@ -46,6 +56,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       label: chapterBadge(r.title, i, isParts),
       openAt: resumePage(r, lastPage, doc.pagesSeen),
       best: scores?.[r.key] ? `${scores[r.key].best}/${scores[r.key].total}` : undefined,
+      part: parts.get(r.key),
     }));
     return { stops, isParts, read: progress.filter((p) => p.read).length, total: ranges.length, pct: bookProgress(doc.pagesSeen, pageCount), started: lastPage !== null };
   }, [doc, notes, scores]);
@@ -55,12 +66,13 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
     return (
       <div className="m-auto text-center">
         <p>We couldn&apos;t find that book.</p>
-        <Link href="/read" className="btn-ghost mt-4">
+        <Link href="/read" className="quiet mt-4">
           Back to your books
         </Link>
       </div>
     );
   }
+  if (notABook) return <p className="m-auto text-muted">Opening…</p>;
   if (doc.status !== "ready" || !view) {
     return <p className="m-auto text-muted">{doc.status === "failed" ? (doc.statusMessage ?? "This book couldn't be opened.") : "Preparing your book…"}</p>;
   }
@@ -72,7 +84,7 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
         <Link href="/read" className="retro">
           ← Library
         </Link>
-        <h1 className="min-w-0 truncate font-serif text-[17px] font-bold" title={doc.title}>
+        <h1 className="min-w-0 truncate font-serif text-h3 font-bold" title={doc.title}>
           {doc.title}
         </h1>
         <div className="ml-auto shrink-0">
@@ -81,8 +93,8 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
       </header>
       <div className="mx-auto grid max-w-[1060px] items-start gap-10 px-4 pb-20 pt-7 md:grid-cols-[300px_1fr] md:px-7">
         <aside className="rounded-2xl border border-line bg-card p-5 md:sticky md:top-[84px]">
-          <BookCover id={doc._id} title={doc.title} pageCount={doc.pageCount} className="h-40 w-full text-[19px]" />
-          <div className="mb-1.5 mt-3.5 flex justify-between text-[13px] text-muted">
+          <BookCover id={doc._id} title={doc.title} meta={doc.sourceType === "epub" ? "EPUB" : doc.pageCount ? `${doc.pageCount} pages` : undefined} coverUrl={doc.coverUrl} className="mx-auto w-[170px] text-h3" />
+          <div className="mb-1.5 mt-3.5 flex justify-between text-meta text-muted">
             <span>Your path</span>
             <span>
               {view.read} of {view.total} {unit} read
@@ -95,8 +107,17 @@ function PathView({ documentId }: { documentId: Id<"documents"> }) {
           <Link href={`/read/${doc._id}/book`} className="chunky mt-4 w-full">
             📖 {view.started ? "Continue reading" : "Start reading"}
           </Link>
+          <div className="mt-2.5 flex gap-2">
+            <Link href={`/read/${doc._id}/book?notebook=1`} className="quiet flex-1">
+              📓 Notebook
+            </Link>
+            <button className="quiet flex-1" onClick={() => setExporting(true)}>
+              ⤓ Export notes
+            </button>
+          </div>
+          {exporting && <ExportSheet documentId={doc._id} onClose={() => setExporting(false)} />}
           <SendToNotion documentId={doc._id} />
-          <p className="mt-4 text-xs leading-relaxed text-muted">
+          <p className="mt-4 text-label leading-relaxed text-muted">
             📖 Read · ✏️ Notes · <Bulb size={14} /> Test
             <br />
             Green means done. Click any of them to open it.

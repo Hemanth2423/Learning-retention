@@ -7,11 +7,17 @@ describe("validateUpload", () => {
     expect(validateUpload(pdf)).toBeUndefined();
     expect(validateUpload({ ...pdf, size: MAX_UPLOAD_BYTES })).toBeUndefined();
   });
-  test("rejects a file over 25 MB, a non-PDF and an empty file", () => {
-    expect(validateUpload({ ...pdf, size: MAX_UPLOAD_BYTES + 1 })).toMatch(/over 25 MB/);
-    expect(validateUpload({ name: "a.docx", type: "application/msword", size: 10 })).toMatch(/isn't a PDF/);
-    expect(validateUpload({ ...pdf, size: 0 })).toMatch(/Choose a PDF/);
-    expect(validateUpload(null)).toMatch(/Choose a PDF/);
+  test("rejects a file over 25 MB, an unsupported type and an empty file", () => {
+    expect(validateUpload({ ...pdf, size: MAX_UPLOAD_BYTES + 1 })).toMatch(/PDF is over 25 MB/);
+    expect(validateUpload({ name: "a.txt", type: "text/plain", size: 10 })).toMatch(/isn't supported/);
+    expect(validateUpload({ name: "a.doc", type: "application/msword", size: 10 })).toMatch(/\.docx/);
+    expect(validateUpload({ ...pdf, size: 0 })).toMatch(/Choose a file/);
+    expect(validateUpload(null)).toMatch(/Choose a file/);
+  });
+  // Feature 3: EPUB, Word and PowerPoint are added the same way (they used to be refused as "not a PDF").
+  test("accepts EPUB, Word (.docx) and PowerPoint (.pptx) up to 25 MB", () => {
+    for (const name of ["book.epub", "notes.docx", "deck.pptx"]) expect(validateUpload({ name, type: "", size: 1000 })).toBeUndefined();
+    expect(validateUpload({ name: "big.epub", type: "", size: MAX_UPLOAD_BYTES + 1 })).toMatch(/EPUB is over 25 MB/);
   });
   test("accepts a .pdf whose type the browser left blank", () => {
     expect(validateUpload({ name: "Book.PDF", type: "", size: 10 })).toBeUndefined();

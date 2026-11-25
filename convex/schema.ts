@@ -48,12 +48,20 @@ export default defineSchema({
 
   // ---- Reading experience (Feature 1). See ARCHITECTURE.md and decisions/004. ----
 
-  // One thing the user is learning from. `sourceType` is "pdf" today; links/video come later.
+  // One thing the user is learning from: an uploaded PDF, or an article / YouTube video added by link.
   documents: defineTable({
     userId: v.id("users"),
     title: v.string(),
-    sourceType: v.literal("pdf"),
-    fileId: v.id("_storage"),
+    // epub / word / powerpoint: read in the browser at upload and stored as text blocks (chunks), like articles.
+    sourceType: v.union(v.literal("pdf"), v.literal("article"), v.literal("video"), v.literal("epub"), v.literal("word"), v.literal("powerpoint")),
+    fileId: v.optional(v.id("_storage")), // uploaded files (PDF, EPUB, Word, PowerPoint)
+    sourceUrl: v.optional(v.string()), // articles and videos: the canonical link (linkRules.parseLink), used to spot duplicates
+    siteName: v.optional(v.string()), // article site or YouTube channel
+    imageUrl: v.optional(v.string()), // article preview image or YouTube thumbnail
+    videoId: v.optional(v.string()),
+    coverId: v.optional(v.id("_storage")), // a small cover image: a PDF's first page or an EPUB's own cover (made in the browser)
+    coverChecked: v.optional(v.boolean()), // page 1 was looked at and isn't a cover (a plain text page): keep the colour cover
+    folderId: v.optional(v.id("folders")), // the library folder it's filed in (ADR 016); none = "No folder"
     status: v.union(v.literal("processing"), v.literal("ready"), v.literal("failed")),
     statusMessage: v.optional(v.string()),
     hasText: v.optional(v.boolean()), // false = scanned/image-only: reading works, highlights and chat are off
@@ -62,6 +70,19 @@ export default defineSchema({
     lastLocator: v.optional(locator), // where the reader left off
     lastReadAt: v.optional(v.number()), // when the reader last moved in this book (orders the library)
     pagesSeen: v.optional(v.string()), // one character per page: "1" once it was on screen for ~2 s (see readingRules.ts)
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_source", ["userId", "sourceUrl"])
+    .index("by_folder", ["folderId"]),
+
+  // A reader's library folder (ADR 016). Holds any kind of item; an item is in at most one folder.
+  folders: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    colour: v.string(),
+    emoji: v.string(),
+    parentId: v.optional(v.id("folders")), // inside another folder (up to 4 levels); none = top level
+    playlistId: v.optional(v.string()), // made from a YouTube playlist: adding it again updates this folder
   }).index("by_user", ["userId"]),
 
   // A highlight, with an optional comment. `locator` is its first page (where the left panel jumps).
@@ -75,6 +96,9 @@ export default defineSchema({
       v.object({ page: v.number(), rects: v.array(v.object({ x: v.number(), y: v.number(), w: v.number(), h: v.number() })) })
     ),
     comment: v.optional(v.string()),
+    // Text sources (articles, EPUB, Word): where the highlight starts and ends, as character offsets inside blocks.
+    // `segments` is empty for these. The locator's page is the start block.
+    range: v.optional(v.object({ startBlock: v.number(), startOffset: v.number(), endBlock: v.number(), endOffset: v.number() })),
   }).index("by_document", ["documentId"]),
 
   // An image added to a note. Tracked so it's deleted with the book (the note itself only holds its link).
@@ -84,8 +108,32 @@ export default defineSchema({
     storageId: v.id("_storage"),
   }).index("by_document", ["documentId"]),
 
-  // The reader's note on one chapter. `content` is the editor's saved format (JSON), `plainText` a plain copy for AI.
-  // `dismissed` with no text means "not now" was chosen at the end-of-chapter prompt, so it isn't asked again.
+  // The Notebook's notes (Feature 3): any number per book, about one chapter (`sectionKey`) or none (General notes).
+  // `content` is the editor's saved format (JSON), `plainText` a plain copy for AI, search and export.
+  // `seconds`: a video note's place in the video.
+  notes: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    sectionKey: v.optional(v.string()),
+    content: v.string(),
+    plainText: v.string(),
+    seconds: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_document", ["documentId"]),
+
+  // A test question the reader chose to keep after answering it wrong: the question, their answer and the right one.
+  savedQuestions: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    chapterKey: v.string(),
+    question: v.string(),
+    yourAnswer: v.string(),
+    rightAnswer: v.string(),
+    page: v.optional(v.number()),
+  }).index("by_document", ["documentId"]),
+
+  // Before Feature 3: one note per chapter. Their text was moved into `notes` (notebook.migrateReflections); the
+  // rows stay (no data is deleted) but nothing reads them any more.
   reflections: defineTable({
     userId: v.id("users"),
     documentId: v.id("documents"),
@@ -128,6 +176,14 @@ export default defineSchema({
     score: v.number(),
     finished: v.boolean(),
   }).index("by_document_chapter", ["documentId", "chapterKey"]),
+
+  // Units spent per day on a metered outside API, overall (`scope: "all"`) and per reader (ADR 018).
+  apiUsage: defineTable({
+    api: v.string(),
+    day: v.string(),
+    scope: v.string(),
+    units: v.number(),
+  }).index("by_api_day_scope", ["api", "day", "scope"]),
 
   // XP, level and streak (ADR 009): one row per user, started fresh (not the legacy profiles). XP is only added by
   // server mutations; `awarded` holds the key of every award paid, so each action on a chapter pays once.

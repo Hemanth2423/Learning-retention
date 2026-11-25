@@ -20,7 +20,7 @@ export const run = internalAction({
   handler: async (ctx, { documentId, fileName }) => {
     try {
       const doc = await ctx.runMutation(internal.documents.getForIngest, { documentId });
-      if (!doc) return;
+      if (!doc?.fileId) return;
       const blob = await ctx.storage.get(doc.fileId);
       if (!blob) throw new Error("missing file");
       const bytes = new Uint8Array(await blob.arrayBuffer());

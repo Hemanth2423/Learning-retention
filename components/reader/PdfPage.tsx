@@ -1,8 +1,9 @@
 "use client";
 
 import type { PDFDocumentProxy, RenderTask, TextLayer } from "pdfjs-dist";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import type { Rect } from "@/convex/highlightRules";
+import { registerTextLayer } from "./textSelection";
 
 type Props = {
   pdf: PDFDocumentProxy;
@@ -18,7 +19,8 @@ type Props = {
 };
 
 // One page: a sheet of the right size that draws its canvas and selectable text only while it's near the screen.
-export function PdfPage({ pdf, pageNumber, scale, dims, near, root, marks, flashId, onDims, onNear }: Props) {
+// Memoised: scrolling updates the reader's state constantly, and a long book must not re-render every page for it.
+export const PdfPage = memo(function PdfPage({ pdf, pageNumber, scale, dims, near, root, marks, flashId, onDims, onNear }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -43,6 +45,7 @@ export function PdfPage({ pdf, pageNumber, scale, dims, near, root, marks, flash
     let cancelled = false;
     let task: RenderTask | undefined;
     let text: TextLayer | undefined;
+    let unregister: (() => void) | undefined;
 
     (async () => {
       const { TextLayer } = await import("pdfjs-dist");
@@ -59,6 +62,7 @@ export function PdfPage({ pdf, pageNumber, scale, dims, near, root, marks, flash
       textBox.replaceChildren();
       text = new TextLayer({ textContentSource: page.streamTextContent(), container: textBox, viewport: page.getViewport({ scale }) });
       await text.render();
+      if (!cancelled) unregister = registerTextLayer(textBox);
     })().catch((err) => {
       // A cancelled draw (scrolled away or zoomed) is expected; anything else is worth knowing about.
       if ((err as { name?: string })?.name !== "RenderingCancelledException") console.error("[reader] page draw failed", pageNumber, err);
@@ -68,6 +72,7 @@ export function PdfPage({ pdf, pageNumber, scale, dims, near, root, marks, flash
       cancelled = true;
       task?.cancel();
       text?.cancel();
+      unregister?.();
       canvas.width = 0; // frees the memory of pages that scrolled far away
       canvas.height = 0;
       textBox.replaceChildren();
@@ -78,7 +83,7 @@ export function PdfPage({ pdf, pageNumber, scale, dims, near, root, marks, flash
     <div
       ref={wrapRef}
       data-page={pageNumber}
-      className="relative shrink-0 bg-white shadow-sm"
+      className="relative shrink-0 bg-white ring-1 ring-ink/[0.07]"
       style={{ width: dims.w * scale, height: dims.h * scale }}
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />
@@ -100,4 +105,4 @@ export function PdfPage({ pdf, pageNumber, scale, dims, near, root, marks, flash
       />
     </div>
   );
-}
+});

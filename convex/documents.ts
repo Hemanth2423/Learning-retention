@@ -4,9 +4,11 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { chapterRanges } from "./chapters";
 import { bookProgress, chapterProgress, markPages, MAX_SEEN_PER_SAVE } from "./readingRules";
-import { libraryOrder, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateTitle } from "./documentRules";
+import { libraryOrder, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateCover, validateTitle } from "./documentRules";
 import { getOwnDocument, requireUser } from "./helpers";
 import { locator } from "./locators";
+import { kindOfFile } from "./textSourceRules";
+import { folderForNewItem } from "./folders";
 import { awardXp } from "./xp";
 import { awardKey, XP } from "./xpRules";
 
@@ -21,10 +23,15 @@ export const generateUploadUrl = mutation({
 // Called after the browser has uploaded the file. Re-checks size on the server (the browser check can be skipped),
 // then starts the (non-AI) preparation.
 export const create = mutation({
-  args: { fileId: v.id("_storage"), fileName: v.string() },
-  handler: async (ctx, { fileId, fileName }) => {
+  args: { fileId: v.id("_storage"), fileName: v.string(), folderId: v.optional(v.id("folders")) },
+  handler: async (ctx, { fileId, fileName, folderId }) => {
     const userId = await requireUser(ctx);
     const meta = await ctx.db.system.get(fileId); // size of the uploaded file
+    if (kindOfFile(fileName) !== "pdf") {
+      // EPUB, Word and PowerPoint go through textSources.ts.
+      await ctx.storage.delete(fileId);
+      return { ok: false as const, message: "That file isn't a PDF." };
+    }
     if (!meta || meta.size === 0 || meta.size > MAX_UPLOAD_BYTES) {
       // Return (don't throw): a thrown error would roll back this delete and leave the file in storage.
       await ctx.storage.delete(fileId);
@@ -35,6 +42,7 @@ export const create = mutation({
       title: fileName.replace(/\.pdf$/i, "").slice(0, 120) || "Untitled",
       sourceType: "pdf",
       fileId,
+      folderId: await folderForNewItem(ctx, userId, folderId),
       status: "processing",
       statusMessage: "Preparing your book…",
     });
@@ -49,8 +57,8 @@ export const get = query({
     const userId = await requireUser(ctx);
     const doc = await getOwnDocument(ctx, userId, documentId);
     if (!doc) return null;
-    const { fileId: _fileId, ...rest } = doc;
-    return rest;
+    const { fileId: _fileId, coverId, ...rest } = doc;
+    return { ...rest, coverUrl: coverId ? await ctx.storage.getUrl(coverId) : null };
   },
 });
 
@@ -60,7 +68,7 @@ export const fileUrl = query({
   handler: async (ctx, { documentId }) => {
     const userId = await requireUser(ctx);
     const doc = await getOwnDocument(ctx, userId, documentId);
-    if (!doc || doc.status !== "ready") return null;
+    if (!doc || doc.status !== "ready" || !doc.fileId) return null;
     return await ctx.storage.getUrl(doc.fileId);
   },
 });
@@ -74,14 +82,14 @@ export const saveProgress = mutation({
     const doc = await getOwnDocument(ctx, userId, documentId);
     if (!doc || !doc.pageCount) return;
     if (!Number.isInteger(page) || page < 1 || page > doc.pageCount) return;
-    const patch: { lastLocator: { kind: "pdf"; page: number }; lastReadAt: number; pagesSeen?: string } = {
-      lastLocator: { kind: "pdf", page },
+    const patch: { lastLocator: { kind: "pdf" | "text"; page: number }; lastReadAt: number; pagesSeen?: string } = {
+      lastLocator: { kind: doc.sourceType === "pdf" ? "pdf" : "text", page },
       lastReadAt: Date.now(),
     };
     if (seen?.length) patch.pagesSeen = markPages(doc.pagesSeen, doc.pageCount, seen.slice(0, MAX_SEEN_PER_SAVE));
     await ctx.db.patch(documentId, patch);
-    // 10 XP for each chapter read in full (paid once per chapter).
-    if (patch.pagesSeen && patch.pagesSeen !== doc.pagesSeen) {
+    // 10 XP for each chapter read in full (paid once per chapter). Books only (PDF, EPUB).
+    if (patch.pagesSeen && patch.pagesSeen !== doc.pagesSeen && (doc.sourceType === "pdf" || doc.sourceType === "epub")) {
       const read = chapterProgress(chapterRanges(doc.sections ?? [], doc.pageCount), patch.pagesSeen).filter((c) => c.read);
       await awardXp(ctx, userId, read.map((c) => ({ key: awardKey.read(documentId, c.key), xp: XP.read })));
     }
@@ -94,7 +102,7 @@ export const list = query({
   handler: async (ctx) => {
     const userId = await requireUser(ctx);
     const docs = await ctx.db.query("documents").withIndex("by_user", (q) => q.eq("userId", userId)).take(500);
-    return libraryOrder(docs).map((d) => {
+    return await Promise.all(libraryOrder(docs).map(async (d) => {
       const page = d.lastLocator?.page ?? null;
       const ranges = chapterRanges(d.sections ?? [], d.pageCount ?? 0);
       const at = page === null ? -1 : ranges.findIndex((r) => page >= r.startPage && page <= r.endPage);
@@ -107,10 +115,45 @@ export const list = query({
         page,
         chapterNumber: at >= 0 ? at + 1 : null,
         chapterTitle: at >= 0 ? ranges[at].title : null,
-        progress: bookProgress(d.pagesSeen, d.pageCount ?? 0),
+        progress: d.sourceType === "pdf" || d.sourceType === "epub" ? bookProgress(d.pagesSeen, d.pageCount ?? 0) : 0,
+        sourceType: d.sourceType,
+        siteName: d.siteName ?? null,
+        imageUrl: d.imageUrl ?? null,
+        coverUrl: d.coverId ? await ctx.storage.getUrl(d.coverId) : null,
+        needsCover: d.sourceType === "pdf" && d.status === "ready" && !d.coverId && !d.coverChecked,
+        folderId: d.folderId ?? null,
         lastReadAt: d.lastReadAt ?? null,
       };
-    });
+    }));
+  },
+});
+
+// Saves a cover image the browser made (a PDF's first page). The image is checked here, not trusted.
+// Returns instead of throwing on a bad image, so the delete of the uploaded file isn't rolled back.
+export const setCover = mutation({
+  args: { documentId: v.id("documents"), coverId: v.id("_storage") },
+  handler: async (ctx, { documentId, coverId }) => {
+    const userId = await requireUser(ctx);
+    const doc = await getOwnDocument(ctx, userId, documentId);
+    const meta = await ctx.db.system.get(coverId);
+    const problem = !doc ? "That book isn't in your library." : validateCover(meta ? { contentType: meta.contentType, size: meta.size } : null);
+    if (problem) {
+      await ctx.storage.delete(coverId).catch(() => {});
+      return { ok: false as const, message: problem };
+    }
+    if (doc!.coverId) await ctx.storage.delete(doc!.coverId).catch(() => {});
+    await ctx.db.patch(documentId, { coverId });
+    return { ok: true as const };
+  },
+});
+
+// Page 1 isn't a cover (mostly white: a text or title page). Remember that, so it isn't drawn again.
+export const skipCover = mutation({
+  args: { documentId: v.id("documents") },
+  handler: async (ctx, { documentId }) => {
+    const userId = await requireUser(ctx);
+    const doc = await getOwnDocument(ctx, userId, documentId);
+    if (doc && !doc.coverId) await ctx.db.patch(documentId, { coverChecked: true });
   },
 });
 
@@ -135,20 +178,23 @@ export const remove = mutation({
     const doc = await getOwnDocument(ctx, userId, documentId);
     if (!doc) return;
     await ctx.db.delete(documentId);
-    await ctx.scheduler.runAfter(0, internal.documents.purge, { documentId, fileId: doc.fileId });
+    await ctx.scheduler.runAfter(0, internal.documents.purge, { documentId, fileId: doc.fileId, coverId: doc.coverId });
   },
 });
 
 const PURGE_BATCH = 400;
 
 export const purge = internalMutation({
-  args: { documentId: v.id("documents"), fileId: v.optional(v.id("_storage")) },
-  handler: async (ctx, { documentId, fileId }) => {
+  args: { documentId: v.id("documents"), fileId: v.optional(v.id("_storage")), coverId: v.optional(v.id("_storage")) },
+  handler: async (ctx, { documentId, fileId, coverId }) => {
     if (fileId) await ctx.storage.delete(fileId).catch(() => {});
+    if (coverId) await ctx.storage.delete(coverId).catch(() => {});
     const batches = await Promise.all([
       ctx.db.query("chunks").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("highlights").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("reflections").withIndex("by_document_section", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
+      ctx.db.query("notes").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
+      ctx.db.query("savedQuestions").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("chatMessages").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("noteImages").withIndex("by_document", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
       ctx.db.query("quizzes").withIndex("by_document_chapter", (q) => q.eq("documentId", documentId)).take(PURGE_BATCH),
@@ -233,7 +279,7 @@ export const markFailed = internalMutation({
     if (!doc) return;
     const chunks = await ctx.db.query("chunks").withIndex("by_document", (q) => q.eq("documentId", documentId)).collect();
     for (const c of chunks) await ctx.db.delete(c._id);
-    await ctx.storage.delete(doc.fileId).catch(() => {});
+    if (doc.fileId) await ctx.storage.delete(doc.fileId).catch(() => {});
     await ctx.db.patch(documentId, { status: "failed", statusMessage: message });
   },
 });

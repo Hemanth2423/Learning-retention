@@ -13,6 +13,14 @@ type NotionBlock = {
 const MAX_TEXT_LENGTH = 2_000;
 const MAX_BLOCKS_PER_REQUEST = 100;
 const MAX_BLOCK_BYTES = 490_000;
+// Convex stops an action after 10 minutes, so a send still unfinished after that has died.
+const MAX_SEND_MS = 10 * 60 * 1000;
+
+export const PAGE_GONE = "We can’t reach that Notion page. Choose a page to send to.";
+
+export function isAbandonedSend(startedAt: number, now: number) {
+  return now - startedAt > MAX_SEND_MS;
+}
 
 function splitText(text: string): string[] {
   const parts: string[] = [];

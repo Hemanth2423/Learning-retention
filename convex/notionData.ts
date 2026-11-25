@@ -48,6 +48,15 @@ export const bookTarget = internalQuery({
   },
 });
 
+export const exportedPageIds = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const books = await ctx.db.query("documents").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+    const targets = await Promise.all(books.map((book) => target(ctx, book._id)));
+    return targets.flatMap((row) => (row?.remoteId ? [row.remoteId] : []));
+  },
+});
+
 export const expireState = internalMutation({
   args: { id: v.id("oauthStates") },
   handler: async (ctx, { id }) => {

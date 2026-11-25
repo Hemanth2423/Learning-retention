@@ -21,7 +21,9 @@ export function TestRound({
   onLeave,
   onDone,
   pageHref,
+  pageLabel = "p.",
 }: {
+  pageLabel?: "p." | "§"; // EPUBs have no page numbers: § = the part of the text
   attemptId: Id<"quizAttempts">;
   questions: PublicQuizQuestion[]; // in the order asked
   onLeave: () => void;
@@ -29,6 +31,9 @@ export function TestRound({
   pageHref: (page: number) => string;
 }) {
   const answer = useMutation(api.quizzes.answer);
+  const saveQuestion = useMutation(api.notebook.saveQuestion);
+  const [savedAt, setSavedAt] = useState<number | null>(null); // the position saved to notes, if any
+  const [saving, setSaving] = useState(false);
   const [pos, setPos] = useState(0);
   const [chosen, setChosen] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -92,7 +97,7 @@ export function TestRound({
             <i key={i} className={`h-3 flex-1 rounded border-2 border-ink ${i < pos || (i === pos && feedback) ? "bg-good" : i === pos ? "bg-ochre" : "bg-card"}`} />
           ))}
         </div>
-        <span className="text-xl tracking-[2px]" aria-label={`${hearts} of ${HEARTS} hearts left`} title="Hearts: you lose one for each wrong answer">
+        <span className="text-h2 tracking-[2px]" aria-label={`${hearts} of ${HEARTS} hearts left`} title="Hearts: you lose one for each wrong answer">
           {"❤️".repeat(hearts)}
           {"🤍".repeat(HEARTS - hearts)}
         </span>
@@ -100,10 +105,10 @@ export function TestRound({
       </div>
 
       <div className="mt-6 rounded-[18px] border-2 border-ink bg-card p-6" style={{ boxShadow: "0 6px 0 var(--ink)" }}>
-        <p className="flex items-center gap-2 font-game text-xs text-accent-dark">
+        <p className="flex items-center gap-2 font-game text-label text-accent-dark">
           <Bulb size={16} /> QUESTION {pos + 1} OF {questions.length}
         </p>
-        <h2 className="mb-5 mt-2 font-serif text-[23px] leading-snug">{q.question}</h2>
+        <h2 className="mb-5 mt-2 font-serif text-h2 leading-snug">{q.question}</h2>
         <div className="grid gap-2.5" role="group" aria-label="Answers">
           {q.options.map((o, i) => {
             const isRight = feedback && i === feedback.answer;
@@ -116,23 +121,23 @@ export function TestRound({
                 onClick={() => pick(i)}
                 disabled={chosen !== null}
                 aria-pressed={chosen === i}
-                className={`flex items-center gap-3 rounded-xl border-2 px-3.5 py-3 text-left text-base disabled:cursor-default ${tone} ${chosen === i && !feedback ? "opacity-70" : ""}`}
+                className={`flex items-center gap-3 rounded-xl border-2 px-3.5 py-3 text-left text-ui disabled:cursor-default ${tone} ${chosen === i && !feedback ? "opacity-70" : ""}`}
                 style={{ boxShadow: "0 3px 0 var(--ink)" }}
               >
-                <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md border-2 font-game text-xs ${key}`}>{KEYS[i]}</span>
+                <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md border-2 font-game text-label ${key}`}>{KEYS[i]}</span>
                 {o}
               </button>
             );
           })}
         </div>
         {error && (
-          <p role="alert" className="mt-4 text-sm text-bad">
+          <p role="alert" className="mt-4 text-ui text-bad">
             {error}
           </p>
         )}
         {feedback && (
           <div role="status" className={`mt-5 rounded-[14px] border-2 border-ink px-4 py-3.5 ${feedback.correct ? "bg-good-soft" : "bg-accent-soft"}`}>
-            <b className="mb-1 block text-base">{feedback.correct ? "Nice! That's right." : "Not quite."}</b>
+            <b className="mb-1 block text-ui">{feedback.correct ? "Nice! That's right." : "Not quite."}</b>
             {!feedback.correct && feedback.whyWrong && <p className="mb-1.5">{feedback.whyWrong}</p>}
             <p>
               {feedback.explanation}
@@ -143,16 +148,38 @@ export function TestRound({
                     href={pageHref(feedback.page)}
                     target="_blank"
                     rel="noreferrer"
-                    className="whitespace-nowrap rounded bg-ochre/25 px-1.5 py-0.5 text-sm font-semibold underline-offset-2 hover:bg-ochre/45 hover:underline"
+                    className="whitespace-nowrap rounded bg-ochre/25 px-1.5 py-0.5 text-ui font-semibold underline-offset-2 hover:bg-ochre/45 hover:underline"
                     title="Open this page in the book (new tab, so your test stays here)"
                   >
-                    p.{feedback.page} ↗
+                    {pageLabel}
+                    {feedback.page} ↗
                   </a>
                 </>
               )}
             </p>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <span className="font-game text-sm text-[#2f4a2b]">{feedback.xp > 0 ? `+${feedback.xp} XP` : ""}</span>
+              <span className="font-game text-ui text-[#2f4a2b]">{feedback.xp > 0 ? `+${feedback.xp} XP` : ""}</span>
+              {!feedback.correct && (
+                // Results never go in by themselves: the reader chooses which questions to keep.
+                <button
+                  className="quiet ml-auto"
+                  disabled={saving || savedAt === pos}
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      await saveQuestion({ attemptId, position: pos });
+                      setSavedAt(pos);
+                    } catch {
+                      setError("We couldn't save that question. Try again.");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  title="Keeps the question, your answer and the right one in this chapter's Notebook"
+                >
+                  {savedAt === pos ? "✓ Saved to notes" : "📓 Save to notes"}
+                </button>
+              )}
               <button onClick={next} className="chunky" autoFocus>
                 {last ? "Finish ›" : "Next ›"}
               </button>

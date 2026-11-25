@@ -31,7 +31,7 @@ export function IconButton({
       </button>
       <span
         role="tooltip"
-        className={`pointer-events-none absolute z-50 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs font-medium text-paper opacity-0 shadow transition-opacity delay-100 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 ${place}`}
+        className={`pointer-events-none absolute z-50 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-label font-medium text-paper opacity-0 shadow transition-opacity delay-100 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 ${place}`}
       >
         {label}
       </span>
@@ -45,25 +45,17 @@ const svg = (paths: ReactNode, size = 18) => (
   </svg>
 );
 
+const emo = (char: string) => (
+  <span aria-hidden="true" className="text-base leading-none">
+    {char}
+  </span>
+);
+
 export const Icons = {
-  highlight: svg(
-    <>
-      <path d="m9 11-6 6v3h9l3-3" />
-      <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
-    </>
-  ),
-  comment: svg(
-    <>
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      <path d="M12 7v6M9 10h6" />
-    </>
-  ),
-  ask: svg(
-    <>
-      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
-      <path d="M19 15l.7 1.8L21.5 17.5l-1.8.7L19 20l-.7-1.8-1.8-.7 1.8-.7z" />
-    </>
-  ),
+  // Study actions use emoji, as in the prototype; page controls keep simple line glyphs.
+  highlight: emo("🖍"),
+  comment: emo("💬"),
+  ask: emo("✨"),
   prev: svg(<path d="m15 18-6-6 6-6" />, 16),
   next: svg(<path d="m9 18 6-6-6-6" />, 16),
   minus: svg(<path d="M5 12h14" />, 16),
