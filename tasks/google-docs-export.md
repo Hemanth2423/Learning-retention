@@ -34,6 +34,10 @@
 - **Out of scope:** Reading changes back from Google Docs, broad public OAuth publication/verification, arbitrary document templates, or changing the Notion feature.
 - **Schema:** Reuse the current schema. Any unexpected schema change requires Hemanth's approval, an architecture update, and an ADR before implementation.
 
+## Future improvement
+
+- Add an optional Google Drive picker so a reader can import an existing Google Doc into Ingrain or bring later edits back from the exported Doc. This would be a separate two-way-sync feature with its own permissions, duplicate/conflict rules, and tests; the current feature remains a one-way export from Ingrain to Google Docs.
+
 ## Relevant files
 
 - `convex/exportRules.ts`
