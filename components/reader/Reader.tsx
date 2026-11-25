@@ -17,6 +17,7 @@ import { ChatPanel, useChat } from "./Chat";
 import { PageNav } from "./PageNav";
 import { NotebookPanel } from "@/components/notebook/NotebookPanel";
 import { useNotebook } from "@/components/notebook/useNotebook";
+import { BookMindMap } from "./BookMindMap";
 import { MoreTools } from "./MoreTools";
 import { RightPanel, StudyTab } from "./RightPanel";
 import { chapterBadge, readableTitle } from "./text";
@@ -112,6 +113,7 @@ export function Reader({ doc, url, startPage, startNotes, startNotebook }: { doc
   const [page, setPage] = useState(initialPage);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [contentsOpen, setContentsOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   // Opened from a chapter's Notes marker on the path: the drawer starts open on the Notebook.
   const [studyOpen, setStudyOpen] = useState(!!startNotes || !!startNotebook);
   const [studyTab, setStudyTab] = useState<StudyTab>(canHighlight && !startNotes && !startNotebook ? "ask" : "notebook");
@@ -318,7 +320,13 @@ export function Reader({ doc, url, startPage, startNotes, startNotebook }: { doc
         />
       ),
     },
-    { key: "more" as const, label: "More", icon: MORE_ICON, content: <MoreTools /> },
+    { key: "more" as const, label: "More", icon: MORE_ICON, content: (
+        <MoreTools
+          practiceHref={canHighlight && chapter ? `/read/${doc._id}/test?chapter=${encodeURIComponent(chapter.key)}` : undefined}
+          onMindMap={() => setMapOpen(true)}
+        />
+      ),
+    },
   ];
 
   return (
@@ -326,7 +334,7 @@ export function Reader({ doc, url, startPage, startNotes, startNotebook }: { doc
       <header
         onMouseEnter={() => (overMenu.current = true)}
         onMouseLeave={() => (overMenu.current = false)}
-        className={`absolute inset-x-0 top-0 z-30 flex items-center gap-2.5 border-b border-ink/[0.07] bg-canvas/95 px-4 py-3 backdrop-blur transition duration-300 ${
+        className={`absolute inset-x-0 top-0 z-30 flex items-center gap-2.5 border-b border-line bg-cream/95 px-4 py-3 backdrop-blur transition duration-300 ${
           menuShown ? "" : "pointer-events-none -translate-y-full opacity-0"
         }`}
       >
@@ -411,6 +419,9 @@ export function Reader({ doc, url, startPage, startNotes, startNotebook }: { doc
             window.getSelection()?.removeAllRanges();
           }}
         />
+      )}
+      {mapOpen && (
+        <BookMindMap documentId={doc._id} title={doc.title} ranges={ranges} sections={sections} currentKey={chapter?.key ?? null} onJump={jumpToPage} onClose={() => setMapOpen(false)} />
       )}
       {notice && (
         <p role="alert" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-ui text-paper shadow-lg">

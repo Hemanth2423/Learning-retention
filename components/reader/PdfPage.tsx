@@ -83,7 +83,7 @@ export const PdfPage = memo(function PdfPage({ pdf, pageNumber, scale, dims, nea
     <div
       ref={wrapRef}
       data-page={pageNumber}
-      className="relative shrink-0 bg-white ring-1 ring-ink/[0.07]"
+      className="relative shrink-0 bg-white shadow-[0_1px_3px_rgba(0,0,0,.18),0_4px_14px_rgba(0,0,0,.10)]"
       style={{ width: dims.w * scale, height: dims.h * scale }}
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />

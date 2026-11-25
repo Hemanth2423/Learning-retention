@@ -10,7 +10,8 @@ import { NODE } from "./TopicList";
 // A collapsible concept map: course → pillars → sub-ideas → finer points.
 // Starts with only the first level open; (+) on a node opens the next level.
 
-type Node = { id: string; label: string; depth: number; href?: string; state?: NodeState; children: Node[] };
+export type MapNode = { id: string; label: string; depth: number; href?: string; onPick?: () => void; title?: string; state?: NodeState; children: MapNode[] };
+type Node = MapNode;
 type Placed = { node: Node; x: number; y: number; w: number; parent?: Placed };
 
 const ROW = 46; // vertical space per visible leaf
@@ -65,7 +66,6 @@ function layout(root: Node, open: Set<string>) {
 
 export function MindMap({ courseId, title }: { courseId: string; title: string }) {
   const topics = useQuery(api.topics.listByCourse, { courseId });
-  const [open, setOpen] = useState<Set<string>>(() => new Set(["root"]));
 
   const root = useMemo<Node | null>(() => {
     if (!topics) return null;
@@ -89,17 +89,39 @@ export function MindMap({ courseId, title }: { courseId: string; title: string }
     };
   }, [topics, title]);
 
+  if (!root) return null;
+  return (
+    <MindMapTree
+      root={root}
+      heading="Concept map"
+      footer={
+        <>
+          <span>Click (+) to go deeper. Click a pillar&apos;s name to open its lesson.</span>
+          {(["new", "learning", "known", "learned"] as NodeState[]).map((s) => (
+            <span key={s} className="flex items-center gap-1.5">
+              <span className={`h-2.5 w-2.5 rounded-full ${NODE[s].dot}`} />
+              {s === "learned" ? "Learned / ingrained" : NODE[s].label.split(":")[0]}
+            </span>
+          ))}
+        </>
+      }
+    />
+  );
+}
+
+// The collapsible tree itself, shared by the course page and the reader's mind map tool.
+export function MindMapTree({ root, heading, footer, initialOpen = ["root"] }: { root: Node; heading: string; footer?: React.ReactNode; initialOpen?: string[] }) {
+  const [open, setOpen] = useState<Set<string>>(() => new Set(initialOpen));
   const allIds = useMemo(() => {
     const ids: string[] = [];
     const walk = (n: Node) => {
       if (n.children.length) ids.push(n.id);
       n.children.forEach(walk);
     };
-    if (root) walk(root);
+    walk(root);
     return ids;
   }, [root]);
 
-  if (!root) return null;
   const { placed, width, height } = layout(root, open);
   const toggle = (id: string) =>
     setOpen((prev) => {
@@ -112,7 +134,7 @@ export function MindMap({ courseId, title }: { courseId: string; title: string }
   return (
     <section>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-serif text-2xl">Concept map</h2>
+        <h2 className="font-serif text-2xl">{heading}</h2>
         <div className="flex gap-2">
           <button className="btn-ghost px-3 py-1 text-xs" onClick={() => setOpen(new Set(allIds))}>Expand all</button>
           <button className="btn-ghost px-3 py-1 text-xs" onClick={() => setOpen(new Set(["root"]))}>Collapse</button>
@@ -145,7 +167,9 @@ export function MindMap({ courseId, title }: { courseId: string; title: string }
           {placed.map((p) => {
             const n = p.node;
             const isOpen = open.has(n.id);
-            const label = n.href ? (
+            const label = n.onPick ? (
+              <button onClick={n.onPick} className="truncate text-left hover:underline" title={n.title ?? n.label}>{n.label}</button>
+            ) : n.href ? (
               <Link href={n.href} className="truncate hover:underline" title={`Open the lesson: ${n.label}`}>{n.label}</Link>
             ) : (
               <span className="truncate" title={n.label}>{n.label}</span>
@@ -181,15 +205,7 @@ export function MindMap({ courseId, title }: { courseId: string; title: string }
           })}
         </div>
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-        <span>Click (+) to go deeper. Click a pillar&apos;s name to open its lesson.</span>
-        {(["new", "learning", "known", "learned"] as NodeState[]).map((s) => (
-          <span key={s} className="flex items-center gap-1.5">
-            <span className={`h-2.5 w-2.5 rounded-full ${NODE[s].dot}`} />
-            {s === "learned" ? "Learned / ingrained" : NODE[s].label.split(":")[0]}
-          </span>
-        ))}
-      </div>
+      {footer && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">{footer}</div>}
     </section>
   );
 }

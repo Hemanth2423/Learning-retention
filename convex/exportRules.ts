@@ -1,9 +1,11 @@
 // The one export builder (TEAM-PLAN.md): a book → its chapters in book order, each with notes, highlights (with
 // comments) and saved questions. Markdown download, Copy all and Print use it; Notion and Google Docs can too.
 // Pure, so it runs in the browser or in a Convex action, and is tested in exportRules.test.ts.
-import { readableTitle } from "../components/reader/text";
 import { ChapterRange, chapterRanges, SectionLike } from "./chapters";
 import { chapterParts } from "./notebookRules";
+
+export const BEFORE_FIRST_CHAPTER = "Before the first chapter";
+export const GENERAL_NOTES = "General notes";
 
 export type ExportOptions = { notes: boolean; highlights: boolean; saved: boolean };
 export const ALL_PARTS: ExportOptions = { notes: true, highlights: true, saved: true };
@@ -16,7 +18,7 @@ export type ExportSection = {
   key: string;
   title: string;
   part?: string;
-  notes: { markdown: string; seconds?: number }[];
+  notes: { markdown: string; text: string; seconds?: number }[];
   highlights: { text: string; comment?: string; where: string }[];
   saved: ExportSaved[];
 };
@@ -80,7 +82,7 @@ export function noteToMarkdown(content: string, plainText: string): string {
 
 // ---- The book structure ----
 
-const formatTime = (s: number) => {
+export const formatTime = (s: number) => {
   const t = Math.max(0, Math.floor(s));
   const h = Math.floor(t / 3600);
   const m = Math.floor((t % 3600) / 60);
@@ -101,15 +103,24 @@ export function buildExport(input: {
 }): ExportBook {
   const o = input.options ?? ALL_PARTS;
   const known = new Set(input.ranges.map((r) => r.key));
-  const rangeOf = (page: number) => input.ranges.find((r) => page >= r.startPage && page <= r.endPage)?.key ?? null;
+  // A highlight belongs to the last chapter starting on or before its page, so it never appears twice.
+  const rangeOf = (page: number) => input.ranges.reduce<string | null>((found, r) => (r.startPage <= page ? r.key : found), null);
   const label = input.pageLabel ?? "p.";
   const sortNotes = (n: ExportNote[]) => [...n].sort((a, b) => (a.seconds ?? -1) - (b.seconds ?? -1) || a.createdAt - b.createdAt);
-  const noteOut = (n: ExportNote) => ({ markdown: noteToMarkdown(n.content, n.plainText), ...(n.seconds != null ? { seconds: n.seconds } : {}) });
+  const noteOut = (n: ExportNote) => ({ markdown: noteToMarkdown(n.content, n.plainText), text: n.plainText.trim(), ...(n.seconds != null ? { seconds: n.seconds } : {}) });
+
+  const highlightsIn = (key: string | null) =>
+    input.highlights
+      .filter((h) => rangeOf(h.page) === key)
+      .sort((a, b) => a.order - b.order)
+      .map((h) => ({ text: h.text, ...(h.comment ? { comment: h.comment } : {}), where: `${label}${label === "§" ? "" : " "}${h.page}` }));
 
   const sections: ExportSection[] = [];
   const parts = chapterParts(input.sections, input.ranges.map((r) => r.key));
   const general = o.notes ? input.notes.filter((n) => n.sectionKey === null || !known.has(n.sectionKey)) : [];
-  if (general.length) sections.push({ key: "general", title: "General notes", notes: sortNotes(general).map(noteOut), highlights: [], saved: [] });
+  if (general.length) sections.push({ key: "general", title: GENERAL_NOTES, notes: sortNotes(general).map(noteOut), highlights: [], saved: [] });
+  const early = o.highlights ? highlightsIn(null) : [];
+  if (early.length) sections.push({ key: "before", title: BEFORE_FIRST_CHAPTER, notes: [], highlights: early, saved: [] });
 
   for (const r of input.ranges) {
     const s: ExportSection = {
@@ -117,12 +128,7 @@ export function buildExport(input: {
       title: r.title,
       part: parts.get(r.key),
       notes: o.notes ? sortNotes(input.notes.filter((n) => n.sectionKey === r.key)).map(noteOut) : [],
-      highlights: o.highlights
-        ? input.highlights
-            .filter((h) => rangeOf(h.page) === r.key)
-            .sort((a, b) => a.order - b.order)
-            .map((h) => ({ text: h.text, ...(h.comment ? { comment: h.comment } : {}), where: `${label}${label === "§" ? "" : " "}${h.page}` }))
-        : [],
+      highlights: o.highlights ? highlightsIn(r.key) : [],
       saved: o.saved ? input.saved.filter((q) => q.chapterKey === r.key).sort((a, b) => a.createdAt - b.createdAt) : [],
     };
     if (s.notes.length || s.highlights.length || s.saved.length) sections.push(s);
@@ -147,7 +153,7 @@ export function toMarkdown(book: ExportBook, exportedOn?: string): string {
       lines.push(`## ${escapeMarkdown(s.part)}`, "");
       lastPart = s.part;
     }
-    lines.push(`${hasParts && s.key !== "general" ? "###" : "##"} ${escapeMarkdown(s.title)}`, "");
+    lines.push(`${hasParts && s.key !== "general" && s.key !== "before" ? "###" : "##"} ${escapeMarkdown(s.title)}`, "");
     for (const n of s.notes) lines.push(n.seconds !== undefined ? `**[${formatTime(n.seconds)}]** ${n.markdown}` : n.markdown, "");
     for (const h of s.highlights) {
       lines.push(`> ${escapeMarkdown(h.text)} (${h.where})`, "");
@@ -223,77 +229,49 @@ export function exportFileName(title: string, ext = "md"): string {
   return `${base}.${ext}`;
 }
 
-// ---- Notion: the same notebook as chapters of plain text ----
+// ---- One saved book → the export. The Export sheet and Notion both start here, so they always match. ----
 
-export const BEFORE_FIRST_CHAPTER = "Before the first chapter";
-export const GENERAL_NOTES = "General notes";
-
-type NotebookHighlight = {
+type BookRow = {
+  title: string;
+  sourceType: string;
+  siteName?: string;
+  sourceUrl?: string;
+  sections?: (SectionLike & { title: string })[];
+  pageCount?: number;
+};
+type NoteRow = { sectionKey?: string | null; content: string; plainText: string; seconds?: number | null; _creationTime: number };
+type HighlightRow = {
   locator: { page: number };
   text: string;
   comment?: string;
-  segments?: { page: number; rects: { x: number; y: number }[] }[];
+  range?: { startOffset: number };
+  segments: { rects: { x: number; y: number }[] }[];
 };
+type SavedRow = Omit<ExportSaved, "createdAt"> & { _creationTime: number };
 
-type NotebookInput = {
-  title: string;
-  sections: (SectionLike & { title: string })[];
-  pageCount: number;
-  notes: { sectionKey?: string | null; plainText?: string }[];
-  highlights: NotebookHighlight[];
-};
-
-// Where a highlight starts on its page, so highlights read top to bottom.
-function startOnPage({ locator, segments }: NotebookHighlight) {
-  return segments?.find(({ page }) => page === locator.page)?.rects[0] ?? { x: 0, y: 0 };
+// Reading order on a page: where the text starts in an article, top to bottom then left to right in a PDF.
+function highlightOrder({ locator, range, segments }: HighlightRow) {
+  const start = segments[0]?.rects[0];
+  return locator.page * 1e6 + (range ? range.startOffset : (start?.y ?? 0) * 1e5 + (start?.x ?? 0));
 }
 
-function inReadingOrder(a: NotebookHighlight, b: NotebookHighlight) {
-  const [first, second] = [startOnPage(a), startOnPage(b)];
-  return a.locator.page - b.locator.page || first.y - second.y || first.x - second.x;
-}
-
-function exportedHighlight({ locator, text, comment }: NotebookHighlight) {
-  return { quote: text, comment: comment ?? "", page: locator.page };
-}
-
-export function buildNotebookExport({
-  title,
-  sections,
-  pageCount,
-  notes,
-  highlights,
-}: NotebookInput) {
-  const ranges = chapterRanges(sections, pageCount);
-  const known = new Set(ranges.map(({ key }) => key));
-  // A chapter can hold several notes. Notes with no chapter (or a chapter that no longer exists) stay as general notes.
-  const notesByChapter = new Map<string, string[]>();
-  for (const { sectionKey, plainText } of notes) {
-    const text = plainText?.trim();
-    if (!text) continue;
-    const key = sectionKey && known.has(sectionKey) ? sectionKey : GENERAL_NOTES;
-    notesByChapter.set(key, [...(notesByChapter.get(key) ?? []), text]);
-  }
-
-  // Each highlight belongs to the last chapter starting on or before its page (-1: before them all).
-  const byChapter = new Map<number, NotebookHighlight[]>();
-  for (const highlight of [...highlights].sort(inReadingOrder)) {
-    const index = ranges.reduce((found, { startPage }, i) => (startPage <= highlight.locator.page ? i : found), -1);
-    byChapter.set(index, [...(byChapter.get(index) ?? []), highlight]);
-  }
-
-  const chapters = ranges.flatMap((chapter, index) => {
-    const note = notesByChapter.get(chapter.key)?.join("\n\n") ?? "";
-    const chapterHighlights = (byChapter.get(index) ?? []).map(exportedHighlight);
-
-    if (!note && chapterHighlights.length === 0) return [];
-    return [{ heading: readableTitle(chapter.title), note, highlights: chapterHighlights }];
+export function buildBookExport({ book, notes, highlights, saved, options }: {
+  book: BookRow;
+  notes: NoteRow[];
+  highlights: HighlightRow[];
+  saved: SavedRow[];
+  options?: ExportOptions;
+}): ExportBook {
+  const kind = book.sourceType === "article" ? "Article" : book.sourceType === "video" ? "Video" : null;
+  return buildExport({
+    title: book.title,
+    source: kind ? [kind, book.siteName, book.sourceUrl].filter(Boolean).join(" · ") : undefined,
+    ranges: chapterRanges(book.sections ?? [], book.pageCount ?? 0),
+    sections: book.sections ?? [],
+    notes: notes.map((n) => ({ sectionKey: n.sectionKey ?? null, content: n.content, plainText: n.plainText, seconds: n.seconds, createdAt: n._creationTime })),
+    highlights: highlights.map((h) => ({ page: h.locator.page, text: h.text, comment: h.comment, order: highlightOrder(h) })),
+    saved: saved.map(({ _creationTime, ...s }) => ({ ...s, createdAt: _creationTime })),
+    options,
+    pageLabel: book.sourceType === "article" ? "§" : "p.",
   });
-  const early = byChapter.get(-1);
-  if (early) chapters.unshift({ heading: BEFORE_FIRST_CHAPTER, note: "", highlights: early.map(exportedHighlight) });
-
-  const general = notesByChapter.get(GENERAL_NOTES);
-  if (general) chapters.unshift({ heading: GENERAL_NOTES, note: general.join("\n\n"), highlights: [] });
-
-  return { title, chapters };
 }
